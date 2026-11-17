@@ -534,6 +534,14 @@ local function findButton(phrases, exact, requiredContext, requireUnique)
                         local matched
                         if exact then
                             matched = textOnly == target or norm(button.Name) == target
+                            if not matched then
+                                for _, child in ipairs(button:GetDescendants()) do
+                                    if (child:IsA("TextLabel") or child:IsA("TextButton")) and norm(child.Text) == target then
+                                        matched = true
+                                        break
+                                    end
+                                end
+                            end
                         else
                             matched = string.find(haystack, target, 1, true) ~= nil
                         end
@@ -1517,19 +1525,21 @@ local function redeemYoutubeReward()
 end
 
 local function claimKingIndex()
-    if not string.find(allGuiText(), "index", 1, true) then
-        for attempt = 1, 16 do
-            if not state.running then return false end
-            interactWithNpc("King")
-            task.wait(0.45)
-            if clickFirstPhrase({"Open Index"}, "king-open-index", false, nil, true) then break end
+    for attempt = 1, 16 do
+        if not state.running then return false end
+        local claim = findButton({"Claim All"}, true, "index", true)
+        if claim then
+            return clickButton(claim, "king-index-claim-all", 1.8)
         end
+        local openIndex = findButton({"Open Index"}, false, nil, true)
+        if openIndex then
+            clickButton(openIndex, "king-open-index", 0.8)
+        else
+            interactWithNpc("King")
+        end
+        task.wait(0.45)
     end
-    local claim = findButton({"Claim All"}, true, "index", true)
-    if claim then
-        return clickButton(claim, "king-index-claim-all", 1.8)
-    end
-    log("King's Index aberto; não há Claim All disponível agora.", THEME.warning)
+    log("King's Index aberto ou não há Claim All disponível agora.", THEME.warning)
     return false
 end
 
