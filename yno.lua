@@ -989,7 +989,7 @@ local function countTargetLabels(targets)
     end
     for _, root in ipairs(playerGui:GetChildren()) do
         for _, item in ipairs(root:GetDescendants()) do
-            if item:IsA("TextLabel") and visible(item) and item.Text and item.Text ~= "" then
+            if (item:IsA("TextLabel") or item:IsA("TextButton")) and visible(item) and item.Text and item.Text ~= "" then
                 local value = normalize(item.Text)
                 for _, token in ipairs(tokens) do
                     if string.find(value, token.normalized, 1, true) then
@@ -1617,6 +1617,7 @@ end
 
 local function processAutomation()
     while state.running do
+        local cycleOk, cycleError = pcall(function()
         if state.toggles.autoJoin and not isGameScreen() then
             local delayTime = safeNumber(state.values.joinDelay, 8, 3, 90)
             local mode = state.values.joinMode or "Story"
@@ -1630,11 +1631,12 @@ local function processAutomation()
         if state.toggles.autoSkip then
             clickWhenVisible("auto-skip", {"vote skip", "skip wave"}, 1.5, false)
         end
-        if state.toggles.autoReplay then
-            clickWhenVisible("auto-replay", {"replay", "retry"}, 2.0, true)
-        end
-        if state.toggles.autoNext then
-            clickWhenVisible("auto-next", {"next stage", "next"}, 2.0, true)
+        local nextButton = state.toggles.autoNext and findButton({"Next Stage", "Next"}, true) or nil
+        local replayButton = state.toggles.autoReplay and findButton({"Replay", "Retry"}, true) or nil
+        if nextButton then
+            activate(nextButton, "auto-next", 2.0)
+        elseif replayButton then
+            activate(replayButton, "auto-replay", 2.0)
         end
         if state.toggles.autoAbilities then
             clickAllWhenVisible("auto-ability", {"use ability", "ability ready"}, 1.1)
@@ -1678,7 +1680,6 @@ local function processAutomation()
                 log("Limite de reroll atingido: " .. tostring(limit), THEME.yellow)
             else
                 local button = findButton({"reroll"}, false, state.values.rerollKind)
-                if not button then button = findButton({"reroll"}, false) end
                 if button and activate(button, "reroll-cycle", 2.0) then
                     state.rerollCount = state.rerollCount + 1
                     log("Reroll " .. tostring(state.rerollCount) .. "/" .. tostring(limit), THEME.cyan)
@@ -1699,7 +1700,7 @@ local function processAutomation()
             end
         end
         if state.toggles.autoTrain then
-            clickWhenVisible("auto-train", {"start training", "train selected", "train"}, 2.0, false)
+            clickWhenVisible("auto-train", {"start training", "train selected"}, 2.0, false)
         end
         if state.toggles.autoMinigame then
             clickWhenVisible("auto-minigame", {"play again", "start minigame"}, 3.0, false)
@@ -1718,6 +1719,11 @@ local function processAutomation()
             elseif not finished then
                 state.stageWebhookSent = false
             end
+        end
+        end)
+        if not cycleOk then
+            log("Automation recovery: " .. tostring(cycleError), THEME.red)
+            task.wait(1)
         end
         task.wait(0.45)
     end
