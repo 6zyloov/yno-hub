@@ -809,6 +809,13 @@ local function sendKeyTap(keyName)
         log("Tecla não mapeada para replay: " .. tostring(keyName), THEME.yellow)
         return false
     end
+    if type(isrbxactive) == "function" then
+        local focusOk, focused = pcall(isrbxactive)
+        if focusOk and not focused then
+            log("Roblox precisa estar em primeiro plano para receber a tecla.", THEME.yellow)
+            return false
+        end
+    end
     if type(keyclick) == "function" then
         return pcall(keyclick, code)
     end
@@ -1113,6 +1120,24 @@ local function buildOverview()
     textLabel(overviewBar, "F6  Gravar     F7  Parar     F8  Reproduzir     F9  Interromper", 11, THEME.text, true, 28).Position = UDim2.new(0, 0, 0, 26)
 end
 
+local function buildFarmPlanner()
+    section(page, "Farm Planner", "Rotas de recursos documentadas para decidir o que farmar e qual atividade repetir.")
+    addInfo(page, "Gems · Daily + Quests", "Complete Login Rewards, Daily Quests e Guidebook. O track semanal completo soma 22.500 Gems e 225 Trait Remnants. Resgate prêmios acumulados antes de repetir estágios.", "DAILY", THEME.green, 82)
+    addInfo(page, "Gold · Crusader Dash", "Colete moedas no minigame Crusader Dash: 10 Gold por moeda, com limite diário de 100.000 Gold nessa atividade.", "100K / DAY", THEME.yellow, 76)
+    addInfo(page, "Gold · Chess / Reel Rush", "Chess paga 1.000 Gold por vitória contra outro jogador. Reel Rush tem duas tentativas diárias com recompensa; o pool listado inclui 10.000 Gold e 1 Event Token.", "MINIGAMES", THEME.cyan, 82)
+    addInfo(page, "Event Tokens + Blank Tokens", "Complete os três objetivos de um Bounty Card para receber 5 Event Tokens e 1 Blank Token. Primeira vitória diária no Chess e Reel Rush também podem dar Event Token.", "BOUNTY", THEME.purple, 82)
+    addInfo(page, "Trait Remnants / Trait Tokens", "Use Daily Login, Guidebook, Daily Quests e as lojas de Boss Rush. O custo pode variar conforme a unidade; confira antes de repetir rerolls.", "TRAITS", THEME.purple, 76)
+    addInfo(page, "Stat Cubes / Perfect Stat Cubes", "Stat Cube rerrola Damage, SPA e Range juntos. Perfect Stat Cube rerrola um atributo escolhido. Multi custa 1 Stat Cube por unidade selecionada.", "STATS", THEME.cyan, 78)
+    addInfo(page, "Relic Cubes / Curse Tokens", "Relic Cube rerrola um atributo de relíquia. Curse Token aplica curse em Twenty One. Mely's Shop e lojas de evento/raid podem fornecer materiais conforme o estoque.", "RELICS", THEME.yellow, 78)
+    addInfo(page, "Repeatable stage farming", "Use Macro → Run → Loop para repetir a fase atual, ou Routine para enfileirar várias fases e quantidades de runs. Smart Macro posiciona, atualiza e vende farms conforme os slots configurados.", "AUTO FARM", THEME.green, 88)
+    addAction(page, "Open resource farming guide", "Veja valores, limites diários e condições mais recentes de cada recompensa.", "COPY URL", function()
+        safeClipboard("https://anime-crusaders-x.wiki/resource-farming/")
+    end)
+    addAction(page, "Open Macro presets", "Pesquise presets por mapa/modo e confira os bindings antes de importar.", "COPY URL", function()
+        safeClipboard("https://anime-crusaders-x.wiki/macro-presets/")
+    end)
+end
+
 local function buildJoiner()
     section(page, "Joiner", "Seleciona o modo e aciona as opções visíveis do lobby.")
     addSelect(page, "joinMode", "Target mode", {
@@ -1196,10 +1221,21 @@ local function buildGame()
     addToggle(page, "antiAfk", "Anti AFK", "Tenta manter a sessão ativa usando o VirtualUser do cliente.", false, function(enabled)
         if enabled then log("Anti AFK ativo enquanto a sessão estiver carregada.", THEME.green) end
     end)
-    addAction(page, "Apply Auto Upgrade to selected unit", "Na partida, selecione uma unidade e use o botão Auto do próprio painel dela. O jogo alterna P1 → P6 → Off; o Smart Macro controla upgrades automaticamente por slot.", "CLICK AUTO", function()
-        if not clickWhenVisible("selected-unit-auto", {"auto"}, 2.2, true) then
-            log("Selecione uma unidade para exibir o botão Auto do jogo.", THEME.yellow)
+    addAction(page, "Cycle Auto Upgrade priority", "Com uma unidade selecionada, envia Z para alternar P1 → P2 → P3 → P4 → P5 → P6 → Off.", "PRESS Z", function()
+        if not sendKeyTap("Z") then log("Selecione uma unidade e deixe Roblox em primeiro plano.", THEME.yellow) end
+    end)
+    addAction(page, "Instant Auto Upgrade", "Com uma unidade selecionada, envia N para executar a ação Auto instantânea do jogo.", "PRESS N", function()
+        if not sendKeyTap("N") then log("Selecione uma unidade e deixe Roblox em primeiro plano.", THEME.yellow) end
+    end)
+    addAction(page, "Open Macro Units setup", "Abre o Macro nativo e direciona para Units. Use Fill My Team e configure Auto upgrade / Auto abilities em cada slot.", "OPEN UNITS", function()
+        local unitsTab = findButton({"Units"}, true)
+        if not unitsTab then
+            local macroButton = findButton({"Macro"}, true)
+            if macroButton then activate(macroButton, "macro-units-open", 1.5) task.wait(0.35) end
+            unitsTab = findButton({"Units"}, true)
         end
+        if unitsTab then activate(unitsTab, "macro-units-tab", 1)
+        else log("Abra Macro → Units manualmente.", THEME.yellow) end
     end)
     addAction(page, "Toggle Auto Sell Farms", "Abre Settings → Gameplay e procura a opção Auto Sell Farms. Deixe essa seção aberta no jogo.", "TOGGLE FARM", function()
         toggleFromLabel("Auto Sell Farms")
@@ -1207,12 +1243,19 @@ local function buildGame()
     addAction(page, "Toggle Auto Sell Units", "Procura Auto Sell Units na página de Settings já aberta.", "TOGGLE UNITS", function()
         toggleFromLabel("Auto Sell Units")
     end)
-    addAction(page, "Toggle Auto Retry", "Procura Auto Retry na página Settings → Gameplay.", "TOGGLE RETRY", function()
+    addAction(page, "Toggle Auto Retry", "Use Settings → Gameplay → Match. Deixe essa categoria aberta no jogo.", "TOGGLE RETRY", function()
         toggleFromLabel("Auto Retry")
     end)
-    addAction(page, "Toggle Auto Vote Start", "Procura Auto Vote Start na página Settings → Gameplay.", "TOGGLE VOTE", function()
+    addAction(page, "Toggle Auto Next", "Use Settings → Gameplay → Match. Deixe essa categoria aberta no jogo.", "TOGGLE NEXT", function()
+        toggleFromLabel("Auto Next")
+    end)
+    addAction(page, "Toggle Auto Vote Start", "Use Settings → Gameplay → Match. Deixe essa categoria aberta no jogo.", "TOGGLE VOTE", function()
         toggleFromLabel("Auto Vote Start")
     end)
+    addAction(page, "Toggle Auto-skip waves", "Abra a janela Skip Wave na partida e procure Auto-skip waves.", "TOGGLE SKIP", function()
+        toggleFromLabel("Auto-skip waves")
+    end)
+    addInfo(page, "Automatic abilities", "O jogo guarda habilidades automáticas por unidade em Settings → Units. Também existe Auto abilities por slot em Macro → Units. Configure uma vez para cada unidade desejada.", "NATIVE SETTING", THEME.green, 82)
     addInfo(page, "Auto Upgrade priority", "A atualização de 16/11 adicionou o ciclo P1, P2, P3, P4, P5, P6 e Off no botão Auto ou na tecla Z. A tecla N é uma ação Auto instantânea separada.", "PATCH 16 NOV", THEME.cyan, 83)
 end
 
@@ -1398,10 +1441,11 @@ local function buildMacro()
         safeClipboard(table.concat(found, "\n"))
         log("Textos visíveis copiados para conferência.", THEME.cyan)
     end)
-    addAction(page, "Loadout preset", "Código comunitário para Macro Catalog. Verifique slots e unidades antes de usar.", "COPY CODE", function()
+    addAction(page, "Icy Ainz preset · AP-RSEHDXU", "Preset comunitário Sword Arena - Raid. Requer Beyond Heaven, Sun God VS Dragon, Mr. Champion, Useless Goddess, Loid e Speedcart. Loid/Speedcart P1; Beyond Heaven, Mr. Champion e Useless Goddess P2; Sun God VS Dragon P3.", "COPY CODE", function()
         safeClipboard("AP-RSEHDXU")
     end)
-    addInfo(page, "Built-in Smart Macro", "A macro gravada pelo yno hub repete entrada de mouse/teclado. Para posicionamento inteligente e upgrades por onda, prefira Macro → Catalog → Presets e o Smart Macro nativo do jogo.", "IMPORTANT", THEME.yellow, 86)
+    addInfo(page, "Import preset", "No jogo: Macro → Units → Import, cole AP-RSEHDXU. Alternativamente Macro → Catalog → Presets, pesquise o código e selecione Use. Confira os seis slots e o mapa antes de iniciar.", "PRESET", THEME.cyan, 86)
+    addInfo(page, "Built-in Smart Macro", "O macro gravado pelo yno hub repete cliques e teclas. Para posicionamento inteligente, upgrades por onda, venda de farms, auto abilities e rotinas, use o Smart Macro nativo do jogo.", "IMPORTANT", THEME.yellow, 86)
 end
 
 local function buildReroll()
@@ -1579,6 +1623,7 @@ end
 
 local builders = {
     ["Overview"] = buildOverview,
+    ["Farm Planner"] = buildFarmPlanner,
     ["Joiner"] = buildJoiner,
     ["Game"] = buildGame,
     ["Performance"] = buildPerformance,
@@ -1833,6 +1878,7 @@ end)
 
 local navData = {
     {"Overview", "◈"},
+    {"Farm Planner", "¤"},
     {"Joiner", "⌁"},
     {"Game", "⚔"},
     {"Performance", "◉"},
