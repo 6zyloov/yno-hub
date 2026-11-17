@@ -1836,21 +1836,32 @@ end
 
 local function gameToggleByLabel(labelText)
     local target = norm(labelText)
+    local bestButton, bestDistance = nil, math.huge
+
     for _, root in ipairs(playerGui:GetChildren()) do
         for _, labelObject in ipairs(root:GetDescendants()) do
             if labelObject:IsA("TextLabel") and visible(labelObject) and norm(labelObject.Text) == target then
+                local labelCenter = labelObject.AbsolutePosition + (labelObject.AbsoluteSize / 2)
                 local parent = labelObject.Parent
+
                 for depth = 1, 3 do
                     if not parent then break end
-                    for _, object in ipairs(parent:GetChildren()) do
-                        if object:IsA("GuiButton") and visible(object) and object.Active then
+                    for _, object in ipairs(parent:GetDescendants()) do
+                        if object:IsA("GuiButton") and visible(object) and object.Active
+                            and object.AbsoluteSize.X > 4 and object.AbsoluteSize.Y > 4 then
                             local name = norm(object.Name)
                             local buttonLabel = object:IsA("TextButton") and norm(object.Text) or ""
-                            local toggleLike = string.find(name, "toggle", 1, true)
+                            local explicitSwitch = string.find(name, "toggle", 1, true)
                                 or string.find(name, "switch", 1, true)
                                 or buttonLabel == "on" or buttonLabel == "off"
-                            if toggleLike then
-                                return clickButton(object, "game-setting:" .. target, 1.4)
+                                or buttonLabel == "enabled" or buttonLabel == "disabled"
+
+                            local center = object.AbsolutePosition + (object.AbsoluteSize / 2)
+                            local distance = (center - labelCenter).Magnitude
+                            local compactControl = object.AbsoluteSize.X <= 120 and object.AbsoluteSize.Y <= 70
+                            if (explicitSwitch or compactControl) and distance < bestDistance and distance < 150 then
+                                bestButton = object
+                                bestDistance = distance
                             end
                         end
                     end
@@ -1858,6 +1869,10 @@ local function gameToggleByLabel(labelText)
                 end
             end
         end
+    end
+
+    if bestButton then
+        return clickButton(bestButton, "game-setting:" .. target, 1.4)
     end
     log("Não encontrei o interruptor ao lado de " .. labelText .. ". Abra Settings e deixe essa opção visível.", THEME.warning)
     return false
