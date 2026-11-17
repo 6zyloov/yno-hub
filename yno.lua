@@ -88,6 +88,9 @@ local state = {
     cachedCapturePrompt = nil,
     npcPromptCache = {},
     lastNpcPromptScan = {},
+    lastNpcMove = {},
+    activeCapturePrompt = nil,
+    lastCapturePromptAt = 0,
     huntLastMove = 0,
     huntLastHit = 0,
     lastClaim = 0,
@@ -1028,10 +1031,10 @@ local function openBountyBoard()
         task.wait(0.4)
         if clickFirstPhrase({"Bounties"}, "open-bounties-after-missions", false, nil, true) then return true end
     end
-    for attempt = 1, 16 do
+    for attempt = 1, 40 do
         if not state.running then return false end
         interactWithNpc("Navi")
-        task.wait(0.45)
+        task.wait(0.5)
         if clickFirstPhrase({"Bounties"}, "open-bounties-after-navi", false, nil, true) then
             return true
         end
@@ -1184,20 +1187,21 @@ local function startHuntBook()
         if not book then book = findButton({"Collection Book", "Book"}, false, nil, true) end
 
         if not book then
-            if not findButton({"Unit Hunt"}, false, nil, true) then
+            local unitHuntButton = findButton({"Unit Hunt"}, false, "events", true)
+            if not unitHuntButton then
                 if not clickPhrase({"Events"}, "unit-hunt-book-open-events", false, nil, true) then
                     log("Abra Events no menu do jogo.", THEME.warning)
                     return
                 end
-                task.wait(0.3)
+                unitHuntButton = waitForButton({"Unit Hunt"}, false, 6, "events", true)
             end
 
-            if not clickFirstPhrase({"Unit Hunt"}, "unit-hunt-book-open-page", false, "events", true) then
+            if not unitHuntButton then
                 log("Selecione Unit Hunt na lista de eventos.", THEME.warning)
                 return
             end
+            clickButton(unitHuntButton, "unit-hunt-book-open-page", 1)
             book = waitForButton({"Collection Book", "Book"}, false, 6, "unit hunt", true)
-            if not book then book = waitForButton({"Collection Book", "Book"}, false, 4, nil, true) end
         end
 
         if book then
@@ -1353,6 +1357,7 @@ local function processUnitHunt()
         or string.find(text, "hit the center", 1, true) ~= nil
 
     if inEncounter then
+        state.activeCapturePrompt = nil
         if now - state.huntLastHit > 0.16 and hasCaptureTiming then
             state.huntLastHit = now
             sendKey("Space")
@@ -1365,6 +1370,10 @@ local function processUnitHunt()
 
     local target = findCapturePrompt()
     if target then
+        if state.activeCapturePrompt ~= target.prompt then
+            state.activeCapturePrompt = target.prompt
+            state.lastCapturePromptAt = 0
+        end
         local character = player.Character
         local humanoid = character and character:FindFirstChildOfClass("Humanoid")
         if target.distance > math.max(4, target.prompt.MaxActivationDistance - 1) then
@@ -1373,13 +1382,16 @@ local function processUnitHunt()
                 local direction = (target.part.Position - character.HumanoidRootPart.Position).Unit
                 humanoid:MoveTo(target.part.Position - direction * math.max(2, target.prompt.MaxActivationDistance * 0.45))
             end
-        elseif now - state.huntLastHit > 1.1 then
-            state.huntLastHit = now
+        elseif now - state.lastCapturePromptAt > 12 then
+            state.lastCapturePromptAt = now
             sendKey("E")
         end
-    elseif now - state.huntLastScan > 7 then
-        state.huntLastScan = now
-        sendKey("Q")
+    else
+        state.activeCapturePrompt = nil
+        if now - state.huntLastScan > 7 then
+            state.huntLastScan = now
+            sendKey("Q")
+        end
     end
 end
 
@@ -1467,9 +1479,12 @@ local function interactWithNpc(npcName)
 
     local activationDistance = math.max(1, target.MaxActivationDistance or 10)
     if distance > activationDistance * 0.72 then
-        if humanoid then
+        if humanoid and now - (state.lastNpcMove[needle] or 0) > 2 then
             local direction = (targetPart.Position - root.Position).Unit
             humanoid:MoveTo(targetPart.Position - direction * math.min(3, activationDistance * 0.35))
+            state.lastNpcMove[needle] = now
+        end
+        if humanoid then
             log("Indo até " .. npcName .. "...", THEME.muted)
             return true
         end
@@ -1512,10 +1527,10 @@ end
 local function openHesiaRewards()
     task.spawn(function()
         if not string.find(allGuiText(), "free rewards", 1, true) then
-            for attempt = 1, 16 do
+            for attempt = 1, 40 do
                 if not state.running then return end
                 interactWithNpc("Hesia")
-                task.wait(0.45)
+                task.wait(0.5)
                 if clickFirstPhrase({"Free Rewards"}, "hesia-free-rewards", false, nil, true) then break end
                 if string.find(allGuiText(), "free rewards", 1, true) then break end
             end
@@ -1572,7 +1587,7 @@ local function redeemYoutubeReward()
 end
 
 local function claimKingIndex()
-    for attempt = 1, 16 do
+    for attempt = 1, 40 do
         if not state.running then return false end
         local claim = findButton({"Claim All"}, true, "index", true)
         if claim then
@@ -1584,7 +1599,7 @@ local function claimKingIndex()
         else
             interactWithNpc("King")
         end
-        task.wait(0.45)
+        task.wait(0.5)
     end
     log("King's Index aberto ou não há Claim All disponível agora.", THEME.warning)
     return false
