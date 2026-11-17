@@ -1,74 +1,84 @@
-# Uso do yno hub
+# Uso do yno hub 3.0.0
 
-## Loader do Solara
-
-O repositório 6zyloov/yno-hub está público. Dentro de Anime Crusaders X, execute:
+## Instalação no Solara
 
 ~~~lua
 loadstring(game:HttpGet("https://raw.githubusercontent.com/6zyloov/yno-hub/main/yno.lua"))()
 ~~~
 
-Também é possível abrir [yno.lua](../yno.lua), copiar o arquivo inteiro e executar diretamente.
+O script baixa o fundo do painel em [assets/lixhub-bg.jpg](../assets/lixhub-bg.jpg), grava-o localmente e usa getcustomasset. Se o download/asset local não estiver disponível no executor, o painel abre com fundo escuro simples.
 
-## Janela flutuante
+## Controles do painel
 
-- **RightShift** — mostrar/ocultar a janela.
-- **—** na barra superior — minimizar para o pequeno botão flutuante **y**.
-- Clique no botão **y** para reabrir.
-- Arraste a janela pela barra superior.
-- **×** — descarregar o yno hub, interromper os ciclos e restaurar os efeitos locais/FPS alterados.
-- Fechar somente o editor do Solara não deveria fechar a GUI, pois ela é parentada ao container do executor. O script precisa continuar ativo no cliente Roblox.
+- **RightShift** — mostrar/ocultar.
+- **—** — minimizar para o botão flutuante **y**.
+- Clique em **y** para reabrir.
+- Arraste pela barra superior.
+- **×** — Unload, encerra os loops, desconecta eventos e restaura efeitos locais.
+- A caixa Search filtra os cartões da página atual.
 
-## Auto Farm com Smart Macro
+## Missions
 
-O jogo fornece o sistema de automação principal. Para configurar:
+1. Abra Missions.
+2. Escolha All, Daily, Infinite, Story, Event ou Guide.
+3. Pressione Open selected category.
+4. Pressione Claim All rewards para reivindicar o que estiver concluído.
+5. Auto claim pode ficar ligado enquanto a tela de Quest/Event Quest estiver aberta.
 
-1. Entre na fase desejada e abra Macro → Units → Fill My Team.
-2. Configure os seis slots e Hero, inclusive targeting, Auto upgrade, Auto abilities, placement limit e ondas.
-3. Em Macro → Placement, configure Zones ou Recording para o mapa.
-4. Em Macro → Run, selecione Loop para repetir a fase atual ou Routine para executar uma fila de tarefas criada previamente.
-5. No yno hub, abra Game, escolha Loop, This Stage ou Routine e pressione Start Auto Farm.
-6. Use Stop Auto Farm para acionar Stop/Pause do painel Macro nativo.
+O script não cria progresso de quest por conta própria. Os objetivos são completados no modo de jogo correspondente e depois podem ser coletados pelo painel.
 
-O botão Start tenta encontrar Macro → Run, selecionar o modo e pressionar Start. Caso o layout do jogo mude ou o controle não esteja visível, faça essa etapa manualmente. O posicionamento, upgrades e venda inteligentes são feitos pelo Macro nativo, de acordo com sua configuração.
+### Phoenix / Guidebook
 
-## Joiner
+Abra Guidebook → complete as 10 Guide Quests → Claim All / Guide Quests Complete!. A recompensa final é Phoenix. Algumas tarefas exigem consumir XP Food, unidades ou Stat Cubes; faça essas escolhas conscientemente no jogo.
 
-Abra a aba Joiner, escolha uma categoria e pressione Open Mode. O hub pode abrir Play e o botão visível da categoria escolhida. Depois, selecione o mundo, ato, dificuldade e Matchmaking/Select Stage no jogo e confirme Start. Auto Open Selected Mode executa apenas a abertura da categoria quando ela está visível; não finge completar toda a seleção de partida.
+### Bounties
 
-## Summon, Reroll e Shop
+Fale com Navi, indicado como Missions, no Request Board. Abra Bounties, conclua os três objetivos de um cartão e colete 5 Event Tokens + 1 Blank Token. Reroll custa 10.000 Gold e descarta o progresso atual daquele cartão.
 
-- Configure banner/tipo, nome de alvo e limite antes de ligar ciclos.
-- Summon procura o botão correspondente ao tamanho de pull escolhido; não clica em um botão genérico se o botão X1/X10 não aparecer.
-- O contador registra tentativas de clique, não pulls confirmados pelo servidor.
-- Alvos são detectados por textos novos na interface. Se o jogo substituir o texto de uma label sem criar um novo item visível, a detecção pode não perceber.
-- Shop exige um filtro de item com pelo menos dois caracteres. O contador registra cliques no botão Buy, não compras confirmadas. Confira moeda, estoque e quantidade.
-- Use Stop para interromper cada ciclo. Settings → Stop All interrompe todos os ciclos.
+## Story Runner
 
-## Macro de entrada
+1. Abra Story.
+2. Escolha mundo, Act 1–6, Normal/Hard, Individual Act/World Skip e Matchmaking/Select Stage.
+3. Pressione Start Story.
+4. Ative Auto Start, Auto Skip e Auto Next conforme a estratégia.
+5. Para Auto Farm com colocação/upgrades/venda de unidades, configure Macro → Units e Placement primeiro e inicie o Smart Macro.
 
-Hotkeys:
-- **F6** — iniciar gravação.
-- **F7** — parar e finalizar teclas pressionadas.
-- **F8** — reproduzir.
-- **F9** — interromper reprodução.
+World Skip é Normal-only, aplica +900% HP e existe nos mundos 1–10; Sword Arena não oferece World Skip. O botão Auto Next segue apenas o próximo estágio que o próprio jogo disponibilizar; não desbloqueia mundos ou requisitos automaticamente.
 
-A gravação captura cliques em coordenadas relativas à tela e teclas pressionadas/soltas, incluindo sua duração. O buffer pode ser salvo em JSON em yno_hub/macros, carregado, importado e exportado. O modo Loop repete até F9.
+## Unit Hunt
 
-Essa macro não reconhece ondas, unidades ou resultados. Para posicionamento inteligente e upgrades por onda, use o Smart Macro nativo.
+1. Seu jogador precisa estar no Level 5.
+2. Abra Unit Hunt → Start Hunt.
+3. Ative Auto Hunt para procurar ProximityPrompts de captura, aproximar o personagem e usar E.
+4. O script pressiona Q de tempos em tempos para scan.
+5. Durante o minigame, o assist tenta identificar marker/needle e gold/perfect zone pelos nomes dos elementos de UI; se não reconhecer a barra, acerte manualmente o centro dourado com clique, Space ou E.
 
-## Webhook
+A barra pode mudar depois de um patch. O assist não adivinha coordenadas nem promete PERFECT em toda captura. Book registra 39 capturas distintas; Shinies tem uma coleção separada de 35 entradas. Capturas de Unit Hunt não se tornam automaticamente unidades equipáveis de Tower Defense.
 
-O endpoint é opcional e permanece apenas na sessão. Por segurança, o hub aceita somente endereços HTTPS de webhook do Discord nos domínios discord.com/api/webhooks ou discordapp.com/api/webhooks. Não cole token de bot, senha, cookie Roblox ou token de conta.
+## Free Units
+
+- Phoenix: 10 Guide Quests + reivindicar Guide Quests Complete!.
+- Shadow (Atomic): custa 30 Blank Tokens.
+- Lao (Heart): custa 30 Blank Tokens.
+
+O claim de Blank Unit só é iniciado pelo botão explícito na aba Free Units. Confira saldo e limite de resgate antes de clicar.
+
+## Smart Macro
+
+Configure o jogo antes de iniciar:
+1. Macro → Units → Fill My Team.
+2. Configure os seis slots + Hero, Targeting, Auto upgrade, Auto abilities, Placement limit e waves.
+3. Macro → Placement → Zones ou Recording.
+4. Macro → Run → Loop, This Stage ou Routine.
+5. Em Routine, crie a fila de tarefas em Macro → Routine antes de iniciar.
+6. Abra a aba Macro do yno hub e pressione Start Smart Macro.
+
+O Macro nativo realiza posicionamento, upgrades e venda inteligentes conforme a equipe e o mapa. O yno hub apenas abre/seleciona controles visíveis e inicia/para o sistema configurado.
 
 ## Performance
 
-Low Quality Effects desativa sombras globais e pós-processamento local. Hide Attack Effects desativa partículas, trails, beams e highlights. Os valores anteriores são guardados para restauração. O FPS cap original também é restaurado em Unload quando getfpscap estiver disponível.
+Low Effects desativa sombras e pós-processamento local. Hide Attack Effects desativa ParticleEmitter, Trail, Beam e Highlight locais. Os valores anteriores são restaurados por Restore performance ou Unload. FPS cap usa setfpscap e tenta restaurar o valor inicial.
 
 ## Diagnóstico
 
-Na aba Misc, use UI Scanner para listar os botões visíveis. Se uma atualização mudar a interface do jogo, isso ajuda a localizar novos rótulos. A automação só clica controles visíveis e ativos.
-
-## Limites de validação
-
-O código passa pelo workflow de sintaxe Lua do GitHub Actions quando a verificação termina com sucesso. A API do Solara foi conferida na documentação. Não foi possível executar uma sessão Roblox/Solara ao vivo neste ambiente; por isso, não afirmamos teste real de cada botão ou automação no jogo.
+A automação só clica controles visíveis e ativos. Patches podem alterar nomes, hierarquia ou menus. O Story Runner pausa com um aviso se não encontrar um controle; o Unit Hunt pode continuar dependendo do timing manual se não conseguir identificar a barra.
