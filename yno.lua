@@ -1,5 +1,5 @@
 -- yno hub | anime crusaders x
--- v3.1.0 | 2026-11-17
+-- v3.1.1 | 2026-11-17
 -- LixHub-inspired game hub rebuilt around visible Anime Crusaders X workflows.
 -- All game actions use visible UI controls, normal movement, or normal key input.
 -- No private RemoteEvents, inventory edits, currency edits, or anti-cheat bypass.
@@ -169,11 +169,11 @@ if existing then
 end
 
 local function getBackgroundAsset()
-    local assetUrl = "https://raw.githubusercontent.com/6zyloov/yno-hub/main/assets/lixhub-bg.jpg"
+    local assetUrl = "https://raw.githubusercontent.com/6zyloov/yno-hub/main/assets/yno-background.jpg"
     if type(getcustomasset) ~= "function" or type(writefile) ~= "function" then
         return nil
     end
-    local filePath = "yno_hub/lixhub-bg.jpg"
+    local filePath = "yno_hub/yno-background.jpg"
     local ok = pcall(function()
         if type(isfolder) == "function" and not isfolder("yno_hub") then
             makefolder("yno_hub")
@@ -2433,7 +2433,7 @@ local function unload()
     ENV[RUNTIME_KEY] = nil
 end
 
-ENV[RUNTIME_KEY] = {Unload = unload, Version = "3.1.0"}
+ENV[RUNTIME_KEY] = {Unload = unload, Version = "3.1.1"}
 
 loadConfig()
 showPage("Overview")
@@ -2441,4 +2441,4 @@ showPage("Overview")
 table.insert(state.threads, task.spawn(gameAutomationLoop))
 table.insert(state.threads, task.spawn(claimLoop))
 
-log("yno hub 3.1.0 carregado. RightShift oculta/mostra.", THEME.success)
+log("yno hub 3.1.1 carregado. RightShift oculta/mostra.", THEME.success)
