@@ -250,8 +250,21 @@ local function findButton(needles, exact, requiredContext)
             local haystack = getTextForButton(button)
             local contextOkay = true
             if context then
-                local parentText = normalize((button.Parent and button.Parent.Name) or "")
-                contextOkay = string.find(haystack .. " " .. parentText, context, 1, true) ~= nil
+                local contextParts = {haystack}
+                local ancestor = button.Parent
+                local depth = 0
+                while ancestor and depth < 5 do
+                    table.insert(contextParts, normalize(ancestor.Name))
+                    for _, child in ipairs(ancestor:GetChildren()) do
+                        if child:IsA("TextLabel") and child.Text ~= "" then
+                            table.insert(contextParts, normalize(child.Text))
+                        end
+                    end
+                    ancestor = ancestor.Parent
+                    depth = depth + 1
+                end
+                local contextText = table.concat(contextParts, " ")
+                contextOkay = string.find(contextText, normalize(context), 1, true) ~= nil
             end
             if contextOkay then
                 for _, needle in ipairs(needles) do
@@ -343,17 +356,6 @@ local function allGuiText()
     return table.concat(parts, " | ")
 end
 
-local function targetFound(targets)
-    local joined = allGuiText()
-    for token in string.gmatch(tostring(targets or ""), "[^,\n]+") do
-        local needle = normalize(token)
-        if needle ~= "" and string.find(joined, needle, 1, true) then
-            return true, token
-        end
-    end
-    return false, nil
-end
-
 local function findTextBox(needle)
     local target = normalize(needle)
     for _, root in ipairs(playerGui:GetChildren()) do
@@ -375,22 +377,27 @@ local function toggleFromLabel(needle)
         for _, label in ipairs(root:GetDescendants()) do
             if label:IsA("TextLabel") and visible(label) then
                 local value = normalize(label.Text)
-                if value == target or string.find(value, target, 1, true) then
+                if value == target then
                     local parent = label.Parent
-                    for depth = 1, 3 do
-                        if not parent then break end
-                        for _, item in ipairs(parent:GetDescendants()) do
+                    if parent then
+                        for _, item in ipairs(parent:GetChildren()) do
                             if item:IsA("GuiButton") and visible(item) and item.Active then
-                                return activate(item, "settings:" .. target, 1.5)
+                                local buttonText = getTextForButton(item)
+                                local looksLikeToggle = string.find(buttonText, "on", 1, true)
+                                    or string.find(buttonText, "off", 1, true)
+                                    or string.find(normalize(item.Name), "toggle", 1, true)
+                                    or string.find(normalize(item.Name), "switch", 1, true)
+                                if looksLikeToggle then
+                                    return activate(item, "settings:" .. target, 1.5)
+                                end
                             end
                         end
-                        parent = parent.Parent
                     end
                 end
             end
         end
     end
-    log("Abra a opção '" .. needle .. "' no menu do jogo primeiro.", THEME.yellow)
+    log("Não achei o controle de alternância ao lado de '" .. needle .. "'. Abra essa opção manualmente.", THEME.yellow)
     return false
 end
 
@@ -471,7 +478,7 @@ local function addInfo(parent, heading, description, tag, color, height)
         }, holder)
         round(badge, 6)
     end
-    return holder
+    return holder, title, body
 end
 
 local function addAction(parent, heading, description, caption, callback)
@@ -1084,7 +1091,7 @@ local function buildOverview()
         clickWhenVisible("quick-replay", {"replay", "retry"}, 1.5, false)
     end, 82)
     b3.Position = UDim2.new(0, 195, 0, 23)
-    addInfo(page, "Smart Macro nativo", "O jogo já possui This Stage, Loop, Routine, zonas, gravações, slots, upgrades e habilidades automáticas. Abra a aba Smart Macro para usar o preset comunitário e as configurações documentadas.", "GAME SYSTEM", THEME.green, 87)
+    addInfo(page, "Smart Macro nativo", "O jogo já possui This Stage, Loop, Routine, zonas, gravações, slots, upgrades e habilidades automáticas. Use Game → Start Auto Farm para iniciar o modo que você configurou.", "GAME SYSTEM", THEME.green, 87)
     addInfo(page, "Compatibilidade", "Creator do jogo esperado: 35139043. O hub usa botões visíveis da interface do jogo; se uma atualização mudar os nomes dos botões, use o UI Scanner para verificar a nova interface.", "UI-BASED", THEME.cyan, 83)
     local overviewBar = row(page, 72)
     textLabel(overviewBar, "MACRO HOTKEYS", 10, THEME.muted, true, 16)
@@ -1110,8 +1117,58 @@ local function buildJoiner()
     addInfo(page, "Prioridade de modos", "A ordem configurável do Joiner depende dos botões que o lobby expõe. Mantenha apenas um modo por vez se não quiser que ele selecione outra atividade.", "TIP", THEME.yellow, 74)
 end
 
+local function startBuiltInMacro()
+    local macroButton = findButton({"Macro"}, true)
+    if not macroButton then
+        log("Entre em uma partida e abra o botão Macro do jogo.", THEME.yellow)
+        return false
+    end
+    if not activate(macroButton, "native-macro-open", 1.5) then return false end
+    task.wait(0.4)
+
+    local runTab = findButton({"Run"}, true)
+    if not runTab then
+        log("Painel Macro abriu, mas a aba Run não foi localizada. Abra Run manualmente.", THEME.yellow)
+        return false
+    end
+    activate(runTab, "native-macro-run-tab", 0.8)
+    task.wait(0.25)
+
+    local mode = state.values.smartMacroMode or "Loop"
+    local modeButton = findButton({mode}, true, "Run")
+    if not modeButton then
+        log("Modo " .. mode .. " não está visível na aba Run. Selecione-o manualmente.", THEME.yellow)
+        return false
+    end
+    activate(modeButton, "native-macro-mode:" .. mode, 0.8)
+    task.wait(0.2)
+
+    local startButton = findButton({"Start"}, true, "Run")
+    if not startButton then
+        log("Não encontrei Start dentro da aba Run. Verifique as configurações e inicie manualmente.", THEME.yellow)
+        return false
+    end
+    local ok = activate(startButton, "native-macro-start", 2)
+    if ok then log("Smart Macro nativo iniciado (" .. mode .. ").", THEME.green) end
+    return ok
+end
+
+local function stopBuiltInMacro()
+    local stopButton = findButton({"Stop"}, true)
+    if not stopButton then
+        local pauseButton = findButton({"Pause"}, true)
+        if pauseButton then return activate(pauseButton, "native-macro-pause", 1.5) end
+        log("Painel flutuante do Macro não está visível.", THEME.yellow)
+        return false
+    end
+    return activate(stopButton, "native-macro-stop", 1.5)
+end
+
 local function buildGame()
     section(page, "Game", "Ações automáticas em botões reais e controles do Anime Crusaders X.")
+    addSelect(page, "smartMacroMode", "Built-in Smart Macro mode", {"Loop", "This Stage", "Routine"}, "O script inicia o modo escolhido na aba Run do Macro nativo.")
+    addAction(page, "Start Auto Farm (Smart Macro)", "Inicia o Macro nativo já configurado no jogo. Configure slots, unidades e posicionamento primeiro.", "START FARM", startBuiltInMacro)
+    addAction(page, "Stop Auto Farm", "Interrompe o Smart Macro nativo pelo painel flutuante do jogo.", "STOP FARM", stopBuiltInMacro)
     addToggle(page, "autoStart", "Auto Start / Auto Vote Start", "Clica em Start ou Vote Start quando o botão estiver visível.", false)
     addToggle(page, "autoSkip", "Auto Skip Wave", "Envia o voto quando aparecer Skip Wave / Vote Skip.", false)
     addToggle(page, "autoReplay", "Auto Replay / Retry", "Reentra quando o botão Replay ou Retry aparecer no fim da partida.", false)
@@ -1480,7 +1537,6 @@ local function buildSettings()
         applyHideEffects(false)
         state.toggles.lowQuality = false
         state.toggles.hideEffects = false
-        state.toggles.lowPerformance = false
         log("Configurações visuais restauradas.", THEME.green)
     end)
     addAction(page, "Stop all automation", "Desativa todos os ciclos automáticos de UI, summon, reroll e shop.", "STOP ALL", function()
@@ -1491,6 +1547,7 @@ local function buildSettings()
         applyHideEffects(false)
         stopPlayback()
         stopRecording()
+        stopBuiltInMacro()
         log("Todas as automações foram interrompidas.", THEME.yellow)
         originalShowPage("Settings")
     end)
@@ -1547,16 +1604,19 @@ local function processAutomation()
             clickWhenVisible("auto-join:" .. mode, {mode}, delayTime, false)
         end
         if state.toggles.autoStart then
-            clickWhenVisible("auto-start", {"vote start", "start match", "start"}, 1.8, false)
+            clickWhenVisible("auto-start", {"vote start", "start match"}, 1.8, false)
+            if not state.lastAction["auto-start"] or os.clock() - state.lastAction["auto-start"] > 1.8 then
+                clickWhenVisible("auto-start", {"start"}, 1.8, true)
+            end
         end
         if state.toggles.autoSkip then
             clickWhenVisible("auto-skip", {"vote skip", "skip wave"}, 1.5, false)
         end
         if state.toggles.autoReplay then
-            clickWhenVisible("auto-replay", {"replay", "retry"}, 2.0, false)
+            clickWhenVisible("auto-replay", {"replay", "retry"}, 2.0, true)
         end
         if state.toggles.autoNext then
-            clickWhenVisible("auto-next", {"next stage", "next"}, 2.0, false)
+            clickWhenVisible("auto-next", {"next stage", "next"}, 2.0, true)
         end
         if state.toggles.autoAbilities then
             clickAllWhenVisible("auto-ability", {"use ability", "ability ready"}, 1.1)
@@ -1624,7 +1684,7 @@ local function processAutomation()
             clickWhenVisible("auto-train", {"start training", "train selected", "train"}, 2.0, false)
         end
         if state.toggles.autoMinigame then
-            clickWhenVisible("auto-minigame", {"play again", "play", "start"}, 3.0, false)
+            clickWhenVisible("auto-minigame", {"play again", "start minigame"}, 3.0, false)
         end
         if state.toggles.webhookStage then
             local text = allGuiText()
