@@ -266,25 +266,40 @@ end
 
 local function activate(button, actionKey, cooldown)
     if not button or not button.Parent then return false end
+    if not visible(button) or not button.Active then return false end
     local now = os.clock()
     local key = actionKey or tostring(button)
     if state.lastAction[key] and now - state.lastAction[key] < (cooldown or 1.2) then
         return false
     end
     state.lastAction[key] = now
-    local ok, err = pcall(function()
-        button:Activate()
-    end)
+
+    -- Prefer a real input so Activated and MouseButton1Click both behave as expected.
+    local center = button.AbsolutePosition + (button.AbsoluteSize / 2)
+    local ok = false
+    if type(mousemoveabs) == "function" and type(mouse1click) == "function" then
+        ok = pcall(function()
+            mousemoveabs(math.floor(center.X), math.floor(center.Y))
+            task.wait(0.035)
+            mouse1click()
+        end)
+    end
+    -- Signal firing is a fallback for executors that do not expose mouse input.
     if not ok and type(firesignal) == "function" then
-        ok, err = pcall(function()
+        ok = pcall(function()
             firesignal(button.Activated)
         end)
+        if not ok then
+            ok = pcall(function()
+                firesignal(button.MouseButton1Click)
+            end)
+        end
     end
     if ok then
         log("Ação executada: " .. tostring(actionKey or button.Name), THEME.green)
         return true
     end
-    log("Não foi possível ativar o botão: " .. tostring(err), THEME.red)
+    log("O executor não conseguiu clicar no botão visível.", THEME.red)
     return false
 end
 
@@ -655,25 +670,45 @@ local function listMacros()
     return result
 end
 
-local function sendKey(keyName, pressed)
-    local keyCode = Enum.KeyCode[keyName]
-    if not keyCode then return false end
-    local ok = pcall(function()
-        VIM:SendKeyEvent(pressed, keyCode, false, game)
-    end)
-    return ok
+local VK = {
+    Backspace=0x08, Tab=0x09, Return=0x0D, Enter=0x0D, Escape=0x1B, Space=0x20,
+    PageUp=0x21, PageDown=0x22, End=0x23, Home=0x24, Left=0x25, Up=0x26,
+    Right=0x27, Down=0x28, Insert=0x2D, Delete=0x2E, LeftShift=0xA0,
+    RightShift=0xA1, LeftControl=0xA2, RightControl=0xA3, LeftAlt=0xA4,
+    RightAlt=0xA5, CapsLock=0x14, NumLock=0x90, ScrollLock=0x91,
+}
+for i = 0, 9 do VK["Zero" .. (i == 0 and "" or i)] = 0x30 + i end
+for i = 1, 26 do VK[string.char(64 + i)] = 0x40 + i end
+for i = 1, 12 do VK["F" .. i] = 0x6F + i end
+
+local function sendKey(keyName)
+    local code = VK[keyName]
+    if not code then
+        log("Tecla não mapeada para replay: " .. tostring(keyName), THEME.yellow)
+        return false
+    end
+    if type(keyclick) == "function" then
+        return pcall(keyclick, code)
+    end
+    if type(keypress) == "function" and type(keyrelease) == "function" then
+        local ok = pcall(keypress, code)
+        task.wait(0.05)
+        local released = pcall(keyrelease, code)
+        return ok and released
+    end
+    return false
 end
 
 local function sendClick(x, y)
-    local ok = pcall(function()
-        VIM:SendMouseMoveEvent(x, y, game)
-        VIM:SendMouseButtonEvent(x, y, 0, true, game, 0)
-        task.wait(0.045)
-        VIM:SendMouseButtonEvent(x, y, 0, false, game, 0)
-    end)
-    if not ok and type(mouse1click) == "function" then
-        ok = pcall(mouse1click)
+    if type(mousemoveabs) ~= "function" or type(mouse1click) ~= "function" then
+        log("O executor não oferece mousemoveabs/mouse1click para replay.", THEME.red)
+        return false
     end
+    local ok = pcall(function()
+        mousemoveabs(math.floor(x), math.floor(y))
+        task.wait(0.04)
+        mouse1click()
+    end)
     return ok
 end
 
@@ -714,11 +749,9 @@ local function playMacro()
                         break
                     end
                 elseif action.kind == "key" then
-                    local okDown = sendKey(action.key, true)
-                    task.wait(0.05)
-                    local okUp = sendKey(action.key, false)
-                    if not okDown or not okUp then
-                        log("Tecla não suportada pelo executor: " .. tostring(action.key), THEME.red)
+                    local okKey = sendKey(action.key)
+                    if not okKey then
+                        log("Falha ao reproduzir tecla: " .. tostring(action.key), THEME.red)
                     end
                 end
             end
@@ -763,6 +796,8 @@ local function recordInput(input)
     if input.KeyCode == Enum.KeyCode.RightShift or input.KeyCode == Enum.KeyCode.F6
         or input.KeyCode == Enum.KeyCode.F7 or input.KeyCode == Enum.KeyCode.F8
         or input.KeyCode == Enum.KeyCode.F9 then return end
+    local focusedBox = UIS:GetFocusedTextBox()
+    if focusedBox and gui and focusedBox:IsDescendantOf(gui) then return end
     local now = os.clock() - (state.recordStart or os.clock())
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
         if isOverHub(input.Position) then return end
