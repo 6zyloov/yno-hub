@@ -189,7 +189,7 @@ local function getBackgroundAsset()
     return nil
 end
 
-local backgroundAsset = getBackgroundAsset()
+local backgroundAsset = nil
 
 local gui = make("ScreenGui", {
     Name = "yno_hub",
@@ -215,27 +215,43 @@ local main = make("Frame", {
 }, gui)
 outline(main, THEME.line, 0.1, 1)
 
-if backgroundAsset then
-    make("ImageLabel", {
-        Name = "yno_background",
-        BackgroundTransparency = 1,
-        Size = UDim2.fromScale(1, 1),
-        Image = backgroundAsset,
-        ImageColor3 = Color3.fromRGB(155, 181, 174),
-        ImageTransparency = 0.56,
-        ScaleType = Enum.ScaleType.Crop,
-        ZIndex = 0,
-    }, main)
-end
-
-make("Frame", {
+local backgroundImage = nil
+local backgroundTint = make("Frame", {
     Name = "background_tint",
     Size = UDim2.fromScale(1, 1),
     BackgroundColor3 = Color3.fromRGB(3, 7, 9),
-    BackgroundTransparency = backgroundAsset and 0.28 or 0,
+    BackgroundTransparency = 0,
     BorderSizePixel = 0,
     ZIndex = 1,
 }, main)
+
+local function applyBackground(asset)
+    if not asset or not main or not main.Parent then return end
+    if not backgroundImage or not backgroundImage.Parent then
+        backgroundImage = make("ImageLabel", {
+            Name = "yno_background",
+            BackgroundTransparency = 1,
+            Size = UDim2.fromScale(1, 1),
+            Image = asset,
+            ImageColor3 = Color3.fromRGB(155, 181, 174),
+            ImageTransparency = 0.56,
+            ScaleType = Enum.ScaleType.Crop,
+            ZIndex = 0,
+        }, main)
+    else
+        backgroundImage.Image = asset
+    end
+    backgroundTint.BackgroundTransparency = 0.28
+end
+
+-- Download/render the wallpaper after the panel exists so a slow HTTP request
+-- cannot delay the hub itself from appearing.
+task.spawn(function()
+    local ok, asset = pcall(getBackgroundAsset)
+    if ok and asset then
+        applyBackground(asset)
+    end
+end)
 
 local sidebar = make("Frame", {
     Name = "sidebar",
@@ -455,10 +471,6 @@ end
 
 local function log(message, color)
     notify(message, color)
-    if statusLabel and statusLabel.Parent then
-        statusLabel.Text = tostring(message)
-        statusLabel.TextColor3 = color or THEME.muted
-    end
 end
 
 local function visible(object)
@@ -1403,7 +1415,7 @@ end
 local function claimPhoenix()
     if not openGuidebook() then return false end
     task.wait(0.3)
-    local claimAll = findButton({"Claim All"}, true, nil, true)
+    local claimAll = findButton({"Claim All"}, true, "guide", true)
     if claimAll then
         clickButton(claimAll, "guidebook-claim-all", 1.8)
         task.wait(0.3)
@@ -1577,7 +1589,7 @@ local function redeemYoutubeReward()
         return false
     end
     box.Text = channel
-    local redeem = findButton({"Redeem"}, true, nil, true)
+    local redeem = findButton({"Redeem"}, true, "youtube", true)
     if redeem then
         log("Enviando Redeem. A inscrição e a verificação da plataforma continuam sendo exigidas.", THEME.warning)
         return clickButton(redeem, "youtube-redeem", 2)
@@ -1634,7 +1646,7 @@ local function useCrusaderToken()
     end
     clickButton(token, "select-crusader-token", 1)
     task.wait(0.25)
-    local useButton = findButton({"Use"}, true, nil, true)
+    local useButton = findButton({"Use"}, true, "crusader token", true)
     if useButton then
         clickButton(useButton, "use-crusader-token", 1.5)
         log("Use enviado para Crusader Token. Confira o recebimento de 250.000 Gems e Trait Remnants.", THEME.success)
@@ -1660,7 +1672,7 @@ local function claimBlankUnit()
     end
     clickButton(unitButton, "blank-unit:" .. unit, 1)
     task.wait(0.25)
-    local claim = findButton({"Claim"}, true, nil, true)
+    local claim = findButton({"Claim"}, true, "blank", true)
     if claim then
         clickButton(claim, "blank-unit-claim", 2)
         log("Pedido de claim enviado para " .. unit .. ". Confira o resultado no jogo.", THEME.success)
