@@ -815,6 +815,7 @@ local function makeControlCard(titleText, description, controlText, callback, co
     local card = make("Frame", {
         BackgroundColor3 = THEME.panel,
         BackgroundTransparency = 0.36,
+        Size = UDim2.new(1, 0, 0, 52),
         BorderSizePixel = 0,
         ZIndex = 5,
     }, currentGrid)
@@ -987,6 +988,7 @@ local function finishGrid()
     if currentGrid then
         local gridFrame = currentGrid
         local layout = gridFrame:FindFirstChildOfClass("UIGridLayout")
+            or gridFrame:FindFirstChildOfClass("UIListLayout")
         task.defer(function()
             if gridFrame and gridFrame.Parent and layout then
                 gridFrame.Size = UDim2.new(1, 0, 0, layout.AbsoluteContentSize.Y)
@@ -994,6 +996,61 @@ local function finishGrid()
         end)
     end
     currentGrid = nil
+end
+
+local function newColumnGroup(leftTitle, rightTitle)
+    local group = make("Frame", {
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, 0, 0, 0),
+        ZIndex = 5,
+    }, pageScroll)
+
+    local function makeColumn(titleText, xScale)
+        local column = make("Frame", {
+            BackgroundColor3 = THEME.panel,
+            BackgroundTransparency = 0.42,
+            Position = UDim2.new(xScale, 0, 0, 0),
+            Size = UDim2.new(0.5, -5, 0, 40),
+            BorderSizePixel = 0,
+            ZIndex = 5,
+        }, group)
+        round(column, 3)
+        outline(column, THEME.line, 0.84, 1)
+
+        local heading = label(column, titleText, 10, THEME.text, true, 19)
+        heading.Position = UDim2.new(0, 10, 0, 5)
+        heading.ZIndex = 6
+
+        local rows = make("Frame", {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 7, 0, 29),
+            Size = UDim2.new(1, -14, 0, 0),
+            ZIndex = 6,
+        }, column)
+        local layout = make("UIListLayout", {
+            Padding = UDim.new(0, 4),
+            SortOrder = Enum.SortOrder.LayoutOrder,
+        }, rows)
+
+        local function resize()
+            if not column.Parent or not rows.Parent then return end
+            rows.Size = UDim2.new(1, -14, 0, layout.AbsoluteContentSize.Y)
+            column.Size = UDim2.new(0.5, -5, 0, 35 + layout.AbsoluteContentSize.Y)
+            local leftHeight = group:FindFirstChild("left_column") and group.left_column.AbsoluteSize.Y or 0
+            local rightHeight = group:FindFirstChild("right_column") and group.right_column.AbsoluteSize.Y or 0
+            group.Size = UDim2.new(1, 0, 0, math.max(leftHeight, rightHeight))
+        end
+        layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(resize)
+        return rows, column, resize
+    end
+
+    local leftRows, leftColumn, resizeLeft = makeColumn(leftTitle, 0)
+    leftColumn.Name = "left_column"
+    local rightRows, rightColumn, resizeRight = makeColumn(rightTitle, 0.5)
+    rightColumn.Name = "right_column"
+    resizeLeft()
+    resizeRight()
+    return leftRows, rightRows
 end
 
 local function addButton(titleText, description, caption, callback)
@@ -2022,28 +2079,42 @@ local function drawFreeUnits()
 end
 
 local function drawGame()
-    section("Game", "Ações automáticas em controles visíveis e opções nativas.")
-    newGrid()
-    addToggle("Auto Vote Start", "Clica Vote Start / Start Match quando a partida pode começar.", "autoStart", false)
-    addToggle("Auto Skip Wave", "Vota em Skip Wave / Vote Skip.", "autoSkip", false)
-    addToggle("Auto Next", "Avança quando Next / Next Stage aparece após uma vitória.", "autoNext", false)
-    addToggle("Auto Retry", "Repete quando Retry / Replay aparece após derrota.", "autoRetry", false)
-    addToggle("Auto Abilities", "Usa botões de habilidade ativos e visíveis.", "autoAbilities", false)
-    addButton("Open Macro Units", "Abre Macro → Units para Fill My Team, slots, targeting, Auto upgrade e Auto abilities.", "OPEN UNITS", function()
-        local macro = findButton({"Macro"}, true, nil, true)
-        if macro then clickButton(macro, "macro-open-units", 1.2) task.wait(0.3) end
-        clickPhrase({"Units"}, "macro-units", false, "macro", true)
-    end)
-    addButton("Toggle Auto Sell Farms", "Procura o interruptor Auto Sell Farms na tela de Settings aberta.", "TOGGLE", function()
-        gameToggleByLabel("Auto Sell Farms")
-    end)
-    addButton("Toggle Auto Sell Units", "Procura Auto Sell Units na tela de Settings aberta.", "TOGGLE", function()
-        gameToggleByLabel("Auto Sell Units")
-    end)
-    addButton("Open Game Settings", "Abre Settings para opções persistentes como Auto Retry, Auto Next e Auto Vote Start.", "SETTINGS", openGameSettings)
+    section("Game", "Game controls on the left · Wave Actions on the right.")
+    local leftRows, rightRows = newColumnGroup("Game", "Wave Actions")
+
+    currentGrid = leftRows
+    addToggle("Auto Skip Wave", "Vote em Skip Wave / Vote Skip quando estiver disponível.", "autoSkip", false)
+    addToggle("Auto Start", "Envia Vote Start / Start Match quando a sala estiver pronta.", "autoStart", false)
+    addToggle("Auto Replay / Retry", "Repete a partida após uma tela de derrota detectada.", "autoRetry", false)
+    addToggle("Auto Next", "Avança apenas quando uma tela de vitória/conclusão aparece.", "autoNext", false)
+    addToggle("Auto Use Abilities", "Usa botões de habilidade ativos e visíveis.", "autoAbilities", false)
     finishGrid()
-    addNotice("Native settings", "Auto Retry, Auto Next e Auto Vote Start existem nas configurações do jogo. O script também pode acionar botões visíveis no fim da partida; evite duplicar opções se não precisar.", "SETTINGS")
-    addNotice("Ability automation", "Configure Auto abilities por unidade em Settings → Units ou por slot em Macro → Units. O yno hub só aciona habilidades que estejam visíveis na interface.", "UNITS")
+
+    currentGrid = rightRows
+    addButton("Open Macro Units", "Macro → Units: Fill My Team, targeting, upgrades e habilidades por slot.", "OPEN", function()
+        local macro = findButton({"Macro"}, true, nil, true)
+        if macro then
+            clickButton(macro, "macro-open-units", 1.2)
+            task.wait(0.3)
+        end
+        return clickPhrase({"Units"}, "macro-units", false, "macro", true)
+    end)
+    addButton("Toggle Auto Upgrade", "Alterna a opção nativa Auto Upgrade quando o controle está visível em Macro/Units.", "TOGGLE", function()
+        return gameToggleByLabel("Auto Upgrade")
+    end)
+    addButton("Toggle Auto Use Abilities", "Alterna a configuração nativa Auto Use Abilities quando estiver visível.", "TOGGLE", function()
+        return gameToggleByLabel("Auto Use Abilities")
+    end)
+    addButton("Toggle Auto Sell Farms", "Alterna o controle nativo Auto Sell Farms.", "TOGGLE", function()
+        return gameToggleByLabel("Auto Sell Farms")
+    end)
+    addButton("Toggle Auto Sell Units", "Alterna o controle nativo Auto Sell Units.", "TOGGLE", function()
+        return gameToggleByLabel("Auto Sell Units")
+    end)
+    addButton("Open Game Settings", "Abre Settings para opções persistentes do jogo.", "SETTINGS", openGameSettings)
+    finishGrid()
+
+    addNotice("Native Smart Macro", "O jogo controla posicionamento, upgrades por slot, venda, targeting e habilidades. Configure Units e Placement antes de iniciar Loop, This Stage ou Routine.", "NATIVE")
 end
 
 local function drawMacro()
