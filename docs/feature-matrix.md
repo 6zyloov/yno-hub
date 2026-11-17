@@ -1,4 +1,4 @@
-# yno hub — matriz de recursos 3.0.0
+# yno hub — matriz de recursos 3.0.1
 
 | Área | Estado | O que realmente faz |
 |---|---|---|
