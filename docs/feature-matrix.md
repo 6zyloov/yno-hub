@@ -1,6 +1,6 @@
 # yno hub — matriz de recursos
 
-**Build 2.2.1 · 17 de novembro de 2026**
+**Build 2.2.2 · 17 de novembro de 2026**
 
 Esta matriz separa automação real de interface, recursos delegados ao jogo e áreas experimentais.
 
