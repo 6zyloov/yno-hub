@@ -1074,6 +1074,7 @@ end
 
 local function findTargetButtonForItem(needle)
     local target = normalize(needle)
+    if #target < 2 then return nil end
     for _, button in ipairs(gameButtons()) do
         local current = button
         local context = getTextForButton(button)
@@ -1297,7 +1298,7 @@ local function buildGame()
     addSelect(page, "smartMacroMode", "Built-in Smart Macro mode", {"Loop", "This Stage", "Routine"}, "O script inicia o modo escolhido na aba Run do Macro nativo.")
     addAction(page, "Start Auto Farm (Smart Macro)", "Inicia o Macro nativo já configurado no jogo. Configure slots, unidades e posicionamento primeiro.", "START FARM", startBuiltInMacro)
     addAction(page, "Stop Auto Farm", "Interrompe o Smart Macro nativo pelo painel flutuante do jogo.", "STOP FARM", stopBuiltInMacro)
-    addToggle(page, "autoStart", "Auto Start / Auto Vote Start", "Clica em Start ou Vote Start quando o botão estiver visível.", false)
+    addToggle(page, "autoStart", "Auto Start / Auto Vote Start", "Clica em Vote Start / Start Match quando o controle estiver visível.", false)
     addToggle(page, "autoSkip", "Auto Skip Wave", "Envia o voto quando aparecer Skip Wave / Vote Skip.", false)
     addToggle(page, "autoReplay", "Auto Replay / Retry", "Reentra quando o botão Replay ou Retry aparecer no fim da partida.", false)
     addToggle(page, "autoNext", "Auto Next", "Avança quando o botão Next / Next Stage aparecer.", false)
@@ -1471,7 +1472,10 @@ local function buildSummon()
     addInput(page, "summonLimit", "Maximum pulls", "10", "10")
     addInput(page, "summonTarget", "Stop when unit appears", "Ex.: Twenty One, Goju", "")
     addToggle(page, "autoSummon", "Auto Summon", "Clica no botão Summon visível até encontrar um alvo novo ou atingir o limite.", false, function(enabled)
-        if enabled then state.summonBaseline = captureTargetBaseline(state.values.summonTarget) end
+        if enabled then
+            state.summonCount = 0
+            state.summonBaseline = captureTargetBaseline(state.values.summonTarget)
+        end
     end)
     addAction(page, "Start summon cycle", "Inicie somente após selecionar o banner correto e conferir o saldo no jogo.", "START", function()
         state.summonCount = 0
@@ -1566,7 +1570,10 @@ local function buildReroll()
     addInput(page, "rerollTarget", "Desired result", "Ex.: Shining, SSS, desired trait", "")
     addInput(page, "rerollLimit", "Maximum rerolls", "10", "10")
     addToggle(page, "autoReroll", "Auto Reroll", "Pressiona o botão Reroll da janela aberta e para por alvo novo/limite.", false, function(enabled)
-        if enabled then state.rerollBaseline = captureTargetBaseline(state.values.rerollTarget) end
+        if enabled then
+            state.rerollCount = 0
+            state.rerollBaseline = captureTargetBaseline(state.values.rerollTarget)
+        end
     end)
     addAction(page, "Start reroll cycle", "Confirme unidade, tipo e saldo antes de iniciar.", "START", function()
         state.rerollCount = 0
@@ -1594,8 +1601,8 @@ local function buildShop()
         return true
     end)
     addAction(page, "Start purchase cycle", "Abra a loja desejada, informe um nome de item e confira moeda/quantidade antes de começar.", "START", function()
-        if normalize(state.values.shopItem) == "" then
-            log("Informe o nome específico do item antes de iniciar.", THEME.yellow)
+        if #normalize(state.values.shopItem) < 2 then
+            log("Informe pelo menos dois caracteres do nome do item antes de iniciar.", THEME.yellow)
             return
         end
         state.shopCount = 0
@@ -1865,7 +1872,7 @@ local function processAutomation()
                 local button = findButton({"reroll"}, false, state.values.rerollKind)
                 if button and activate(button, "reroll-cycle", 2.0) then
                     state.rerollCount = state.rerollCount + 1
-                    log("Reroll " .. tostring(state.rerollCount) .. "/" .. tostring(limit), THEME.cyan)
+                    log("Tentativa de reroll " .. tostring(state.rerollCount) .. "/" .. tostring(limit), THEME.cyan)
                 end
             end
         end
