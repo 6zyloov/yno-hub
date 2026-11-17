@@ -89,7 +89,7 @@ local uiParent = gethuiSafe()
 local oldGui = uiParent:FindFirstChild("yno_hub")
 if oldGui then pcall(function() oldGui:Destroy() end) end
 
-local gui, main, page, pageLayout, nav, titleLabel, statusLabel, toast
+local gui, main, page, pageLayout, nav, titleLabel, statusLabel, toast, uiScale
 local inputName, importBox, debugBox
 local navButtons = {}
 local featureCallbacks = {}
@@ -206,7 +206,23 @@ local function getTextForButton(button)
     return normalize(table.concat(parts, " "))
 end
 
+local function exactButtonText(button, target)
+    target = normalize(target)
+    if normalize(button.Name) == target then return true end
+    if button:IsA("TextButton") and normalize(button.Text) == target then return true end
+    for _, child in ipairs(button:GetDescendants()) do
+        if (child:IsA("TextLabel") or child:IsA("TextButton")) and normalize(child.Text) == target then
+            return true
+        end
+    end
+    return false
+end
+
 local function gameButtons()
+    local now = os.clock()
+    if state.buttonCache and now - (state.buttonCacheAt or 0) < 0.35 then
+        return state.buttonCache
+    end
     local found = {}
     for _, root in ipairs(playerGui:GetChildren()) do
         if root ~= gui then
@@ -217,6 +233,8 @@ local function gameButtons()
             end
         end
     end
+    state.buttonCache = found
+    state.buttonCacheAt = now
     return found
 end
 
@@ -235,7 +253,7 @@ local function findButton(needles, exact, requiredContext)
                 for _, needle in ipairs(needles) do
                     local target = normalize(needle)
                     if target ~= "" then
-                        local matched = exact and haystack == target
+                        local matched = exact and exactButtonText(button, target)
                             or (not exact and string.find(haystack, target, 1, true) ~= nil)
                         if matched then return button, haystack end
                     end
@@ -461,20 +479,24 @@ local function addToggle(parent, key, heading, description, defaultValue, callba
 end
 
 local function addInput(parent, key, heading, placeholder, defaultValue, callback, width)
-    local holder = row(parent, 74)
+    local multiline = key == "macroImport"
+    local holder = row(parent, multiline and 122 or 74)
     textLabel(holder, heading, 12, THEME.text, true, 20)
     local box = create("TextBox", {
         Position = UDim2.new(0, 0, 0, 27),
-        Size = UDim2.new(1, width and -width or 0, 0, 31),
+        Size = UDim2.new(1, width and -width or 0, 0, multiline and 78 or 31),
         BackgroundColor3 = THEME.panel3,
         Text = state.values[key] or defaultValue or "",
         PlaceholderText = placeholder or "",
         PlaceholderColor3 = THEME.muted,
         TextColor3 = THEME.text,
         TextSize = 11,
-        Font = Enum.Font.Gotham,
+        Font = multiline and Enum.Font.Code or Enum.Font.Gotham,
         ClearTextOnFocus = false,
         TextXAlignment = Enum.TextXAlignment.Left,
+        TextYAlignment = multiline and Enum.TextYAlignment.Top or Enum.TextYAlignment.Center,
+        TextWrapped = multiline,
+        MultiLine = multiline,
         BorderSizePixel = 0,
     }, holder)
     round(box, 7)
@@ -490,7 +512,8 @@ local function addSelect(parent, key, heading, choices, description)
     textLabel(holder, heading, 12, THEME.text, true, 20)
     local sub = textLabel(holder, description or "Clique para alternar as opções.", 9, THEME.muted, false, 16)
     sub.Position = UDim2.new(0, 0, 0, 25)
-    local button = makeButton(holder, tostring(state.values[key] or choices[1]), function()
+    local button
+    button = makeButton(holder, tostring(state.values[key] or choices[1]), function()
         local current = state.values[key] or choices[1]
         local index = 1
         for i, choice in ipairs(choices) do
@@ -737,6 +760,9 @@ end
 
 local function recordInput(input)
     if not state.macroRecording or state.macroPlaying then return end
+    if input.KeyCode == Enum.KeyCode.RightShift or input.KeyCode == Enum.KeyCode.F6
+        or input.KeyCode == Enum.KeyCode.F7 or input.KeyCode == Enum.KeyCode.F8
+        or input.KeyCode == Enum.KeyCode.F9 then return end
     local now = os.clock() - (state.recordStart or os.clock())
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
         if isOverHub(input.Position) then return end
@@ -1185,6 +1211,8 @@ local function buildSettings()
         for key, value in pairs(state.toggles) do
             if type(value) == "boolean" then state.toggles[key] = false end
         end
+        applyLowQuality(false)
+        applyHideEffects(false)
         stopPlayback()
         stopRecording()
         log("Todas as automações foram interrompidas.", THEME.yellow)
@@ -1273,11 +1301,15 @@ local function processAutomation()
                 state.toggles.autoSummon = false
                 log("Limite de summon atingido: " .. tostring(limit), THEME.yellow)
             else
-                local amount = tostring(state.values.summonAmount or "10")
-                local button = findButton({"summon " .. amount, "summon x" .. amount, "summon"}, false)
-                if button and activate(button, "summon-cycle", 2.1) then
-                    state.summonCount = state.summonCount + 1
+                local amount = safeNumber(state.values.summonAmount, 10, 1, 10)
+                local button = findButton({"summon x" .. amount, "summon " .. amount}, false)
+                if not button then button = findButton({"summon"}, false) end
+                if button and state.summonCount + amount <= limit and activate(button, "summon-cycle", 2.1) then
+                    state.summonCount = state.summonCount + amount
                     log("Summon " .. tostring(state.summonCount) .. "/" .. tostring(limit), THEME.cyan)
+                elseif button and state.summonCount + amount > limit then
+                    state.toggles.autoSummon = false
+                    log("Limite próximo menor que o pull selecionado; ciclo parado para não ultrapassar.", THEME.yellow)
                 end
             end
         end
@@ -1378,7 +1410,7 @@ gui = create("ScreenGui", {
 
 local viewport = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1280, 800)
 local initialScale = math.clamp(math.min(viewport.X / 1280, viewport.Y / 820), 0.72, 1)
-local uiScale = create("UIScale", {Scale = initialScale}, gui)
+uiScale = create("UIScale", {Scale = initialScale}, gui)
 
 main = create("Frame", {
     AnchorPoint = Vector2.new(0.5, 0.5),
@@ -1579,11 +1611,12 @@ end)
 local inputConnection = UIS.InputBegan:Connect(function(input)
     if input.KeyCode == Enum.KeyCode.RightShift then
         if gui and gui.Parent then main.Visible = not main.Visible end
+        return
     end
-    if input.KeyCode == Enum.KeyCode.F6 then startRecording() end
-    if input.KeyCode == Enum.KeyCode.F7 then stopRecording() end
-    if input.KeyCode == Enum.KeyCode.F8 then playMacro() end
-    if input.KeyCode == Enum.KeyCode.F9 then stopPlayback() end
+    if input.KeyCode == Enum.KeyCode.F6 then startRecording() return end
+    if input.KeyCode == Enum.KeyCode.F7 then stopRecording() return end
+    if input.KeyCode == Enum.KeyCode.F8 then playMacro() return end
+    if input.KeyCode == Enum.KeyCode.F9 then stopPlayback() return end
     recordInput(input)
 end)
 table.insert(state.connections, inputConnection)
