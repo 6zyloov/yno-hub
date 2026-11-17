@@ -1237,8 +1237,8 @@ local function buildGame()
     addToggle(page, "autoNext", "Auto Next", "Avança quando o botão Next / Next Stage aparecer.", false)
     addToggle(page, "autoAbilities", "Auto Use Abilities", "Aciona botões de habilidade visíveis e ativos. Use com a unidade selecionada.", false)
     addToggle(page, "autoClaim", "Auto Claim Rewards", "Clica em Claim All / Claim quando a recompensa estiver visível.", false)
-    addToggle(page, "antiAfk", "Anti AFK", "Tenta manter a sessão ativa usando o VirtualUser do cliente.", false, function(enabled)
-        if enabled then log("Anti AFK ativo enquanto a sessão estiver carregada.", THEME.green) end
+    addToggle(page, "antiAfk", "Anti AFK", "Quando o evento Idle dispara, move o cursor 1 px e volta; VirtualUser é apenas fallback.", false, function(enabled)
+        if enabled then log("Anti AFK local ativado (melhor esforço).", THEME.green) end
     end)
     addAction(page, "Cycle Auto Upgrade priority", "Com uma unidade selecionada, envia Z para alternar P1 → P2 → P3 → P4 → P5 → P6 → Off.", "PRESS Z", function()
         if not sendKeyTap("Z") then log("Selecione uma unidade e deixe Roblox em primeiro plano.", THEME.yellow) end
@@ -1255,6 +1255,16 @@ local function buildGame()
         end
         if unitsTab then activate(unitsTab, "macro-units-tab", 1)
         else log("Abra Macro → Units manualmente.", THEME.yellow) end
+    end)
+    addAction(page, "Open native Auto Abilities settings", "O jogo salva habilidades automáticas em Settings → Units por unidade. Abra essa página para configurar o comportamento persistente.", "OPEN SETTINGS", function()
+        local settingsButton = findButton({"Settings"}, true)
+        if settingsButton then
+            activate(settingsButton, "game-settings-open", 1.2)
+            task.wait(0.35)
+        end
+        local unitsButton = findButton({"Units"}, true)
+        if unitsButton then activate(unitsButton, "game-settings-units", 1.2)
+        else log("Abra Settings → Units manualmente; selecione cada unidade e escolha a habilidade automática.", THEME.yellow) end
     end)
     addAction(page, "Toggle Auto Sell Farms", "Abre Settings → Gameplay e procura a opção Auto Sell Farms. Deixe essa seção aberta no jogo.", "TOGGLE FARM", function()
         toggleFromLabel("Auto Sell Farms")
@@ -1479,6 +1489,7 @@ local function buildMacro()
         safeClipboard("AP-RSEHDXU")
     end)
     addInfo(page, "Import preset", "No jogo: Macro → Units → Import, cole AP-RSEHDXU. Alternativamente Macro → Catalog → Presets, pesquise o código e selecione Use. Confira os seis slots e o mapa antes de iniciar.", "PRESET", THEME.cyan, 86)
+    addInfo(page, "Auto Challenge", "O Macro nativo tem Dailies → Auto Challenge para agendar Daily, Weekly, Resource e Boost Challenges junto às rotinas. Configure a seleção no próprio jogo antes de iniciar.", "DAILIES", THEME.cyan, 82)
     addInfo(page, "Built-in Smart Macro", "O macro gravado pelo yno hub repete cliques e teclas. Para posicionamento inteligente, upgrades por onda, venda de farms, auto abilities e rotinas, use o Smart Macro nativo do jogo.", "IMPORTANT", THEME.yellow, 86)
 end
 
@@ -1812,10 +1823,20 @@ local function setupAntiAfk()
     local ok, connection = pcall(function()
         return player.Idled:Connect(function()
             if state.toggles.antiAfk then
-                pcall(function()
-                    VirtualUser:CaptureController()
-                    VirtualUser:ClickButton2(Vector2.new(0, 0))
-                end)
+                local moved = false
+                if type(mousemoverel) == "function" then
+                    moved = pcall(function()
+                        mousemoverel(1, 0)
+                        task.wait(0.04)
+                        mousemoverel(-1, 0)
+                    end)
+                end
+                if not moved then
+                    pcall(function()
+                        VirtualUser:CaptureController()
+                        VirtualUser:ClickButton2(Vector2.new(0, 0))
+                    end)
+                end
             end
         end)
     end)
@@ -1850,7 +1871,7 @@ gui = create("ScreenGui", {
 }, uiParent)
 
 local viewport = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1280, 800)
-local initialScale = math.clamp(math.min(viewport.X / 1280, viewport.Y / 820), 0.72, 1)
+local initialScale = math.clamp(math.min(viewport.X / 1100, viewport.Y / 700), 0.72, 1)
 uiScale = create("UIScale", {Scale = initialScale}, gui)
 
 main = create("Frame", {
