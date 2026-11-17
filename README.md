@@ -1,72 +1,71 @@
 # yno hub — Anime Crusaders X
 
-**Versão 2.2.2** · Hub Lua independente para Solara, com organização de abas inspirada em hubs de automação e painel flutuante.
+**Versão 3.0.0** · Hub Lua refeito para Solara, com organização de abas próxima ao fluxo do LixHub, fundo cinematográfico baseado na referência visual enviada e automações específicas de Anime Crusaders X.
 
-## Instalação rápida
+## Loader
 
-O repositório está público. Dentro de Anime Crusaders X, execute no Solara:
+Dentro do Anime Crusaders X, execute no Solara:
 
 ~~~lua
 loadstring(game:HttpGet("https://raw.githubusercontent.com/6zyloov/yno-hub/main/yno.lua"))()
 ~~~
 
-O loader curto também está em [loadstring.txt](loadstring.txt). O código completo está em [yno.lua](yno.lua).
+Loader de uma linha: [loadstring.txt](loadstring.txt) · Código principal: [yno.lua](yno.lua).
 
-## Painel
+## Painel 3.0.0
 
-- **Overview** — atalhos rápidos, status e visão geral.
-- **Farm Planner** — rotas de Gems, Gold, Event Tokens, Blank Tokens, Trait Remnants, Stat Cubes, Relic Cubes e Curse Tokens.
-- **Joiner** — abre Play e a categoria selecionada quando os controles estão visíveis. A escolha de mundo/ato/dificuldade e o Start final continuam no menu do jogo.
-- **Game** — Auto Start, Skip Wave, Replay/Retry, Next, habilidades, claims, atalhos Z/N, Auto Sell helpers e início/parada do Smart Macro nativo.
-- **Performance** — efeitos locais, sombras, pós-processamento e limite de FPS, com restauração.
-- **Summon** — ciclo limitado, tamanho do pull selecionado e parada por texto de alvo novo.
-- **Macro** — gravação de cliques/teclas, Loop, import/export JSON e perfis locais.
-- **Auto Reroll** — ciclos limitados por tipo e alvo visível.
-- **Shop** — compras por botão visível, filtro obrigatório de item e limite.
-- **Webhook** — teste e alerta simples de fim de fase, somente para URLs oficiais de webhook do Discord.
-- **Minigames** — reentrada em Play Again/Start Minigame e suporte à macro gravada.
-- **Misc** — resgate de códigos, claim/train por controles visíveis e UI Scanner.
-- **Settings** — escala, salvar configuração, restaurar efeitos, Stop All e Unload.
+- **Overview** — ações rápidas de Story, coleta de recompensas, Unit Hunt e Smart Macro.
+- **Missions** — categorias All, Daily, Infinite, Story, Event e Guide; Claim All; Guidebook e Bounties.
+- **Story** — seleciona um dos 11 mundos, ato, dificuldade, World Skip ou Individual Act e Matchmaking/Select Stage.
+- **Unit Hunt** — entrada nas Hunting Isles, scan Q, aproximação de ProximityPrompt de captura, interação E e tentativa de assistência PERFECT quando os elementos da barra são reconhecidos.
+- **Free Units** — roteiro de Phoenix pelo Guidebook e resgate de Shadow (Atomic)/Lao (Heart) com Blank Tokens.
+- **Game** — Auto Vote Start, Skip Wave, Next, Retry, Auto Abilities e atalhos de configuração.
+- **Macro** — inicia/para o Smart Macro nativo, com Loop, This Stage ou Routine.
+- **Performance** — Low Effects, Hide Attack Effects, FPS cap e restauração.
+- **Settings** — escala, salvar configuração, Stop All e Unload.
+- Janela arrastável, fundo ilustrado local, pesquisa, RightShift, minimizar para botão flutuante y e fechar em ×.
 
-O painel pode ser arrastado. **RightShift** oculta/mostra; o botão de minimizar deixa um pequeno ícone flutuante **y** para reabrir; **×** descarrega o script.
+## Automação de missões
 
-## Auto Farm: Smart Macro nativo
+A aba Missions abre as categorias do menu Quests e coleta recompensas concluídas. O toggle Auto claim só atua quando uma tela de Quest/Guide/Event Quest já está aberta. Daily Quest Complete! concede 750 Gems e 10 Trait Remnants após cinco tarefas diárias concluídas.
 
-O botão **Game → Start Auto Farm** abre o Macro nativo e tenta selecionar **Loop**, **This Stage** ou **Routine** e iniciar o modo escolhido.
+O Guidebook tem 10 tarefas. Ao completar todas e reivindicar Guide Quests Complete!, o jogo entrega Phoenix. As tarefas incluem rolar Traits e Stats, alimentar/fundir unidades e colocar/vender unidades dentro de partidas. A automação de batalha e o Smart Macro ajudam nos objetivos de fase; tarefas que gastam itens ou exigem escolhas manuais não são executadas sem ação explícita.
 
-Configure primeiro o jogo:
+## Story
 
-1. Entre na fase e abra Macro → Units.
-2. Use Fill My Team.
-3. Configure os seis slots e Hero: unidade, targeting, Auto upgrade, Auto abilities, limite de posicionamento e ondas.
-4. Em Placement, configure Zones ou Recording conforme o mapa.
-5. Em Run, escolha Loop para repetir a fase ou Routine para uma fila de tarefas previamente criada.
-6. No yno hub, escolha o modo e use Start Auto Farm.
+A progressão tem 11 mundos: Planet Namak, Marine's Ford, Karakura Town, Shibuya, Demon District, Devil City, Soul Society, West City (Ruined), Culling Games, Doldrey e Sword Arena.
 
-O Smart Macro do jogo faz o posicionamento inteligente, upgrades por slot, venda de farms, foco em chefes e cobertura de inimigos Flying. O hub inicia/para esse sistema, mas não inventa uma estratégia universal para qualquer equipe ou mapa.
+O Story Runner navega pelos botões visíveis de Play → Story → mundo → ato/World Skip → dificuldade → Matchmaking/Select Stage → Start. Auto Next e Auto Retry podem avançar pelos controles que o próprio jogo disponibiliza. World Skip existe nos mundos 1–10, é Normal-only e aplica +900% HP; Sword Arena exige atos individuais.
 
-### Preset incluído
+Para farm que posiciona e atualiza unidades, configure primeiro Macro → Units e Macro → Placement. Em seguida inicie Loop, This Stage ou uma Routine pré-configurada pela aba Macro do yno hub.
 
-O código comunitário **AP-RSEHDXU** é o preset Icy para Sword Arena - Raid. Requer Beyond Heaven, Sun God VS Dragon, Mr. Champion, Useless Goddess, Loid e Speedcart. Consulte [docs/sources.md](docs/sources.md), confira seus slots e mapa e importe pelo Macro Catalog ou Macro → Units → Import.
+## Unit Hunt — evento de captura
 
-## Como as automações de interface funcionam
+Unit Hunt exige Level 5 e é acessado em Events → Unit Hunt → Start Hunt. O evento tem 39 entradas no Collection Book, uma aba separada com 35 Shinies, quatro regiões e cinco Event Quests. O Auto Hunt procura ProximityPrompts com ação Capture, aproxima o personagem e usa E; pressiona Q periodicamente para procurar raros e tenta acertar Space quando identifica marcador e zona dourada pela interface.
 
-As rotinas procuram botões visíveis no PlayerGui e acionam controles do cliente usando APIs documentadas do Solara ou o método nativo GuiButton:Activate. Não chamam RemoteEvents internos, não alteram moedas/inventário no servidor e não tentam contornar anti-cheat.
+A assistência de captura depende dos nomes e da estrutura dos elementos de UI que o jogo expõe. Se a barra mudar, faça o timing manual: a wiki recomenda acertar o centro dourado para PERFECT, que causa dano dobrado. As 39 capturas do Book são colecionáveis do evento, não unidades automaticamente adicionadas ao roster de Tower Defense.
 
-Alguns recursos são necessariamente parciais:
-- Joiner abre a categoria do Play menu; não escolhe por conta própria mundo, ato, dificuldade e Start.
-- Summon/Reroll detectam texto visível e contam cliques/tentativas; não recebem confirmação do servidor. Configure banner/tipo/alvo/limite manualmente.
-- Shop exige filtro de nome com pelo menos dois caracteres e conta cliques em Buy, não compras confirmadas.
-- Auto Re-enter Minigame reabre uma atividade; não joga minigames sozinho.
-- A macro gravada registra coordenadas e teclas; não reconhece ondas, mapa, inventário ou estado da partida.
+## Unidades e custos
 
-## Validação
+- **Phoenix:** recompensa das 10 Guide Quests, após reivindicar a missão de conclusão.
+- **Shadow (Atomic):** 30 Blank Tokens.
+- **Lao (Heart):** 30 Blank Tokens.
 
-- A documentação de funções do Solara foi consultada para GUI, input, clipboard, FPS, filesystem e request.
-- O workflow do GitHub Actions tenta validar sintaxe Lua a cada alteração de arquivo Lua.
-- **Não é possível executar uma sessão real Roblox/Solara neste ambiente.** Portanto, a integração dinâmica com os rótulos e a hierarquia atuais do PlayerGui ainda precisa de um teste dentro do jogo. Não afirmamos que cada ação foi validada ao vivo.
-- O backend proprietário do LixHub é protegido pelo Luarmor. O yno hub é uma implementação independente baseada na lista pública de recursos, não uma cópia do payload fechado.
+Shadow (Atomic) e Lao (Heart) não são gratuitos; o botão de claim é uma ação explícita e exige que você confira seu saldo.
 
-## Fontes
+## Limites honestos
 
-Consulte [docs/sources.md](docs/sources.md) e a [matriz de recursos](docs/feature-matrix.md).
+O yno hub só atua por botões visíveis, prompts normais, movimentação normal do personagem e funções documentadas de input/UI do Solara. Não chama RemoteEvents privados, não altera moedas ou inventário no servidor e não tenta contornar anti-cheat.
+
+A sintaxe Lua é verificada pelo GitHub Actions. **Não foi possível executar uma sessão real de Roblox/Solara neste ambiente**; por isso, a navegação de menus e a detecção dos elementos da barra de captura ainda precisam ser confirmadas no seu cliente. Os nomes/hierarquias de UI podem mudar em atualizações do jogo.
+
+## Referências
+
+- [LixHub — listagem pública de recursos](https://scriptblox.com/script/Anime-Crusaders-LixHub-81563)
+- [Quests e Guidebook](https://anime-crusaders-x.wiki/quests/)
+- [Story Worlds](https://anime-crusaders-x.wiki/story-worlds/)
+- [Unit Hunt](https://anime-crusaders-x.wiki/unit-hunt/)
+- [Bounties](https://anime-crusaders-x.wiki/bounties/)
+- [Smart Macro](https://anime-crusaders-x.wiki/macro/)
+- [Patch notes](https://anime-crusaders-x.wiki/updates/)
+- [API Solara](https://solara.gg/docs/)
