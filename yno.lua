@@ -1283,6 +1283,123 @@ local function claimPhoenix()
     return false
 end
 
+local function promptPart(prompt)
+    local part = prompt.Parent
+    if part and part:IsA("BasePart") then return part end
+    local model = prompt:FindFirstAncestorOfClass("Model")
+    if model then return model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart", true) end
+    return nil
+end
+
+local function interactWithNpc(npcName)
+    local character = player.Character
+    local root = character and character:FindFirstChild("HumanoidRootPart")
+    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+    if not root then return false end
+
+    local target, targetPart, distance = nil, nil, math.huge
+    local needle = norm(npcName)
+    for _, object in ipairs(workspace:GetDescendants()) do
+        if object:IsA("ProximityPrompt") and object.Enabled then
+            local context = norm(object.Name .. " " .. object.ObjectText .. " " .. object.ActionText)
+            local ancestor = object.Parent
+            local depth = 0
+            while ancestor and depth < 4 do
+                context = context .. " " .. norm(ancestor.Name)
+                ancestor = ancestor.Parent
+                depth = depth + 1
+            end
+            if string.find(context, needle, 1, true) then
+                local part = promptPart(object)
+                if part then
+                    local dist = (root.Position - part.Position).Magnitude
+                    if dist < distance then
+                        target, targetPart, distance = object, part, dist
+                    end
+                end
+            end
+        end
+    end
+
+    if not target then
+        local button = findButton({npcName}, false, nil, true)
+        if button then return clickButton(button, "npc-ui:" .. needle, 1.5) end
+        log("Não encontrei o prompt de " .. npcName .. ". Vá até o NPC no lobby e pressione E.", THEME.warning)
+        return false
+    end
+
+    local activationDistance = math.max(1, target.MaxActivationDistance or 10)
+    if distance > activationDistance * 0.72 then
+        if humanoid then
+            local direction = (targetPart.Position - root.Position).Unit
+            humanoid:MoveTo(targetPart.Position - direction * math.min(3, activationDistance * 0.35))
+            log("Indo até " .. npcName .. "...", THEME.muted)
+            return true
+        end
+        return false
+    end
+    return sendKey("E")
+end
+
+local function claimLoginRewards()
+    local screen = allGuiText()
+    if not string.find(screen, "login rewards", 1, true) then
+        if not clickPhrase({"Login Rewards"}, "open-login-rewards", false, nil, true) then
+            log("Abra Login Rewards pelo botão de recompensas do jogo.", THEME.warning)
+            return false
+        end
+        task.wait(0.3)
+    end
+
+    local claimed = 0
+    for _, tabName in ipairs({"Daily", "Anniversary"}) do
+        local tab = findButton({tabName}, true, "login", true)
+        if not tab then tab = findButton({tabName}, true, nil, true) end
+        if tab then
+            clickButton(tab, "login-tab:" .. tabName, 0.7)
+            task.wait(0.25)
+            local claim = findButton({"Claim"}, true, nil, true)
+            if claim and clickButton(claim, "login-claim:" .. tabName, 1.3) then
+                claimed = claimed + 1
+            end
+        end
+    end
+    log(claimed > 0 and ("Login claims enviados: " .. tostring(claimed)) or "Não há login rewards disponíveis para Claim neste momento.", claimed > 0 and THEME.success or THEME.warning)
+    return claimed > 0
+end
+
+local function openHesiaRewards()
+    if not string.find(allGuiText(), "free rewards", 1, true) then
+        interactWithNpc("Hesia")
+        task.wait(0.4)
+    end
+    return clickFirstPhrase({"Free Rewards"}, "hesia-free-rewards", false, nil, true)
+end
+
+local function openYoutubeReward()
+    if clickFirstPhrase({"YouTube Reward"}, "youtube-reward-open", false, nil, true) then
+        log("YouTube Reward aberto. Insira seu próprio nome de canal e conclua a verificação de inscrição.", THEME.warning)
+        return true
+    end
+    log("Não encontrei YouTube Reward. Procure o botão correspondente no lobby.", THEME.warning)
+    return false
+end
+
+local function claimKingIndex()
+    if not string.find(allGuiText(), "index", 1, true) then
+        interactWithNpc("King")
+        task.wait(0.4)
+        clickFirstPhrase({"Open Index"}, "king-open-index", false, nil, true)
+        task.wait(0.35)
+    end
+    local claim = findButton({"Claim All"}, true, nil, true)
+    if claim then
+        return clickButton(claim, "king-index-claim-all", 1.8)
+    end
+    log("King's Index aberto; não há Claim All disponível agora.", THEME.warning)
+    return false
+end
+
 local function claimBlankUnit()
     if not openBountyBoard() then return false end
     task.wait(0.3)
@@ -1503,6 +1620,10 @@ end
 local function drawFreeUnits()
     section("Free Units & Rewards", "Unidades resgatáveis por objetivos — custos e requisitos explícitos.")
     newGrid()
+    addButton("Claim Login Rewards", "Verifica e coleta separadamente Daily e Anniversary, quando houver Claim disponível.", "CLAIM LOGIN", claimLoginRewards)
+    addButton("Open Hesia Free Rewards", "Vai até Hesia e abre as quatro tarefas sociais; conclua as que ainda faltam no jogo.", "HESIA", openHesiaRewards)
+    addButton("Open YouTube Reward", "Abre a verificação da recompensa de inscrição do canal oficial.", "YOUTUBE", openYoutubeReward)
+    addButton("Claim King's Index", "Vai até King, abre Open Index e reivindica Claim All quando estiver disponível.", "INDEX", claimKingIndex)
     addButton("Claim Phoenix", "Abre Guidebook e tenta coletar Guide Quests Complete! se as 10 tarefas estiverem feitas.", "CLAIM PHOENIX", claimPhoenix)
     addButton("Open Guidebook", "Veja progresso e objetivos individuais que faltam.", "OPEN", openGuidebook)
     addSelect("Blank Unit", "Shadow (Atomic) ou Lao (Heart).", "blankUnit", {"Shadow (Atomic)", "Lao (Heart)"})
@@ -1514,7 +1635,9 @@ local function drawFreeUnits()
     end)
     addButton("Claim selected Blank Unit", "Envia o Claim da unidade selecionada. Só clique se você tiver os 30 Blank Tokens.", "CLAIM UNIT", claimBlankUnit)
     finishGrid()
+    addNotice("Twenty One", "A trilha Anniversary Login de sete dias dá Twenty One no Day 1 e oito Anniversary Tickets no total. Daily e Anniversary são abas diferentes: reivindique as duas separadamente enquanto o evento estiver ativo.", "FREE LOGIN")
     addNotice("Phoenix", "Phoenix é a recompensa de completar todas as 10 Guide Quests e reivindicar Guide Quests Complete! Phoenix (Rebirth) é outra forma, não a recompensa original.", "10 QUESTS")
+    addNotice("Hesia / YouTube / Index", "Hesia oferece quatro tarefas sociais com Claim Rewards; YouTube Reward exige subscrever @32xGames e inserir seu próprio canal; King's Index entrega recompensas por unidades registradas. Essas verificações devem ser concluídas pelo jogador.", "REWARDS")
     addNotice("Blank Units are not free", "Shadow (Atomic) custa 30 Blank Tokens e Lao (Heart) custa 30. O yno hub não gasta esses tokens automaticamente; o botão de claim acima só age quando você o aciona.", "30 TOKENS")
     addNotice("Other free rewards", "Use Missions → Claim All para recolher Daily, Story, Infinite e Event quest rewards concluídos. Códigos e recompensas podem expirar; verifique a lista atual dentro do jogo.", "CLAIM")
 end
