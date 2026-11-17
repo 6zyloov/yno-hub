@@ -1436,8 +1436,9 @@ local function interactWithNpc(npcName)
 end
 
 local function claimLoginRewards()
-    local screen = allGuiText()
-    if not string.find(screen, "login rewards", 1, true) then
+    local dailyTab = findButton({"Daily"}, true, nil, true)
+    local anniversaryTab = findButton({"Anniversary"}, true, nil, true)
+    if not dailyTab or not anniversaryTab then
         if not clickPhrase({"Login Rewards"}, "open-login-rewards", false, nil, true) then
             log("Abra Login Rewards pelo botão de recompensas do jogo.", THEME.warning)
             return false
@@ -1765,12 +1766,10 @@ local function drawMissions()
         state.values.macroMode = "Routine"
         startNativeMacro()
     end)
-    addToggle("Auto quest farming", "Mantém Auto Start, Auto Skip e Auto Next ativos para objetivos de kills e clears enquanto você joga Story.", "autoQuestLoop", false, function(enabled)
-        if enabled then
-            setToggleValue("autoStart", true)
-            setToggleValue("autoSkip", true)
-            setToggleValue("autoNext", true)
-        end
+    addToggle("Auto quest farming", "Liga/desliga Auto Start, Auto Skip e Auto Next em conjunto para objetivos de kills e clears no Story.", "autoQuestLoop", false, function(enabled)
+        setToggleValue("autoStart", enabled)
+        setToggleValue("autoSkip", enabled)
+        setToggleValue("autoNext", enabled)
     end)
     finishGrid()
     addNotice("Daily Quests", "Complete cinco tarefas diárias e reivindique o bônus Daily Quests Complete!: 750 Gems + 10 Trait Remnants. As tarefas podem incluir Kills, Challenge, Summoning e Stage Completion; confira a lista atual do seu jogo.", "750 GEMS")
@@ -1819,7 +1818,7 @@ local function drawUnitHunt()
     addButton("Use Crusader Token", "Usa o token do inventário para receber 250.000 Gems e Trait Remnants.", "USE TOKEN", useCrusaderToken)
     finishGrid()
     addNotice("Capture mechanics", "Pressione Q para scan; aproxime-se do alvo até E Capture aparecer; pressione E. No minigame, acerte o marcador no centro dourado com clique, Space ou E para PERFECT (dano dobrado).", "Q · E · SPACE")
-    addNotice("Regions & rewards", "Whisperwood Isles: 8 entries / 5 Event Tokens. Bridgeway Hollow: 11 / 10 Tokens (Hunt Wave 3). Crown Ward: 15 Tokens (Wave 6). Frostfang Peak: 20 Tokens (Wave 9).", "4 REGIONS")
+    addNotice("Regions & rewards", "Whisperwood Isles: 8 entries / 5 Event Tokens. Bridgeway Hollow: 11 / 10 Tokens (Hunt Wave 3). Crown Ward: 15 Tokens (Wave 6). Frostfang Peak: 20 Tokens (Wave 9). O Book principal tem 39 entradas; Shinies é uma aba separada com 35.", "4 REGIONS")
     addNotice("Five event quests", "Rookie Hunter: 25 captures / 5 Tokens. Seasoned Hunter: 150 / 15. Shiny Spotter: 1 Shiny / 25. Valkyrie Slayer: 3 assists / 10. Shrine Keeper: awaken 2 Guardians / 10.", "EVENT QUESTS")
     addNotice("Final Page #039", "Capture the other 38 entries and reach Hunt Wave 10. Ride the Wind Geyser to Sky Altar above Frostfang Peak, break the Sky Seal and capture No.039 alone. First capture rewards 25 Event Tokens.", "SECRET")
     addNotice("Golden Crusader", "Inimigo permanente com chance base de 1 em 5.000.000 por inimigo normal fora do Testing Zone. Ao derrotar, cada jogador elegível recebe um token de uso único; o token concede 250.000 Gems e Trait Remnants.", "LIFETIME TOKEN")
