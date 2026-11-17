@@ -65,6 +65,7 @@ local state = {
     macroRecording = false,
     macroPlaying = false,
     stopMacro = false,
+    macroGeneration = 0,
     playingKeys = {},
     renderConnection = nil,
     effectConnection = nil,
@@ -875,6 +876,7 @@ local function sendClick(x, y)
 end
 
 local function stopPlayback()
+    state.macroGeneration = (state.macroGeneration or 0) + 1
     state.stopMacro = true
     state.macroPlaying = false
     releasePlaybackKeys()
@@ -885,10 +887,18 @@ local function playMacro()
         log("Macro já está em execução.", THEME.yellow)
         return
     end
+    if state.macroRecording then
+        appendKeyUps()
+        state.macroRecording = false
+        state.recordStart = nil
+        log("Gravação finalizada antes da reprodução.", THEME.cyan)
+    end
     if #state.macro == 0 then
         log("Nenhuma ação gravada ou carregada.", THEME.yellow)
         return
     end
+    state.macroGeneration = (state.macroGeneration or 0) + 1
+    local generation = state.macroGeneration
     state.stopMacro = false
     state.macroPlaying = true
     local repetitions = state.values.macroMode == "Loop" and 999999 or 1
@@ -897,11 +907,11 @@ local function playMacro()
         for loopIndex = 1, repetitions do
             local previous = 0
             for _, action in ipairs(state.macro) do
-                if state.stopMacro or not state.running then break end
+                if generation ~= state.macroGeneration or state.stopMacro or not state.running then break end
                 local waitFor = math.max(0, (tonumber(action.t) or 0) - previous)
                 previous = tonumber(action.t) or previous
                 task.wait(math.min(waitFor, 30))
-                if state.stopMacro then break end
+                if generation ~= state.macroGeneration or state.stopMacro then break end
                 if action.kind == "click" then
                     local viewport = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1280, 720)
                     local x = math.clamp((tonumber(action.x) or 0.5) * viewport.X, 1, viewport.X - 1)
@@ -926,13 +936,15 @@ local function playMacro()
                     end
                 end
             end
-            if state.stopMacro then break end
+            if generation ~= state.macroGeneration or state.stopMacro then break end
             if loopIndex < repetitions then task.wait(1) end
         end
-        releasePlaybackKeys()
-        state.macroPlaying = false
-        state.stopMacro = false
-        log("Reprodução finalizada.", THEME.cyan)
+        if generation == state.macroGeneration then
+            releasePlaybackKeys()
+            state.macroPlaying = false
+            state.stopMacro = false
+            log("Reprodução finalizada.", THEME.cyan)
+        end
     end)
 end
 
@@ -1572,12 +1584,16 @@ local function sendWebhook(content)
         return false
     end
     local ok, result = pcall(function()
-        return requestFunction({
+        local response = requestFunction({
             Url = url,
             Method = "POST",
             Headers = {["Content-Type"] = "application/json"},
             Body = HttpService:JSONEncode({content = content}),
         })
+        if type(response) == "table" and response.Success == false then
+            error("HTTP " .. tostring(response.StatusCode or "erro"))
+        end
+        return response
     end)
     log(ok and "Webhook enviado." or ("Falha no webhook: " .. tostring(result)), ok and THEME.green or THEME.red)
     return ok
