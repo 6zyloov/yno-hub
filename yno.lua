@@ -1,5 +1,5 @@
 -- yno hub | anime crusaders x
--- v2.1.0 | 2026-11-17
+-- v2.2.0 | 2026-11-17
 -- Original client-side hub. Uses visible game UI and Roblox's built-in Smart Macro.
 -- No hidden remote calls, currency modification, server bypass or anti-cheat evasion.
 
@@ -99,6 +99,7 @@ if oldGui then pcall(function() oldGui:Destroy() end) end
 local gui, main, page, pageLayout, nav, titleLabel, statusLabel, toast, uiScale, floatingButton
 local inputName, importBox, debugBox
 local navButtons = {}
+local toggleButtons = {}
 local featureCallbacks = {}
 local originalShowPage
 
@@ -510,6 +511,15 @@ local function addAction(parent, heading, description, caption, callback)
     return holder
 end
 
+local function setToggleValue(key, enabled)
+    state.toggles[key] = enabled == true
+    local button = toggleButtons[key]
+    if button and button.Parent then
+        button.Text = state.toggles[key] and "ON" or "OFF"
+        button.BackgroundColor3 = state.toggles[key] and THEME.purple or THEME.panel3
+    end
+end
+
 local function addToggle(parent, key, heading, description, defaultValue, callback)
     if state.toggles[key] == nil then state.toggles[key] = defaultValue or false end
     local holder = row(parent, 65)
@@ -528,6 +538,7 @@ local function addToggle(parent, key, heading, description, defaultValue, callba
         BorderSizePixel = 0,
     }, holder)
     round(btn, 8)
+    toggleButtons[key] = btn
     btn.MouseButton1Click:Connect(function()
         local nextValue = not state.toggles[key]
         state.toggles[key] = nextValue
@@ -540,8 +551,7 @@ local function addToggle(parent, key, heading, description, defaultValue, callba
                 state.toggles[key] = false
             end
         end
-        btn.Text = state.toggles[key] and "ON" or "OFF"
-        btn.BackgroundColor3 = state.toggles[key] and THEME.purple or THEME.panel3
+        setToggleValue(key, state.toggles[key])
         log(heading .. (state.toggles[key] and " ativado." or " desativado."), state.toggles[key] and THEME.green or THEME.muted)
     end)
     return holder
@@ -1183,7 +1193,10 @@ local function buildJoiner()
         "Infinity Castle", "Tournament", "Infinite Tournament", "Testing Zone",
     }, "Clique para alternar o modo que o Joiner deve localizar.")
     addInput(page, "joinDelay", "Join delay (seconds)", "8", "8")
-    addToggle(page, "autoJoin", "Auto Open Selected Mode", "Abre a categoria quando o botão estiver visível no Play menu; mundo, ato, dificuldade e Start são confirmados no próprio jogo.", false)
+    addToggle(page, "autoJoin", "Auto Open Selected Mode", "Abre a categoria quando o botão estiver visível no Play menu; mundo, ato, dificuldade e Start são confirmados no próprio jogo.", false, function()
+        state.autoJoinDone = false
+        return true
+    end)
     addAction(page, "Open selected mode", "Abre Play se necessário; depois escolha o modo. Mundo, ato, dificuldade e início da partida são confirmados no menu do jogo.", "OPEN MODE", function()
         local mode = state.values.joinMode or "Story"
         local modeButton = findButton({mode}, false, "Play")
@@ -1463,11 +1476,11 @@ local function buildSummon()
     addAction(page, "Start summon cycle", "Inicie somente após selecionar o banner correto e conferir o saldo no jogo.", "START", function()
         state.summonCount = 0
         state.summonBaseline = captureTargetBaseline(state.values.summonTarget)
-        state.toggles.autoSummon = true
+        setToggleValue("autoSummon", true)
         log("Ciclo de summon iniciado com limite " .. tostring(state.values.summonLimit), THEME.yellow)
     end)
     addAction(page, "Stop summon cycle", "Interrompe o ciclo imediatamente.", "STOP", function()
-        state.toggles.autoSummon = false
+        setToggleValue("autoSummon", false)
         log("Ciclo de summon parado.", THEME.muted)
     end)
     addInfo(page, "Spending safety", "O hub não escolhe banner nem calcula a moeda do servidor. Defina o limite antes de iniciar; o script para no máximo configurado.", "LIMITED", THEME.yellow, 78)
@@ -1558,11 +1571,11 @@ local function buildReroll()
     addAction(page, "Start reroll cycle", "Confirme unidade, tipo e saldo antes de iniciar.", "START", function()
         state.rerollCount = 0
         state.rerollBaseline = captureTargetBaseline(state.values.rerollTarget)
-        state.toggles.autoReroll = true
+        setToggleValue("autoReroll", true)
         log("Reroll iniciado: " .. tostring(state.values.rerollKind) .. ".", THEME.yellow)
     end)
     addAction(page, "Stop reroll cycle", "Interrompe o ciclo de reroll.", "STOP", function()
-        state.toggles.autoReroll = false
+        setToggleValue("autoReroll", false)
         log("Reroll parado.", THEME.muted)
     end)
     addInfo(page, "Worthiness & costs", "Stat Cube e Perfect Stat Cube gastam Worthiness. Confira o custo por unidade antes de deixar um ciclo rodando.", "LIMITED", THEME.yellow, 77)
@@ -1586,11 +1599,11 @@ local function buildShop()
             return
         end
         state.shopCount = 0
-        state.toggles.autoBuy = true
-        log("Compra automática iniciada com limite " .. tostring(state.values.shopLimit), THEME.yellow)
+        setToggleValue("autoBuy", true)
+        log("Ciclo de compra iniciado. O contador mede cliques, não compras confirmadas.", THEME.yellow)
     end)
     addAction(page, "Stop purchase cycle", "Para compras imediatamente.", "STOP", function()
-        state.toggles.autoBuy = false
+        setToggleValue("autoBuy", false)
         log("Compra automática parada.", THEME.muted)
     end)
     addInfo(page, "Supported shop areas", "Gold Shop, Event, Raid, Boss Rush, Control, Perfection, Kitchen Madness e Einz's Shop são categorias listadas pelo LixHub; selecione a loja no próprio jogo.", "SHOP", THEME.cyan, 82)
@@ -1602,13 +1615,17 @@ local function sendWebhook(content)
         log("Informe uma URL de webhook antes de testar.", THEME.yellow)
         return false
     end
-    local requestFunction = request or http_request or (syn and syn.request)
-    if type(requestFunction) ~= "function" then
-        log("Este executor não oferece request/http_request.", THEME.yellow)
+    if not string.match(url, "^https://discord%.com/api/webhooks/")
+        and not string.match(url, "^https://discordapp%.com/api/webhooks/") then
+        log("Informe uma URL oficial de webhook do Discord.", THEME.yellow)
+        return false
+    end
+    if type(request) ~= "function" then
+        log("A API request() não está disponível neste executor.", THEME.yellow)
         return false
     end
     local ok, result = pcall(function()
-        local response = requestFunction({
+        local response = request({
             Url = url,
             Method = "POST",
             Headers = {["Content-Type"] = "application/json"},
@@ -1733,7 +1750,7 @@ local function buildSettings()
     addAction(page, "Unload yno hub", "Fecha a interface, para loops e desconecta eventos.", "UNLOAD", function()
         if ENV[HUB_KEY] and ENV[HUB_KEY].Unload then ENV[HUB_KEY].Unload() end
     end)
-    addInfo(page, "Build information", "yno hub · Anime Crusaders X · 2.1.0 · baseado nos recursos públicos consultados em 17/11/2026.", "BUILD", THEME.cyan, 76)
+    addInfo(page, "Build information", "yno hub · Anime Crusaders X · 2.2.0 · baseado nos recursos públicos consultados em 17/11/2026.", "BUILD", THEME.cyan, 76)
     addInfo(page, "Limits", "As ações automáticas dependem de botões visíveis. O jogo pode mudar nomes e layouts; o UI Scanner ajuda a identificar essas alterações. O hub não usa remotes privados ou funções internas adivinhadas.", "HONEST", THEME.green, 86)
 end
 
@@ -1779,11 +1796,14 @@ end
 local function processAutomation()
     while state.running do
         local cycleOk, cycleError = pcall(function()
-        if state.toggles.autoJoin and not isGameScreen() then
+        if not state.toggles.autoJoin then
+            state.autoJoinDone = false
+        elseif not state.autoJoinDone and not isGameScreen() then
             local mode = state.values.joinMode or "Story"
             local modeButton = findButton({mode}, false, "Play")
-            if modeButton and activate(modeButton, "auto-open-mode:" .. mode, 2.5) then
-                state.toggles.autoJoin = false
+            local delayTime = safeNumber(state.values.joinDelay, 8, 3, 90)
+            if modeButton and activate(modeButton, "auto-open-mode:" .. mode, delayTime) then
+                state.autoJoinDone = true
                 log(mode .. " aberto. Escolha mundo/ato/dificuldade e confirme Start no Play menu.", THEME.cyan)
             end
         end
@@ -1815,10 +1835,10 @@ local function processAutomation()
             local found, name = targetFoundAfterBaseline(state.values.summonTarget, state.summonBaseline)
             local limit = safeNumber(state.values.summonLimit, 10, 1, 500)
             if found then
-                state.toggles.autoSummon = false
+                setToggleValue("autoSummon", false)
                 log("Alvo encontrado: " .. tostring(name) .. ". Summon interrompido.", THEME.green)
             elseif state.summonCount >= limit then
-                state.toggles.autoSummon = false
+                setToggleValue("autoSummon", false)
                 log("Limite de summon atingido: " .. tostring(limit), THEME.yellow)
             else
                 local amount = safeNumber(state.values.summonAmount, 10, 1, 10)
@@ -1826,7 +1846,7 @@ local function processAutomation()
                     "summon x" .. amount,
                     "summon " .. amount,
                     "x" .. amount .. " summon",
-                }, true)
+                }, false)
                 if not button then
                     log("Botão de summon X" .. amount .. " não encontrado. Confira o banner e o tamanho do pull.", THEME.yellow)
                 end
@@ -1834,7 +1854,7 @@ local function processAutomation()
                     state.summonCount = state.summonCount + amount
                     log("Tentativa de summon " .. tostring(state.summonCount) .. "/" .. tostring(limit), THEME.cyan)
                 elseif button and state.summonCount + amount > limit then
-                    state.toggles.autoSummon = false
+                    setToggleValue("autoSummon", false)
                     log("Limite próximo menor que o pull selecionado; ciclo parado para não ultrapassar.", THEME.yellow)
                 end
             end
@@ -1843,10 +1863,10 @@ local function processAutomation()
             local found, name = targetFoundAfterBaseline(state.values.rerollTarget, state.rerollBaseline)
             local limit = safeNumber(state.values.rerollLimit, 10, 1, 500)
             if found then
-                state.toggles.autoReroll = false
+                setToggleValue("autoReroll", false)
                 log("Resultado encontrado: " .. tostring(name) .. ". Reroll interrompido.", THEME.green)
             elseif state.rerollCount >= limit then
-                state.toggles.autoReroll = false
+                setToggleValue("autoReroll", false)
                 log("Limite de reroll atingido: " .. tostring(limit), THEME.yellow)
             else
                 local button = findButton({"reroll"}, false, state.values.rerollKind)
@@ -1859,12 +1879,12 @@ local function processAutomation()
         if state.toggles.autoBuy then
             local filter = normalize(state.values.shopItem)
             if filter == "" then
-                state.toggles.autoBuy = false
+                setToggleValue("autoBuy", false)
                 log("Defina o nome do item antes de iniciar Auto Buy.", THEME.yellow)
             else
             local limit = safeNumber(state.values.shopLimit, 1, 1, 100)
             if state.shopCount >= limit then
-                state.toggles.autoBuy = false
+                setToggleValue("autoBuy", false)
                 log("Limite de compras atingido.", THEME.yellow)
             else
                 local button = findTargetButtonForItem(state.values.shopItem)
@@ -2150,7 +2170,7 @@ local bottomBar = create("Frame", {
 round(bottomBar, 8)
 statusLabel = textLabel(bottomBar, "Pronto. RightShift mostra/oculta o painel.", 9, THEME.muted, false, 22)
 statusLabel.Position = UDim2.new(0, 10, 0, 4)
-local versionLabel = textLabel(bottomBar, "2.1.0", 9, THEME.purple, true, 22)
+local versionLabel = textLabel(bottomBar, "2.2.0", 9, THEME.purple, true, 22)
 versionLabel.TextXAlignment = Enum.TextXAlignment.Right
 versionLabel.Position = UDim2.new(1, -52, 0, 4)
 versionLabel.Size = UDim2.new(0, 42, 0, 22)
@@ -2219,7 +2239,7 @@ table.insert(state.connections, inputEndedConnection)
 
 setupAntiAfk()
 
-ENV[HUB_KEY] = {Unload = unload, Version = "2.1.0"}
+ENV[HUB_KEY] = {Unload = unload, Version = "2.2.0"}
 
 if state.toggles.lowQuality then applyLowQuality(true) end
 if state.toggles.hideEffects then applyHideEffects(true) end
@@ -2230,7 +2250,7 @@ task.spawn(processAutomation)
 if game.CreatorId ~= 35139043 then
     log("Aviso: este não parece ser o CreatorId do Anime Crusaders X.", THEME.yellow)
 else
-    log("yno hub 2.1 carregado. RightShift oculta/mostra.", THEME.green)
+    log("yno hub 2.2 carregado. RightShift oculta/mostra.", THEME.green)
 end
 
 saveConfig()
