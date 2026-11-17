@@ -1,6 +1,6 @@
 # yno hub — Anime Crusaders X
 
-**Versão 2.2.1** · Hub Lua independente para Solara, com organização de abas inspirada em hubs de automação e painel flutuante.
+**Versão 2.2.2** · Hub Lua independente para Solara, com organização de abas inspirada em hubs de automação e painel flutuante.
 
 ## Instalação rápida
 
