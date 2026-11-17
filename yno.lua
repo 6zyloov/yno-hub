@@ -1,5 +1,5 @@
 -- yno hub | anime crusaders x
--- v2.2.0 | 2026-11-17
+-- v2.2.1 | 2026-11-17
 -- Original client-side hub. Uses visible game UI and Roblox's built-in Smart Macro.
 -- No hidden remote calls, currency modification, server bypass or anti-cheat evasion.
 
@@ -1149,7 +1149,7 @@ local function buildOverview()
     local quick = row(page, 67)
     textLabel(quick, "QUICK ACTIONS", 10, THEME.muted, true, 16)
     local b1 = makeButton(quick, "START", function()
-        clickWhenVisible("quick-start", {"vote start", "start match", "start"}, 1.5, false)
+        clickWhenVisible("quick-start", {"vote start", "start match"}, 1.5, false)
     end, 82, true)
     b1.Position = UDim2.new(0, 0, 0, 23)
     local b2 = makeButton(quick, "SKIP WAVE", function()
@@ -1750,7 +1750,7 @@ local function buildSettings()
     addAction(page, "Unload yno hub", "Fecha a interface, para loops e desconecta eventos.", "UNLOAD", function()
         if ENV[HUB_KEY] and ENV[HUB_KEY].Unload then ENV[HUB_KEY].Unload() end
     end)
-    addInfo(page, "Build information", "yno hub · Anime Crusaders X · 2.2.0 · baseado nos recursos públicos consultados em 17/11/2026.", "BUILD", THEME.cyan, 76)
+    addInfo(page, "Build information", "yno hub · Anime Crusaders X · 2.2.1 · baseado nos recursos públicos consultados em 17/11/2026.", "BUILD", THEME.cyan, 76)
     addInfo(page, "Limits", "As ações automáticas dependem de botões visíveis. O jogo pode mudar nomes e layouts; o UI Scanner ajuda a identificar essas alterações. O hub não usa remotes privados ou funções internas adivinhadas.", "HONEST", THEME.green, 86)
 end
 
@@ -1809,7 +1809,6 @@ local function processAutomation()
         end
         if state.toggles.autoStart then
             local startButton = findButton({"Vote Start", "Start Match"}, false)
-            if not startButton then startButton = findButton({"Start"}, true) end
             if startButton then activate(startButton, "auto-start", 1.8) end
         end
         if state.toggles.autoSkip then
@@ -1828,9 +1827,6 @@ local function processAutomation()
         if state.toggles.autoClaim then
             clickWhenVisible("auto-claim", {"claim all", "claim reward"}, 1.8, false)
         end
-        if state.toggles.autoJoin then
-            -- The join mode selection is intentionally rate-limited by its action key.
-        end
         if state.toggles.autoSummon then
             local found, name = targetFoundAfterBaseline(state.values.summonTarget, state.summonBaseline)
             local limit = safeNumber(state.values.summonLimit, 10, 1, 500)
@@ -1847,9 +1843,6 @@ local function processAutomation()
                     "summon " .. amount,
                     "x" .. amount .. " summon",
                 }, false)
-                if not button then
-                    log("Botão de summon X" .. amount .. " não encontrado. Confira o banner e o tamanho do pull.", THEME.yellow)
-                end
                 if button and state.summonCount + amount <= limit and activate(button, "summon-cycle", 2.1) then
                     state.summonCount = state.summonCount + amount
                     log("Tentativa de summon " .. tostring(state.summonCount) .. "/" .. tostring(limit), THEME.cyan)
@@ -1908,7 +1901,8 @@ local function processAutomation()
             if finished and not state.stageWebhookSent then
                 state.stageWebhookSent = true
                 local mention = ""
-                if state.toggles.webhookPing and state.values.webhookId and state.values.webhookId ~= "" then
+                if state.toggles.webhookPing and state.values.webhookId
+                    and string.match(tostring(state.values.webhookId), "^%d+$") then
                     mention = "<@" .. state.values.webhookId .. "> "
                 end
                 sendWebhook(mention .. "yno hub: partida finalizada.")
@@ -1974,6 +1968,7 @@ gui = create("ScreenGui", {
     Name = "yno_hub",
     ResetOnSpawn = false,
     IgnoreGuiInset = true,
+    DisplayOrder = 9999,
     ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 }, uiParent)
 
@@ -2170,7 +2165,7 @@ local bottomBar = create("Frame", {
 round(bottomBar, 8)
 statusLabel = textLabel(bottomBar, "Pronto. RightShift mostra/oculta o painel.", 9, THEME.muted, false, 22)
 statusLabel.Position = UDim2.new(0, 10, 0, 4)
-local versionLabel = textLabel(bottomBar, "2.2.0", 9, THEME.purple, true, 22)
+local versionLabel = textLabel(bottomBar, "2.2.1", 9, THEME.purple, true, 22)
 versionLabel.TextXAlignment = Enum.TextXAlignment.Right
 versionLabel.Position = UDim2.new(1, -52, 0, 4)
 versionLabel.Size = UDim2.new(0, 42, 0, 22)
@@ -2239,7 +2234,7 @@ table.insert(state.connections, inputEndedConnection)
 
 setupAntiAfk()
 
-ENV[HUB_KEY] = {Unload = unload, Version = "2.2.0"}
+ENV[HUB_KEY] = {Unload = unload, Version = "2.2.1"}
 
 if state.toggles.lowQuality then applyLowQuality(true) end
 if state.toggles.hideEffects then applyHideEffects(true) end
@@ -2250,7 +2245,7 @@ task.spawn(processAutomation)
 if game.CreatorId ~= 35139043 then
     log("Aviso: este não parece ser o CreatorId do Anime Crusaders X.", THEME.yellow)
 else
-    log("yno hub 2.2 carregado. RightShift oculta/mostra.", THEME.green)
+    log("yno hub 2.2.1 carregado. RightShift oculta/mostra.", THEME.green)
 end
 
 saveConfig()
