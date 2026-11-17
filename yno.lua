@@ -983,7 +983,7 @@ end
 local function countTargetLabels(targets)
     local counts = {}
     local tokens = {}
-    for token in string.gmatch(string.gsub(tostring(targets or ""), "\\n", ","), "[^,]+") do
+    for token in string.gmatch(string.gsub(tostring(targets or ""), "\n", ","), "[^,]+") do
         local normalized = normalize(token)
         if normalized ~= "" then table.insert(tokens, {original = token, normalized = normalized}) end
     end
