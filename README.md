@@ -1,64 +1,72 @@
-# yno hub — anime crusaders x
+# yno hub — Anime Crusaders X
 
-**Version 2.0.0** · Hub Lua original com interface inspirada em hubs de automação e foco em Anime Crusaders X.
+**Versão 2.2.1** · Hub Lua independente para Solara, com organização de abas inspirada em hubs de automação e painel flutuante.
 
-## Instalação rápida no Solara
+## Instalação rápida
 
-O repositório está **público** e o loader remoto está pronto. Dentro de Anime Crusaders X, execute:
+O repositório está público. Dentro de Anime Crusaders X, execute no Solara:
 
 ~~~lua
 loadstring(game:HttpGet("https://raw.githubusercontent.com/6zyloov/yno-hub/main/yno.lua"))()
 ~~~
 
-Arquivo principal: [yno.lua](yno.lua) · Instruções: [docs/usage.md](docs/usage.md).
+O loader curto também está em [loadstring.txt](loadstring.txt). O código completo está em [yno.lua](yno.lua).
 
-## Abas
+## Painel
 
-- **Overview** — painel e atalhos.
-- **Farm Planner** — rotas para Gems, Gold, Event Tokens, Blank Tokens, Trait Remnants, Stat Cubes, Relic Cubes e Curse Tokens.
-- **Joiner** — seleção de modo e tentativa de entrar pelo botão visível do lobby.
-- **Game** — Auto Start, Skip Wave, Replay/Next, habilidades, claims, Auto Sell helpers, atalhos Z/N e controle do Smart Macro nativo.
-- **Performance** — efeitos locais, sombras e limite de FPS.
-- **Summon** — ciclo com limite e parada ao detectar um resultado novo configurado.
-- **Macro** — gravar/reproduzir cliques e teclas, import/export JSON e perfis locais.
-- **Auto Reroll** — ciclos limitados com parada por resultado detectado.
-- **Shop** — compra pelo botão visível, com filtro e limite.
-- **Webhook** — teste de conexão e alerta básico de fim de fase.
-- **Minigames** — reinício por botão visível e suporte à macro gravada.
-- **Misc** — resgatar códigos, treinar unidade e UI Scanner.
-- **Settings** — escala, salvamento, restauração visual, Stop All e Unload.
+- **Overview** — atalhos rápidos, status e visão geral.
+- **Farm Planner** — rotas de Gems, Gold, Event Tokens, Blank Tokens, Trait Remnants, Stat Cubes, Relic Cubes e Curse Tokens.
+- **Joiner** — abre Play e a categoria selecionada quando os controles estão visíveis. A escolha de mundo/ato/dificuldade e o Start final continuam no menu do jogo.
+- **Game** — Auto Start, Skip Wave, Replay/Retry, Next, habilidades, claims, atalhos Z/N, Auto Sell helpers e início/parada do Smart Macro nativo.
+- **Performance** — efeitos locais, sombras, pós-processamento e limite de FPS, com restauração.
+- **Summon** — ciclo limitado, tamanho do pull selecionado e parada por texto de alvo novo.
+- **Macro** — gravação de cliques/teclas, Loop, import/export JSON e perfis locais.
+- **Auto Reroll** — ciclos limitados por tipo e alvo visível.
+- **Shop** — compras por botão visível, filtro obrigatório de item e limite.
+- **Webhook** — teste e alerta simples de fim de fase, somente para URLs oficiais de webhook do Discord.
+- **Minigames** — reentrada em Play Again/Start Minigame e suporte à macro gravada.
+- **Misc** — resgate de códigos, claim/train por controles visíveis e UI Scanner.
+- **Settings** — escala, salvar configuração, restaurar efeitos, Stop All e Unload.
+
+O painel pode ser arrastado. **RightShift** oculta/mostra; o botão de minimizar deixa um pequeno ícone flutuante **y** para reabrir; **×** descarrega o script.
 
 ## Auto Farm: Smart Macro nativo
 
-O botão **Game → Start Auto Farm** abre o Macro nativo e tenta iniciar o modo escolhido: Loop, This Stage ou Routine.
+O botão **Game → Start Auto Farm** abre o Macro nativo e tenta selecionar **Loop**, **This Stage** ou **Routine** e iniciar o modo escolhido.
 
-Antes disso, configure o próprio jogo:
-1. Entre na fase pretendida e abra Macro → Units.
+Configure primeiro o jogo:
+
+1. Entre na fase e abra Macro → Units.
 2. Use Fill My Team.
-3. Configure cada slot: unidade, targeting, Auto upgrade, Auto abilities, placement limit e ondas.
-4. Configure Placement → Zones/Recording conforme o mapa.
-5. Em Run, escolha Loop ou Routine; para Routine, crie a fila de tarefas antes.
-6. No yno hub, selecione o modo e clique Start Auto Farm.
+3. Configure os seis slots e Hero: unidade, targeting, Auto upgrade, Auto abilities, limite de posicionamento e ondas.
+4. Em Placement, configure Zones ou Recording conforme o mapa.
+5. Em Run, escolha Loop para repetir a fase ou Routine para uma fila de tarefas previamente criada.
+6. No yno hub, escolha o modo e use Start Auto Farm.
 
-O Smart Macro do jogo faz posicionamento inteligente, upgrades, venda de farms, foco em chefes e cobertura de inimigos Flying. O yno hub inicia e organiza esse sistema; ele não inventa uma estratégia universal para qualquer equipe/mapa.
+O Smart Macro do jogo faz o posicionamento inteligente, upgrades por slot, venda de farms, foco em chefes e cobertura de inimigos Flying. O hub inicia/para esse sistema, mas não inventa uma estratégia universal para qualquer equipe ou mapa.
 
-## Preset de Macro incluído
+### Preset incluído
 
-O código comunitário **AP-RSEHDXU** é o preset de Icy para Sword Arena - Raid. Requer Beyond Heaven, Sun God VS Dragon, Mr. Champion, Useless Goddess, Loid e Speedcart. Confira slots e mapa antes de importar em Macro → Units → Import ou pesquisar no Catalog.
+O código comunitário **AP-RSEHDXU** é o preset Icy para Sword Arena - Raid. Requer Beyond Heaven, Sun God VS Dragon, Mr. Champion, Useless Goddess, Loid e Speedcart. Consulte [docs/sources.md](docs/sources.md), confira seus slots e mapa e importe pelo Macro Catalog ou Macro → Units → Import.
 
-## Como as ações automáticas operam
+## Como as automações de interface funcionam
 
-As ações de cliente procuram controles visíveis em PlayerGui e usam funções de entrada documentadas do Solara. Não chamam RemoteEvents internos, não alteram moedas/inventário no servidor e não tentam contornar anti-cheat. O UI Scanner ajuda a identificar mudanças de texto/controles depois de atualizações do jogo.
+As rotinas procuram botões visíveis no PlayerGui e acionam controles do cliente usando APIs documentadas do Solara ou o método nativo GuiButton:Activate. Não chamam RemoteEvents internos, não alteram moedas/inventário no servidor e não tentam contornar anti-cheat.
 
-## Validação e limites
+Alguns recursos são necessariamente parciais:
+- Joiner abre a categoria do Play menu; não escolhe por conta própria mundo, ato, dificuldade e Start.
+- Summon/Reroll detectam texto visível e contam cliques/tentativas; não recebem confirmação do servidor. Configure banner/tipo/alvo/limite manualmente.
+- Shop exige filtro de nome com pelo menos dois caracteres e conta cliques em Buy, não compras confirmadas.
+- Auto Re-enter Minigame reabre uma atividade; não joga minigames sozinho.
+- A macro gravada registra coordenadas e teclas; não reconhece ondas, mapa, inventário ou estado da partida.
 
-- O arquivo passa pela checagem automática de sintaxe Lua 5.4 no GitHub Actions.
-- A API de entrada, clipboard, FPS e arquivos foi conferida na documentação do Solara.
-- **Não foi possível executar o jogo Roblox/Solara neste ambiente**; portanto, a compatibilidade dinâmica com os nomes e hierarquia atuais dos botões ainda precisa ser confirmada em uma sessão real.
-- Joiner, Summon, Reroll, Shop, botões de fim de fase e Webhook são baseados na interface visível e podem exigir ajuste se o jogo mudar.
-- A macro de entrada grava coordenadas e teclas; não interpreta estado do jogo nem substitui o Smart Macro nativo.
-- O backend do LixHub é protegido pelo Luarmor; o yno hub é uma implementação independente inspirada na lista pública de recursos, não uma cópia do código proprietário.
+## Validação
+
+- A documentação de funções do Solara foi consultada para GUI, input, clipboard, FPS, filesystem e request.
+- O workflow do GitHub Actions tenta validar sintaxe Lua a cada alteração de arquivo Lua.
+- **Não é possível executar uma sessão real Roblox/Solara neste ambiente.** Portanto, a integração dinâmica com os rótulos e a hierarquia atuais do PlayerGui ainda precisa de um teste dentro do jogo. Não afirmamos que cada ação foi validada ao vivo.
+- O backend proprietário do LixHub é protegido pelo Luarmor. O yno hub é uma implementação independente baseada na lista pública de recursos, não uma cópia do payload fechado.
 
 ## Fontes
 
-Veja [docs/sources.md](docs/sources.md) e [docs/feature-matrix.md](docs/feature-matrix.md).
+Consulte [docs/sources.md](docs/sources.md) e a [matriz de recursos](docs/feature-matrix.md).
