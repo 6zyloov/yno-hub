@@ -718,7 +718,19 @@ local VK = {
 for i = 1, 26 do VK[string.char(64 + i)] = 0x40 + i end
 for i = 1, 12 do VK["F" .. i] = 0x6F + i end
 
-local function sendKey(keyName)
+local function sendKeyState(keyName, isDown)
+    local code = VK[keyName]
+    if not code then
+        log("Tecla não mapeada para replay: " .. tostring(keyName), THEME.yellow)
+        return false
+    end
+    local fn = isDown and keypress or keyrelease
+    if type(fn) ~= "function" then return false end
+    local ok = pcall(fn, code)
+    return ok
+end
+
+local function sendKeyTap(keyName)
     local code = VK[keyName]
     if not code then
         log("Tecla não mapeada para replay: " .. tostring(keyName), THEME.yellow)
@@ -790,14 +802,22 @@ local function playMacro()
                     local x = math.clamp((tonumber(action.x) or 0.5) * viewport.X, 1, viewport.X - 1)
                     local y = math.clamp((tonumber(action.y) or 0.5) * viewport.Y, 1, viewport.Y - 1)
                     if not sendClick(x, y) then
-                        log("VirtualInputManager bloqueou o clique de macro. Reprodução interrompida.", THEME.red)
+                        log("Falha no clique da macro. Reprodução interrompida.", THEME.red)
                         state.stopMacro = true
                         break
                     end
                 elseif action.kind == "key" then
-                    local okKey = sendKey(action.key)
+                    local okKey = sendKeyTap(action.key)
                     if not okKey then
                         log("Falha ao reproduzir tecla: " .. tostring(action.key), THEME.red)
+                    end
+                elseif action.kind == "key_down" then
+                    if not sendKeyState(action.key, true) then
+                        log("Falha ao pressionar tecla: " .. tostring(action.key), THEME.red)
+                    end
+                elseif action.kind == "key_up" then
+                    if not sendKeyState(action.key, false) then
+                        log("Falha ao soltar tecla: " .. tostring(action.key), THEME.red)
                     end
                 end
             end
