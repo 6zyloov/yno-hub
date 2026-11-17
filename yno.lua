@@ -1,5 +1,5 @@
 -- yno hub | anime crusaders x
--- v2.2.1 | 2026-11-17
+-- v2.2.2 | 2026-11-17
 -- Original client-side hub. Uses visible game UI and Roblox's built-in Smart Macro.
 -- No hidden remote calls, currency modification, server bypass or anti-cheat evasion.
 
@@ -1757,7 +1757,7 @@ local function buildSettings()
     addAction(page, "Unload yno hub", "Fecha a interface, para loops e desconecta eventos.", "UNLOAD", function()
         if ENV[HUB_KEY] and ENV[HUB_KEY].Unload then ENV[HUB_KEY].Unload() end
     end)
-    addInfo(page, "Build information", "yno hub · Anime Crusaders X · 2.2.1 · baseado nos recursos públicos consultados em 17/11/2026.", "BUILD", THEME.cyan, 76)
+    addInfo(page, "Build information", "yno hub · Anime Crusaders X · 2.2.2 · baseado nos recursos públicos consultados em 17/11/2026.", "BUILD", THEME.cyan, 76)
     addInfo(page, "Limits", "As ações automáticas dependem de botões visíveis. O jogo pode mudar nomes e layouts; o UI Scanner ajuda a identificar essas alterações. O hub não usa remotes privados ou funções internas adivinhadas.", "HONEST", THEME.green, 86)
 end
 
@@ -2172,7 +2172,7 @@ local bottomBar = create("Frame", {
 round(bottomBar, 8)
 statusLabel = textLabel(bottomBar, "Pronto. RightShift mostra/oculta o painel.", 9, THEME.muted, false, 22)
 statusLabel.Position = UDim2.new(0, 10, 0, 4)
-local versionLabel = textLabel(bottomBar, "2.2.1", 9, THEME.purple, true, 22)
+local versionLabel = textLabel(bottomBar, "2.2.2", 9, THEME.purple, true, 22)
 versionLabel.TextXAlignment = Enum.TextXAlignment.Right
 versionLabel.Position = UDim2.new(1, -52, 0, 4)
 versionLabel.Size = UDim2.new(0, 42, 0, 22)
@@ -2241,7 +2241,7 @@ table.insert(state.connections, inputEndedConnection)
 
 setupAntiAfk()
 
-ENV[HUB_KEY] = {Unload = unload, Version = "2.2.1"}
+ENV[HUB_KEY] = {Unload = unload, Version = "2.2.2"}
 
 if state.toggles.lowQuality then applyLowQuality(true) end
 if state.toggles.hideEffects then applyHideEffects(true) end
@@ -2252,7 +2252,7 @@ task.spawn(processAutomation)
 if game.CreatorId ~= 35139043 then
     log("Aviso: este não parece ser o CreatorId do Anime Crusaders X.", THEME.yellow)
 else
-    log("yno hub 2.2.1 carregado. RightShift oculta/mostra.", THEME.green)
+    log("yno hub 2.2.2 carregado. RightShift oculta/mostra.", THEME.green)
 end
 
 saveConfig()
