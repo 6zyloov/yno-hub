@@ -130,6 +130,10 @@ local function outline(object, color, transparency, thickness)
 end
 
 local function label(parent, value, size, color, bold, height)
+    local zIndex = 1
+    if parent and parent:IsA("GuiObject") then
+        zIndex = parent.ZIndex + 1
+    end
     return make("TextLabel", {
         BackgroundTransparency = 1,
         Size = UDim2.new(1, 0, 0, height or 22),
@@ -140,6 +144,7 @@ local function label(parent, value, size, color, bold, height)
         TextXAlignment = Enum.TextXAlignment.Left,
         TextYAlignment = Enum.TextYAlignment.Center,
         TextWrapped = true,
+        ZIndex = zIndex,
     }, parent)
 end
 
