@@ -284,6 +284,13 @@ end
 local function activate(button, actionKey, cooldown)
     if not button or not button.Parent then return false end
     if not visible(button) or not button.Active then return false end
+    if type(isrbxactive) == "function" then
+        local focusOk, focused = pcall(isrbxactive)
+        if focusOk and not focused then
+            log("Roblox não está em primeiro plano; clique cancelado.", THEME.yellow)
+            return false
+        end
+    end
     local now = os.clock()
     local key = actionKey or tostring(button)
     if state.lastAction[key] and now - state.lastAction[key] < (cooldown or 1.2) then
@@ -775,6 +782,10 @@ local function sendKeyState(keyName, isDown)
         log("Tecla não mapeada para replay: " .. tostring(keyName), THEME.yellow)
         return false
     end
+    if type(isrbxactive) == "function" then
+        local focusOk, focused = pcall(isrbxactive)
+        if focusOk and not focused then return false end
+    end
     local fn = isDown and keypress or keyrelease
     if type(fn) ~= "function" then return false end
     local ok = pcall(fn, code)
@@ -824,6 +835,10 @@ local function sendClick(x, y)
         return false
     end
     local inset = getViewportInset()
+    if type(isrbxactive) == "function" then
+        local focusOk, focused = pcall(isrbxactive)
+        if focusOk and not focused then return false end
+    end
     local ok = pcall(function()
         mousemoveabs(math.floor(x + inset.X), math.floor(y + inset.Y))
         task.wait(0.04)
@@ -968,7 +983,7 @@ end
 local function countTargetLabels(targets)
     local counts = {}
     local tokens = {}
-    for token in string.gmatch(tostring(targets or ""), "[^,\\n]+") do
+    for token in string.gmatch(string.gsub(tostring(targets or ""), "\\n", ","), "[^,]+") do
         local normalized = normalize(token)
         if normalized ~= "" then table.insert(tokens, {original = token, normalized = normalized}) end
     end
