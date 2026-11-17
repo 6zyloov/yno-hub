@@ -1,5 +1,5 @@
 -- yno hub | anime crusaders x
--- v3.0.1 | 2026-11-17
+-- v3.1.0 | 2026-11-17
 -- LixHub-inspired game hub rebuilt around visible Anime Crusaders X workflows.
 -- All game actions use visible UI controls, normal movement, or normal key input.
 -- No private RemoteEvents, inventory edits, currency edits, or anti-cheat bypass.
@@ -21,19 +21,19 @@ if ENV[RUNTIME_KEY] and type(ENV[RUNTIME_KEY].Unload) == "function" then
 end
 
 local THEME = {
-    background = Color3.fromRGB(5, 9, 11),
-    sidebar = Color3.fromRGB(8, 14, 16),
-    panel = Color3.fromRGB(11, 18, 20),
-    panel2 = Color3.fromRGB(15, 23, 25),
-    panel3 = Color3.fromRGB(24, 34, 36),
-    line = Color3.fromRGB(58, 73, 75),
-    text = Color3.fromRGB(232, 237, 236),
-    muted = Color3.fromRGB(151, 164, 164),
-    accent = Color3.fromRGB(111, 151, 143),
-    accentDark = Color3.fromRGB(44, 72, 67),
-    success = Color3.fromRGB(147, 185, 162),
-    warning = Color3.fromRGB(202, 164, 104),
-    danger = Color3.fromRGB(190, 113, 105),
+    background = Color3.fromRGB(5, 9, 14),
+    sidebar = Color3.fromRGB(7, 12, 18),
+    panel = Color3.fromRGB(11, 18, 26),
+    panel2 = Color3.fromRGB(14, 22, 31),
+    panel3 = Color3.fromRGB(25, 37, 49),
+    line = Color3.fromRGB(48, 65, 81),
+    text = Color3.fromRGB(232, 237, 241),
+    muted = Color3.fromRGB(145, 158, 172),
+    accent = Color3.fromRGB(105, 145, 171),
+    accentDark = Color3.fromRGB(34, 55, 74),
+    success = Color3.fromRGB(139, 180, 151),
+    warning = Color3.fromRGB(190, 157, 103),
+    danger = Color3.fromRGB(178, 105, 105),
 }
 
 local WORLD_LIST = {
@@ -509,13 +509,14 @@ local function contextText(object)
     local parts = {}
     local current = object
     local depth = 0
-    while current and current ~= playerGui and depth < 6 do
+    while current and current ~= playerGui and depth < 8 do
         table.insert(parts, norm(current.Name))
-        if current:IsA("TextLabel") or current:IsA("TextButton") then
+        if current:IsA("TextLabel") or current:IsA("TextButton") or current:IsA("TextBox") then
             table.insert(parts, norm(current.Text))
         end
         for _, child in ipairs(current:GetChildren()) do
-            if child:IsA("TextLabel") and child.Text ~= "" then
+            if (child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox"))
+                and child.Text and child.Text ~= "" then
                 table.insert(parts, norm(child.Text))
             end
         end
@@ -546,46 +547,70 @@ local function gameButtons()
 end
 
 local function findButton(phrases, exact, requiredContext, requireUnique)
-    local matches = {}
+    local bestButton, bestScore, bestArea = nil, -1, -1
+    local tied = 0
     local contextNeedle = requiredContext and norm(requiredContext) or nil
+
     for _, button in ipairs(gameButtons()) do
-        if not button:IsDescendantOf(gui) then
-            local haystack = buttonText(button)
-            local contextOkay = true
-            if contextNeedle then
-                contextOkay = string.find(contextText(button), contextNeedle, 1, true) ~= nil
-            end
+        if button.Parent and button.AbsoluteSize.X > 2 and button.AbsoluteSize.Y > 2 then
+            local context = contextText(button)
+            local contextOkay = not contextNeedle
+                or string.find(context, contextNeedle, 1, true) ~= nil
+
             if contextOkay then
+                local ownName = norm(button.Name)
+                local ownText = button:IsA("TextButton") and norm(button.Text) or ""
+                local haystack = buttonText(button)
+
                 for _, phrase in ipairs(phrases) do
                     local target = norm(phrase)
                     if target ~= "" then
-                        local textOnly = button:IsA("TextButton") and norm(button.Text) or ""
-                        local matched
-                        if exact then
-                            matched = textOnly == target or norm(button.Name) == target
-                            if not matched then
-                                for _, child in ipairs(button:GetDescendants()) do
-                                    if (child:IsA("TextLabel") or child:IsA("TextButton")) and norm(child.Text) == target then
-                                        matched = true
-                                        break
+                        local score = 0
+                        if ownText == target then
+                            score = 120
+                        elseif ownName == target then
+                            score = 112
+                        else
+                            for _, child in ipairs(button:GetDescendants()) do
+                                if child:IsA("TextLabel") or child:IsA("TextButton") then
+                                    local childText = norm(child.Text)
+                                    if childText == target then
+                                        score = math.max(score, 106)
+                                    elseif not exact and string.find(childText, target, 1, true) then
+                                        score = math.max(score, 72)
                                     end
                                 end
                             end
-                        else
-                            matched = string.find(haystack, target, 1, true) ~= nil
+                            if score == 0 and not exact then
+                                if string.find(ownText, target, 1, true) then
+                                    score = 88
+                                elseif string.find(ownName, target, 1, true) then
+                                    score = 80
+                                elseif string.find(haystack, target, 1, true) then
+                                    score = 64
+                                end
+                            end
                         end
-                        if matched then
-                            table.insert(matches, button)
-                            break
+
+                        if score > 0 then
+                            if contextNeedle then score = score + 36 end
+                            local area = button.AbsoluteSize.X * button.AbsoluteSize.Y
+                            score = score + math.min(area / 18000, 8)
+                            score = score + math.min(button.ZIndex * 0.025, 1)
+                            if score > bestScore or (score == bestScore and area > bestArea) then
+                                bestButton, bestScore, bestArea, tied = button, score, area, 1
+                            elseif score == bestScore and area == bestArea then
+                                tied = tied + 1
+                            end
                         end
                     end
                 end
             end
         end
     end
-    if #matches == 1 then return matches[1] end
-    if #matches > 1 and not requireUnique then return matches[1] end
-    return nil
+
+    if bestButton and requireUnique and tied > 1 then return nil end
+    return bestButton
 end
 
 local function waitForButton(phrases, exact, timeout, context, unique, runToken)
@@ -626,32 +651,59 @@ end
 
 local function clickButton(button, actionKey, cooldown)
     if not button or not button.Parent or not button.Active or not visible(button) then
+        log("Clique cancelado: botão não está ativo ou visível.", THEME.warning)
         return false
     end
     if not isRobloxFocused() then
-        log("Roblox precisa estar em primeiro plano para enviar o clique.", THEME.warning)
+        log("Traga a janela do Roblox para primeiro plano e tente novamente.", THEME.warning)
         return false
     end
+
     local now = os.clock()
     local key = actionKey or button:GetFullName()
     if state.lastAction[key] and now - state.lastAction[key] < (cooldown or 0.9) then
         return false
     end
-    state.lastAction[key] = now
 
     local center = button.AbsolutePosition + (button.AbsoluteSize / 2)
-    local ok = false
-    if type(mousemoveabs) == "function" and type(mouse1click) == "function" then
-        ok = pcall(function()
+    if center.X < 0 or center.Y < 0 then
+        log("Clique cancelado: controle fora da área visível.", THEME.warning)
+        return false
+    end
+
+    local attempted = false
+    if type(mousemoveabs) == "function" then
+        local moved = pcall(mousemoveabs, math.floor(center.X), math.floor(center.Y))
+        if moved then
+            task.wait(0.06)
+            if type(mouse1press) == "function" and type(mouse1release) == "function" then
+                local pressed = pcall(mouse1press)
+                task.wait(0.055)
+                local released = pcall(mouse1release)
+                attempted = pressed and released
+            elseif type(mouse1click) == "function" then
+                attempted = pcall(mouse1click)
+            end
+        end
+    end
+
+    if not attempted and type(mouse1click) == "function" then
+        attempted = pcall(function()
             mousemoveabs(math.floor(center.X), math.floor(center.Y))
-            task.wait(0.035)
+            task.wait(0.05)
             mouse1click()
         end)
     end
-    if not ok then
-        ok = pcall(function() button:Activate() end)
+    if not attempted then
+        attempted = pcall(function() button:Activate() end)
     end
-    return ok
+
+    if attempted then
+        state.lastAction[key] = now
+    else
+        log("Solara não conseguiu enviar o clique. Verifique o foco da janela do Roblox.", THEME.danger)
+    end
+    return attempted
 end
 
 local VK = {
@@ -957,7 +1009,10 @@ end
 
 local function clickPhrase(phrases, key, exact, context, unique)
     local button = findButton(phrases, exact, context, unique)
-    if not button then return false end
+    if not button then
+        log("Não encontrei o botão: " .. table.concat(phrases, " / ") .. (context and (" em " .. context) or "") .. ".", THEME.warning)
+        return false
+    end
     return clickButton(button, key, 1.1)
 end
 
@@ -968,6 +1023,7 @@ local function clickFirstPhrase(phrases, key, exact, context, unique)
             return clickButton(button, key .. ":" .. tostring(index), 1.1)
         end
     end
+    log("Não encontrei nenhum botão: " .. table.concat(phrases, " / ") .. (context and (" em " .. context) or "") .. ".", THEME.warning)
     return false
 end
 
