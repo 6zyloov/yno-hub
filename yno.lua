@@ -947,6 +947,26 @@ local function clickFirstPhrase(phrases, key, exact, context, unique)
     return false
 end
 
+local function hasAnyScope(context, scopes)
+    local value = norm(context)
+    for _, scope in ipairs(scopes) do
+        if string.find(value, norm(scope), 1, true) then return true end
+    end
+    return false
+end
+
+local function exactChildText(button, expected)
+    local target = norm(expected)
+    if button:IsA("TextButton") and norm(button.Text) == target then return true end
+    if norm(button.Name) == target then return true end
+    for _, child in ipairs(button:GetDescendants()) do
+        if (child:IsA("TextLabel") or child:IsA("TextButton")) and norm(child.Text) == target then
+            return true
+        end
+    end
+    return false
+end
+
 local function openQuests(category)
     if not clickPhrase({"Quests"}, "open-quests", false, nil, true) then
         log("Abra Quests pelo menu lateral do jogo.", THEME.warning)
@@ -969,40 +989,36 @@ local function openQuests(category)
 end
 
 local function claimVisibleQuests()
-    local screenText = allGuiText()
-    if not string.find(screenText, "quest", 1, true)
-        and not string.find(screenText, "guide", 1, true)
-        and not string.find(screenText, "bounty", 1, true)
-        and not string.find(screenText, "unit hunt", 1, true) then
-        log("Abra a tela de Quests ou Event Quests antes de coletar.", THEME.warning)
-        return 0
+    local scopes = {"event quest", "unit hunt", "guide", "bounty", "quest"}
+    local claimed = 0
+    local claimAll = nil
+
+    for _, button in ipairs(gameButtons()) do
+        if exactChildText(button, "Claim All") and hasAnyScope(contextText(button), scopes) then
+            claimAll = button
+            break
+        end
     end
 
-    local claimed = 0
-    local claimAll = findButton({"Claim All"}, true)
-    if claimAll and clickButton(claimAll, "claim-all", 2.2) then
-        claimed = claimed + 1
+    if claimAll and clickButton(claimAll, "scoped-quest-claim-all", 2.2) then
+        claimed = 1
         task.wait(0.3)
     end
 
     if claimed == 0 then
-        local buttons = gameButtons()
-        for _, button in ipairs(buttons) do
-            local txt = button:IsA("TextButton") and norm(button.Text) or ""
-            local ctx = contextText(button)
-            local safeClaim = txt == "claim rewards" or txt == "claim reward"
-            local related = string.find(ctx, "quest", 1, true)
-                or string.find(ctx, "guide", 1, true)
-                or string.find(ctx, "bounty", 1, true)
-                or string.find(ctx, "unit hunt", 1, true)
-                or string.find(ctx, "event quest", 1, true)
-            if safeClaim and related and clickButton(button, "quest-claim:" .. tostring(button), 0.8) then
-                claimed = claimed + 1
-                task.wait(0.15)
+        for _, button in ipairs(gameButtons()) do
+            local context = contextText(button)
+            local isClaim = exactChildText(button, "Claim Rewards") or exactChildText(button, "Claim Reward")
+            if isClaim and hasAnyScope(context, scopes) then
+                if clickButton(button, "scoped-quest-claim:" .. tostring(button), 0.8) then
+                    claimed = claimed + 1
+                    task.wait(0.15)
+                end
             end
         end
     end
-    log(claimed > 0 and ("Ações de coleta enviadas: " .. tostring(claimed)) or "Não encontrei recompensas concluídas para coletar.", claimed > 0 and THEME.success or THEME.warning)
+
+    log(claimed > 0 and ("Ações de coleta enviadas: " .. tostring(claimed)) or "Não achei um botão Claim dentro de uma janela de Quest/Guide/Bounty/Event. Abra a janela correta e tente novamente.", claimed > 0 and THEME.success or THEME.warning)
     return claimed
 end
 
@@ -1080,12 +1096,17 @@ local function startStory()
             storyStep({difficulty}, difficulty, true, nil, 5, true)
             storyStep({entry}, entry, true, nil, 6, true)
 
-            local startButton = waitForButton({"Start"}, true, 8, nil, true)
+            if entry == "Matchmaking" then
+                log(world .. " · " .. mode .. " · " .. difficulty .. " enviado para Matchmaking.", THEME.success)
+                return
+            end
+
+            local startButton = waitForButton({"Start"}, true, 10, nil, true)
             if startButton then
                 clickButton(startButton, "story-final-start", 2)
-                log(world .. " · " .. mode .. " · " .. difficulty .. " enviado para iniciar.", THEME.success)
+                log(world .. " · " .. mode .. " · " .. difficulty .. " enviado para Start.", THEME.success)
             else
-                log("Seleção aberta. Se o servidor já iniciou o matchmaking, aguarde; caso contrário clique Start.", THEME.warning)
+                log("A tela Select Stage abriu, mas o botão Start não apareceu. Confira a seleção no jogo.", THEME.warning)
             end
         end)
         if not ok then
@@ -1158,12 +1179,34 @@ local function startUnitHunt()
 end
 
 local function startHuntBook()
-    if not clickFirstPhrase({"Collection Book", "Book"}, "unit-hunt-book", false, nil, true) then
-        if not clickPhrase({"Unit Hunt"}, "unit-hunt-book-open", false, "events", true) then
-            log("Entre em Events → Unit Hunt e use Book.", THEME.warning)
-            return false
+    task.spawn(function()
+        local book = findButton({"Collection Book", "Book"}, false, "unit hunt", true)
+        if not book then book = findButton({"Collection Book", "Book"}, false, nil, true) end
+
+        if not book then
+            if not findButton({"Unit Hunt"}, false, nil, true) then
+                if not clickPhrase({"Events"}, "unit-hunt-book-open-events", false, nil, true) then
+                    log("Abra Events no menu do jogo.", THEME.warning)
+                    return
+                end
+                task.wait(0.3)
+            end
+
+            if not clickFirstPhrase({"Unit Hunt"}, "unit-hunt-book-open-page", false, "events", true) then
+                log("Selecione Unit Hunt na lista de eventos.", THEME.warning)
+                return
+            end
+            book = waitForButton({"Collection Book", "Book"}, false, 6, "unit hunt", true)
+            if not book then book = waitForButton({"Collection Book", "Book"}, false, 4, nil, true) end
         end
-    end
+
+        if book then
+            clickButton(book, "unit-hunt-open-book", 1.2)
+            log("Collection Book aberto.", THEME.success)
+        else
+            log("Não encontrei Book dentro de Unit Hunt. Abra-o manualmente no painel do evento.", THEME.warning)
+        end
+    end)
     return true
 end
 
@@ -1441,30 +1484,28 @@ local function interactWithNpc(npcName)
 end
 
 local function claimLoginRewards()
-    local dailyTab = findButton({"Daily"}, true, nil, true)
-    local anniversaryTab = findButton({"Anniversary"}, true, nil, true)
+    local dailyTab = findButton({"Daily"}, true, "login", true)
+    local anniversaryTab = findButton({"Anniversary"}, true, "login", true)
     if not dailyTab or not anniversaryTab then
         if not clickPhrase({"Login Rewards"}, "open-login-rewards", false, nil, true) then
             log("Abra Login Rewards pelo botão de recompensas do jogo.", THEME.warning)
             return false
         end
-        task.wait(0.3)
+        task.wait(0.4)
     end
 
     local claimed = 0
     for _, tabName in ipairs({"Daily", "Anniversary"}) do
         local tab = findButton({tabName}, true, "login", true)
-        if not tab then tab = findButton({tabName}, true, nil, true) end
-        if tab then
-            clickButton(tab, "login-tab:" .. tabName, 0.7)
+        if tab and clickButton(tab, "login-tab:" .. tabName, 0.7) then
             task.wait(0.25)
-            local claim = findButton({"Claim"}, true, nil, true)
+            local claim = findButton({"Claim"}, true, "login", true)
             if claim and clickButton(claim, "login-claim:" .. tabName, 1.3) then
                 claimed = claimed + 1
             end
         end
     end
-    log(claimed > 0 and ("Login claims enviados: " .. tostring(claimed)) or "Não há login rewards disponíveis para Claim neste momento.", claimed > 0 and THEME.success or THEME.warning)
+    log(claimed > 0 and ("Login claims enviados: " .. tostring(claimed)) or "Não achei Claim disponível dentro da janela Login Rewards.", claimed > 0 and THEME.success or THEME.warning)
     return claimed > 0
 end
 
@@ -2186,15 +2227,18 @@ end
 local function gameAutomationLoop()
     while state.running do
         local ok, err = pcall(function()
-            local visibleText = allGuiText()
-            local matchWon = string.find(visibleText, "victory", 1, true)
-                or string.find(visibleText, "stage cleared", 1, true)
-                or string.find(visibleText, "wave completed", 1, true)
-                or string.find(visibleText, "completed the stage", 1, true)
-            local matchLost = string.find(visibleText, "defeat", 1, true)
-                or string.find(visibleText, "you lost", 1, true)
-                or string.find(visibleText, "you were defeated", 1, true)
-                or string.find(visibleText, "match lost", 1, true)
+            local matchWon, matchLost = false, false
+            if state.toggles.autoNext or state.toggles.autoRetry then
+                local visibleText = allGuiText()
+                matchWon = string.find(visibleText, "victory", 1, true)
+                    or string.find(visibleText, "stage cleared", 1, true)
+                    or string.find(visibleText, "wave completed", 1, true)
+                    or string.find(visibleText, "completed the stage", 1, true)
+                matchLost = string.find(visibleText, "defeat", 1, true)
+                    or string.find(visibleText, "you lost", 1, true)
+                    or string.find(visibleText, "you were defeated", 1, true)
+                    or string.find(visibleText, "match lost", 1, true)
+            end
 
             if state.toggles.autoStart then
                 clickFirstPhrase({"Vote Start", "Start Match"}, "auto-start", false, nil, true)
