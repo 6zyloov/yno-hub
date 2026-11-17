@@ -65,6 +65,9 @@ local state = {
     macroRecording = false,
     macroPlaying = false,
     stopMacro = false,
+    playingKeys = {},
+    renderConnection = nil,
+    effectConnection = nil,
     summonCount = 0,
     rerollCount = 0,
     shopCount = 0,
@@ -472,7 +475,8 @@ local function addInfo(parent, heading, description, tag, color, height)
 end
 
 local function addAction(parent, heading, description, caption, callback)
-    local holder = addInfo(parent, heading, description, nil, nil, 91)
+    local holder, title, body = addInfo(parent, heading, description, nil, nil, 91)
+    body.Size = UDim2.new(1, -124, 0, 57)
     local b = makeButton(holder, caption, callback, 112, true)
     b.AnchorPoint = Vector2.new(1, 1)
     b.Position = UDim2.new(1, 0, 1, -1)
@@ -643,9 +647,44 @@ local function ensureMacroFolder()
     end
 end
 
+local function validateMacroActions(actions)
+    if type(actions) ~= "table" then return nil, "A lista de ações não é válida." end
+    if #actions > 10000 then return nil, "A macro ultrapassa o limite de 10.000 ações." end
+    local sanitized = {}
+    for _, action in ipairs(actions) do
+        if type(action) ~= "table" then return nil, "A macro contém uma ação inválida." end
+        local t = tonumber(action.t)
+        if not t or t ~= t or t < 0 or t > 86400 then
+            return nil, "A macro contém um horário inválido."
+        end
+        local kind = action.kind
+        if kind == "click" then
+            local x, y = tonumber(action.x), tonumber(action.y)
+            if not x or not y or x ~= x or y ~= y or x < 0 or x > 1 or y < 0 or y > 1 then
+                return nil, "A macro contém coordenadas inválidas."
+            end
+            table.insert(sanitized, {t=t, kind="click", x=x, y=y})
+        elseif kind == "key" or kind == "key_down" or kind == "key_up" then
+            if type(action.key) ~= "string" or not VK[action.key] then
+                return nil, "A macro contém uma tecla não suportada."
+            end
+            table.insert(sanitized, {t=t, kind=kind, key=action.key})
+        else
+            return nil, "A macro contém um tipo de ação desconhecido."
+        end
+    end
+    table.sort(sanitized, function(a, b) return a.t < b.t end)
+    return sanitized
+end
+
 local function saveMacro(name)
     if type(writefile) ~= "function" then
         log("Este executor não oferece writefile.", THEME.yellow)
+        return false
+    end
+    local sanitized, validationError = validateMacroActions(state.macro)
+    if not sanitized then
+        log("Macro inválida: " .. tostring(validationError), THEME.red)
         return false
     end
     ensureMacroFolder()
@@ -654,7 +693,7 @@ local function saveMacro(name)
         game = "anime crusaders x",
         placeId = game.PlaceId,
         map = state.values.macroMap or "current",
-        actions = state.macro,
+        actions = sanitized,
     }
     local ok, err = pcall(function()
         writefile(filePath(name), HttpService:JSONEncode(payload))
@@ -681,7 +720,12 @@ local function loadMacro(name)
         log("Arquivo de macro inválido.", THEME.red)
         return false
     end
-    state.macro = result.actions
+    local sanitized, validationError = validateMacroActions(result.actions)
+    if not sanitized then
+        log("Macro inválida: " .. tostring(validationError), THEME.red)
+        return false
+    end
+    state.macro = sanitized
     log("Macro carregada: " .. tostring(name) .. " (" .. tostring(#state.macro) .. " ações)", THEME.green)
     return true
 end
@@ -727,7 +771,18 @@ local function sendKeyState(keyName, isDown)
     local fn = isDown and keypress or keyrelease
     if type(fn) ~= "function" then return false end
     local ok = pcall(fn, code)
+    if ok then
+        if isDown then state.playingKeys[keyName] = true
+        else state.playingKeys[keyName] = nil end
+    end
     return ok
+end
+
+local function releasePlaybackKeys()
+    for keyName in pairs(state.playingKeys) do
+        pcall(function() sendKeyState(keyName, false) end)
+    end
+    state.playingKeys = {}
 end
 
 local function sendKeyTap(keyName)
@@ -773,6 +828,7 @@ end
 local function stopPlayback()
     state.stopMacro = true
     state.macroPlaying = false
+    releasePlaybackKeys()
 end
 
 local function playMacro()
@@ -824,6 +880,7 @@ local function playMacro()
             if state.stopMacro then break end
             if loopIndex < repetitions then task.wait(1) end
         end
+        releasePlaybackKeys()
         state.macroPlaying = false
         state.stopMacro = false
         log("Reprodução finalizada.", THEME.cyan)
@@ -1086,19 +1143,29 @@ end
 
 local function applyLowQuality(enabled)
     if enabled then
-        state.savedRender = state.savedRender or {}
+        state.savedRender = state.savedRender or {effects = {}}
         pcall(function()
-            state.savedRender.globalShadows = Lighting.GlobalShadows
-            state.savedRender.effects = {}
-            for _, obj in ipairs(Lighting:GetChildren()) do
+            if state.savedRender.globalShadows == nil then
+                state.savedRender.globalShadows = Lighting.GlobalShadows
+            end
+            local function disableEffect(obj)
                 if obj:IsA("PostEffect") then
-                    state.savedRender.effects[obj] = obj.Enabled
+                    if state.savedRender.effects[obj] == nil then
+                        state.savedRender.effects[obj] = obj.Enabled
+                    end
                     obj.Enabled = false
                 end
             end
+            for _, obj in ipairs(Lighting:GetChildren()) do disableEffect(obj) end
             Lighting.GlobalShadows = false
+            if state.renderConnection then state.renderConnection:Disconnect() end
+            state.renderConnection = Lighting.DescendantAdded:Connect(disableEffect)
         end)
     else
+        if state.renderConnection then
+            pcall(function() state.renderConnection:Disconnect() end)
+            state.renderConnection = nil
+        end
         if state.savedRender then
             pcall(function()
                 if state.savedRender.globalShadows ~= nil then
@@ -1115,23 +1182,25 @@ end
 
 local function applyHideEffects(enabled)
     if enabled then
-        for _, obj in ipairs(workspace:GetDescendants()) do
-            local property
-            if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam")
-                or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles") then
-                property = "Enabled"
-            elseif obj:IsA("Highlight") then
-                property = "Enabled"
-            end
-            if property then
+        local function disableEffect(obj)
+            local supported = obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam")
+                or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles") or obj:IsA("Highlight")
+            if supported then
                 if state.savedVisuals[obj] == nil then
-                    local ok, value = pcall(function() return obj[property] end)
+                    local ok, value = pcall(function() return obj.Enabled end)
                     if ok then state.savedVisuals[obj] = value end
                 end
-                pcall(function() obj[property] = false end)
+                pcall(function() obj.Enabled = false end)
             end
         end
+        for _, obj in ipairs(workspace:GetDescendants()) do disableEffect(obj) end
+        if state.effectConnection then state.effectConnection:Disconnect() end
+        state.effectConnection = workspace.DescendantAdded:Connect(disableEffect)
     else
+        if state.effectConnection then
+            pcall(function() state.effectConnection:Disconnect() end)
+            state.effectConnection = nil
+        end
         for obj, value in pairs(state.savedVisuals) do
             if obj and obj.Parent then pcall(function() obj.Enabled = value end) end
         end
@@ -1157,11 +1226,12 @@ local function buildPerformance()
     addAction(page, "Apply FPS limit", "Aplica o limite usando setfpscap, se o executor oferecer essa função.", "APPLY", function()
         applyFpsCap(state.values.fpsCap)
     end)
-    addToggle(page, "lowPerformance", "Low Performance Mode", "Ativa simultaneamente Low Quality Effects e Hide Attack Effects.", false, function(enabled)
-        state.toggles.lowQuality = enabled
-        state.toggles.hideEffects = enabled
-        applyLowQuality(enabled)
-        applyHideEffects(enabled)
+    addAction(page, "Low Performance Mode", "Desativa sombras, pós-processamento e efeitos de partículas locais. Restaure quando terminar.", "ENABLE", function()
+        state.toggles.lowQuality = true
+        state.toggles.hideEffects = true
+        applyLowQuality(true)
+        applyHideEffects(true)
+        originalShowPage("Performance")
     end)
     addInfo(page, "Restoration", "Desative os modos visuais antes de sair. O yno hub guarda os valores locais e tenta restaurá-los ao desativar ou descarregar.", "LOCAL ONLY", THEME.green, 76)
 end
@@ -1209,8 +1279,13 @@ local function buildMacro()
     addAction(page, "Import JSON", "Valida e carrega a lista de ações colada no campo acima.", "IMPORT", function()
         local ok, result = pcall(function() return HttpService:JSONDecode(state.values.macroImport or "") end)
         if ok and type(result) == "table" and type(result.actions) == "table" then
-            state.macro = result.actions
-            log("Macro importada: " .. tostring(#state.macro) .. " ações.", THEME.green)
+            local sanitized, validationError = validateMacroActions(result.actions)
+            if sanitized then
+                state.macro = sanitized
+                log("Macro importada: " .. tostring(#state.macro) .. " ações.", THEME.green)
+            else
+                log("Macro inválida: " .. tostring(validationError), THEME.red)
+            end
         else
             log("JSON inválido ou sem lista actions.", THEME.red)
         end
@@ -1590,6 +1665,7 @@ local function unload()
     state.stopMacro = true
     state.macroRecording = false
     state.macroPlaying = false
+    releasePlaybackKeys()
     applyLowQuality(false)
     applyHideEffects(false)
     for _, connection in ipairs(state.connections) do
