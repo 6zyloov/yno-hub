@@ -1,6 +1,6 @@
 # yno hub — Anime Crusaders X
 
-**Versão 3.0.1** · Hub Lua reconstruído para Solara, com organização de abas próxima ao fluxo do LixHub, fundo cinematográfico baseado na referência visual enviada e automações específicas de Anime Crusaders X.
+**Versão 3.2.0** · Hub Lua reconstruído para Solara, com organização de abas próxima ao fluxo do LixHub, fundo cinematográfico baseado na referência visual enviada e automações específicas de Anime Crusaders X.
 
 ## Loader
 
@@ -12,7 +12,7 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/6zyloov/yno-hub/main/
 
 Loader de uma linha: [loadstring.txt](loadstring.txt) · Código principal: [yno.lua](yno.lua).
 
-## Painel 3.0.1
+## Painel 3.2.0
 
 - **Overview** — iniciar Story, coletar recompensas, entrar em Unit Hunt e iniciar Smart Macro.
 - **Missions** — categorias All, Daily, Infinite, Story, Event e Guide; Claim All; Guidebook; Bounties; Story Quest Grind e entrada em Challenges/Auto Challenge.
@@ -23,6 +23,10 @@ Loader de uma linha: [loadstring.txt](loadstring.txt) · Código principal: [yno
 - **Macro** — inicia/para Smart Macro nativo com Loop, This Stage ou Routine.
 - **Performance** — Low Effects, Hide Attack Effects, FPS cap e restauração.
 - **Settings** — escala, salvar preferências, Stop All (inclui cancelar navegação Story/Unit Hunt ativa) e Unload.
+- Game foi reorganizado em duas colunas Game / Wave Actions, com toggles compactos e controles nativos.
+- As buscas de botões agora ranqueiam texto direto, contexto, tamanho e hierarquia, sem rejeitar menus apenas por rótulos duplicados.
+- Clique usa mousemoveabs + mouse1press/mouse1release documentados no Solara; o cooldown só começa após o envio do input.
+- Settings inclui Copy Game UI report para copiar até 180 controles visíveis com nomes e hierarquia.
 - Janela arrastável, wallpaper local, pesquisa, RightShift, minimizar para botão flutuante y e fechar em ×.
 
 ## Missões e farming
