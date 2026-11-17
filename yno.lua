@@ -1211,30 +1211,76 @@ local function findCapturePrompt()
     return nearest
 end
 
+local function colorIsGold(color)
+    return color and color.R > 0.56 and color.G > 0.32 and color.B < 0.45 and color.R > color.G * 0.92
+end
+
+local function shareCaptureTrack(marker, zone)
+    local ancestors = {}
+    local current = marker
+    for _ = 1, 5 do
+        if not current then break end
+        ancestors[current] = true
+        current = current.Parent
+    end
+    current = zone
+    for _ = 1, 5 do
+        if not current then break end
+        if ancestors[current] and current:IsA("GuiObject")
+            and current.AbsoluteSize.X >= 120 and current.AbsoluteSize.Y <= 180 then
+            return true
+        end
+        current = current.Parent
+    end
+    return false
+end
+
 local function findCaptureTiming()
     local markers, zones = {}, {}
     for _, root in ipairs(playerGui:GetChildren()) do
         for _, item in ipairs(root:GetDescendants()) do
             if item:IsA("GuiObject") and item.Visible then
                 local name = norm(item.Name)
-                if string.find(name, "marker", 1, true) or string.find(name, "needle", 1, true)
-                    or string.find(name, "cursor", 1, true) then
+                local parent = item.Parent
+                local parentWidth = parent and parent:IsA("GuiObject") and parent.AbsoluteSize.X or 0
+                local parentHeight = parent and parent:IsA("GuiObject") and parent.AbsoluteSize.Y or 0
+                local namedMarker = string.find(name, "marker", 1, true)
+                    or string.find(name, "needle", 1, true)
+                    or string.find(name, "cursor", 1, true)
+                    or string.find(name, "pointer", 1, true)
+                local geometryMarker = item:IsA("Frame") and parentWidth >= 120
+                    and item.AbsoluteSize.X <= math.max(12, parentWidth * 0.08)
+                    and item.AbsoluteSize.Y >= math.max(8, parentHeight * 0.45)
+                if namedMarker or geometryMarker then
                     table.insert(markers, item)
-                elseif string.find(name, "perfect", 1, true) or string.find(name, "gold", 1, true)
-                    or string.find(name, "targetzone", 1, true) or string.find(name, "capturezone", 1, true) then
+                end
+
+                local namedZone = string.find(name, "perfect", 1, true)
+                    or string.find(name, "gold", 1, true)
+                    or string.find(name, "targetzone", 1, true)
+                    or string.find(name, "capturezone", 1, true)
+                    or string.find(name, "sweet spot", 1, true)
+                local goldColor = colorIsGold(item.BackgroundColor3)
+                if item:IsA("ImageLabel") or item:IsA("ImageButton") then
+                    goldColor = goldColor or colorIsGold(item.ImageColor3)
+                end
+                if namedZone or goldColor then
                     table.insert(zones, item)
                 end
             end
         end
     end
+
     for _, marker in ipairs(markers) do
         for _, zone in ipairs(zones) do
-            local markerX = marker.AbsolutePosition.X + marker.AbsoluteSize.X / 2
-            local zoneLeft = zone.AbsolutePosition.X
-            local zoneRight = zoneLeft + zone.AbsoluteSize.X
-            local sameBand = math.abs(marker.AbsolutePosition.Y - zone.AbsolutePosition.Y) < 38
-            if sameBand and markerX >= zoneLeft and markerX <= zoneRight then
-                return true
+            if marker ~= zone and shareCaptureTrack(marker, zone) then
+                local markerX = marker.AbsolutePosition.X + marker.AbsoluteSize.X / 2
+                local zoneLeft = zone.AbsolutePosition.X
+                local zoneRight = zoneLeft + zone.AbsoluteSize.X
+                local sameBand = math.abs(marker.AbsolutePosition.Y - zone.AbsolutePosition.Y) < 42
+                if sameBand and markerX >= zoneLeft and markerX <= zoneRight then
+                    return true
+                end
             end
         end
     end
@@ -1486,6 +1532,45 @@ local function claimKingIndex()
     return false
 end
 
+local function openEventPage(eventName)
+    if not clickPhrase({"Events"}, "open-events-page:" .. norm(eventName), false, nil, true) then
+        log("Abra Events no menu lateral do jogo.", THEME.warning)
+        return false
+    end
+    task.wait(0.25)
+    if clickFirstPhrase({eventName}, "select-event:" .. norm(eventName), false, "events", true) then
+        return true
+    end
+    if clickFirstPhrase({eventName}, "select-event-fallback:" .. norm(eventName), false, nil, true) then
+        return true
+    end
+    log(eventName .. " não aparece na lista de eventos ativos.", THEME.warning)
+    return false
+end
+
+local function useCrusaderToken()
+    if not clickPhrase({"Items"}, "open-items-for-crusader-token", false, nil, true) then
+        log("Abra Items no lobby para usar Crusader Token.", THEME.warning)
+        return false
+    end
+    task.wait(0.3)
+    local token = findButton({"Crusader Token"}, false, nil, true)
+    if not token then
+        log("Crusader Token não está no inventário visível.", THEME.warning)
+        return false
+    end
+    clickButton(token, "select-crusader-token", 1)
+    task.wait(0.25)
+    local useButton = findButton({"Use"}, true, nil, true)
+    if useButton then
+        clickButton(useButton, "use-crusader-token", 1.5)
+        log("Use enviado para Crusader Token. Confira o recebimento de 250.000 Gems e Trait Remnants.", THEME.success)
+        return true
+    end
+    log("Crusader Token selecionado; botão Use não está visível.", THEME.warning)
+    return false
+end
+
 local function claimBlankUnit()
     if not openBountyBoard() then return false end
     task.wait(0.3)
@@ -1651,6 +1736,24 @@ local function drawMissions()
     addButton("Open Guidebook", "Quests → Guide. Use para seguir as 10 tarefas que liberam Phoenix.", "GUIDE", openGuidebook)
     addButton("Open Bounty Board", "Navi, marcado Missions, no Request Board → Bounties.", "BOUNTIES", openBountyBoard)
     addButton("Claim completed bounties", "Coleta recompensas dos cartões de Bounty já concluídos.", "CLAIM", claimBounties)
+    addButton("Start Story quest grind", "Liga Auto Start/Skip/Next e inicia o Story selecionado para objetivos de kills e stage clears.", "START GRIND", function()
+        setToggleValue("autoStart", true)
+        setToggleValue("autoSkip", true)
+        setToggleValue("autoNext", true)
+        startStory()
+    end)
+    addButton("Open Challenges", "Abre Play → Challenges para selecionar o desafio diário/semanal ativo.", "CHALLENGES", function()
+        if clickPhrase({"Play"}, "mission-challenges-play", false, nil, true) then
+            task.wait(0.35)
+            clickFirstPhrase({"Challenges"}, "mission-challenges", false, "play", true)
+        else
+            log("Abra Play → Challenges no lobby.", THEME.warning)
+        end
+    end)
+    addButton("Start Auto Challenge Routine", "Inicia Macro → Routine após configurar Auto Challenge em Macro → Dailies.", "START ROUTINE", function()
+        state.values.macroMode = "Routine"
+        startNativeMacro()
+    end)
     addToggle("Auto quest farming", "Mantém Auto Start e Auto Next ativos para objetivos de kills e clears enquanto você joga Story.", "autoQuestLoop", false, function(enabled)
         if enabled then
             setToggleValue("autoStart", true)
@@ -1695,11 +1798,19 @@ local function drawUnitHunt()
         task.wait(0.2)
         claimVisibleQuests()
     end)
+    addButton("Open Anniversary Hunt", "Evento de drops de inimigos ativo até Update 11; configure o Smart Macro para farmar partidas.", "ANNIVERSARY", function()
+        openEventPage("Anniversary Hunt")
+    end)
+    addButton("Open Golden Crusader", "Abre o rastreador do inimigo raro que dá um token por jogador uma única vez.", "GOLDEN", function()
+        openEventPage("Golden Crusader")
+    end)
+    addButton("Use Crusader Token", "Usa o token do inventário para receber 250.000 Gems e Trait Remnants.", "USE TOKEN", useCrusaderToken)
     finishGrid()
     addNotice("Capture mechanics", "Pressione Q para scan; aproxime-se do alvo até E Capture aparecer; pressione E. No minigame, acerte o marcador no centro dourado com clique, Space ou E para PERFECT (dano dobrado).", "Q · E · SPACE")
     addNotice("Regions & rewards", "Whisperwood Isles: 8 entries / 5 Event Tokens. Bridgeway Hollow: 11 / 10 Tokens (Hunt Wave 3). Crown Ward: 15 Tokens (Wave 6). Frostfang Peak: 20 Tokens (Wave 9).", "4 REGIONS")
     addNotice("Five event quests", "Rookie Hunter: 25 captures / 5 Tokens. Seasoned Hunter: 150 / 15. Shiny Spotter: 1 Shiny / 25. Valkyrie Slayer: 3 assists / 10. Shrine Keeper: awaken 2 Guardians / 10.", "EVENT QUESTS")
     addNotice("Final Page #039", "Capture the other 38 entries and reach Hunt Wave 10. Ride the Wind Geyser to Sky Altar above Frostfang Peak, break the Sky Seal and capture No.039 alone. First capture rewards 25 Event Tokens.", "SECRET")
+    addNotice("Golden Crusader", "Inimigo permanente com chance base de 1 em 5.000.000 por inimigo normal fora do Testing Zone. Ao derrotar, cada jogador elegível recebe um token de uso único; o token concede 250.000 Gems e Trait Remnants.", "LIFETIME TOKEN")
     addNotice("Important distinction", "As 39 entradas de Unit Hunt são capturas do Collection Book do evento. Elas não são personagens que entram automaticamente no seu time de Tower Defense.", "COLLECTION")
 end
 
