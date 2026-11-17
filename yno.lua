@@ -5,11 +5,9 @@
 
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
 local Lighting = game:GetService("Lighting")
 local CoreGui = game:GetService("CoreGui")
-local VIM = game:GetService("VirtualInputManager")
 local VirtualUser = game:GetService("VirtualUser")
 
 local player = Players.LocalPlayer
@@ -676,8 +674,12 @@ local VK = {
     Right=0x27, Down=0x28, Insert=0x2D, Delete=0x2E, LeftShift=0xA0,
     RightShift=0xA1, LeftControl=0xA2, RightControl=0xA3, LeftAlt=0xA4,
     RightAlt=0xA5, CapsLock=0x14, NumLock=0x90, ScrollLock=0x91,
+    Zero=0x30, One=0x31, Two=0x32, Three=0x33, Four=0x34,
+    Five=0x35, Six=0x36, Seven=0x37, Eight=0x38, Nine=0x39,
+    Semicolon=0xBA, Equals=0xBB, Comma=0xBC, Minus=0xBD, Period=0xBE,
+    Slash=0xBF, Backquote=0xC0, LeftBracket=0xDB, BackSlash=0xDC,
+    RightBracket=0xDD, Quote=0xDE,
 }
-for i = 0, 9 do VK["Zero" .. (i == 0 and "" or i)] = 0x30 + i end
 for i = 1, 26 do VK[string.char(64 + i)] = 0x40 + i end
 for i = 1, 12 do VK["F" .. i] = 0x6F + i end
 
@@ -947,8 +949,17 @@ local function buildGame()
             log("Selecione uma unidade para exibir o botão Auto do jogo.", THEME.yellow)
         end
     end)
-    addAction(page, "Open Auto Sell settings", "Abre Settings → Gameplay no jogo e procura a opção Auto Sell Farms, se a página estiver aberta.", "TOGGLE SETTING", function()
+    addAction(page, "Toggle Auto Sell Farms", "Abre Settings → Gameplay e procura a opção Auto Sell Farms. Deixe essa seção aberta no jogo.", "TOGGLE FARM", function()
         toggleFromLabel("Auto Sell Farms")
+    end)
+    addAction(page, "Toggle Auto Sell Units", "Procura Auto Sell Units na página de Settings já aberta.", "TOGGLE UNITS", function()
+        toggleFromLabel("Auto Sell Units")
+    end)
+    addAction(page, "Toggle Auto Retry", "Procura Auto Retry na página Settings → Gameplay.", "TOGGLE RETRY", function()
+        toggleFromLabel("Auto Retry")
+    end)
+    addAction(page, "Toggle Auto Vote Start", "Procura Auto Vote Start na página Settings → Gameplay.", "TOGGLE VOTE", function()
+        toggleFromLabel("Auto Vote Start")
     end)
     addInfo(page, "Auto Upgrade priority", "A atualização de 16/11 adicionou o ciclo P1, P2, P3, P4, P5, P6 e Off no botão Auto ou na tecla Z. A tecla N é uma ação Auto instantânea separada.", "PATCH 16 NOV", THEME.cyan, 83)
 end
@@ -1084,6 +1095,35 @@ local function buildMacro()
     addAction(page, "List local macros", "Mostra os perfis encontrados na pasta yno_hub/macros.", "REFRESH", function()
         local files = listMacros()
         log(#files > 0 and ("Macros: " .. table.concat(files, ", ")) or "Nenhuma macro encontrada.", THEME.cyan)
+    end)
+    addAction(page, "Delete selected macro", "Apaga somente o arquivo com o nome informado no campo Macro name.", "DELETE", function()
+        if type(delfile) ~= "function" or type(isfile) ~= "function" then
+            log("Este executor não oferece delfile/isfile.", THEME.yellow)
+            return
+        end
+        local path = filePath(state.values.macroName)
+        if isfile(path) then
+            local ok = pcall(delfile, path)
+            log(ok and "Macro removida." or "Não foi possível apagar a macro.", ok and THEME.green or THEME.red)
+        else
+            log("Macro não encontrada: " .. path, THEME.yellow)
+        end
+    end)
+    addAction(page, "Scan visible unit labels", "Varre os textos visíveis para ajudar a conferir slots e unidades da configuração atual.", "SCAN UNITS", function()
+        local seen, found = {}, {}
+        for _, root in ipairs(playerGui:GetChildren()) do
+            for _, item in ipairs(root:GetDescendants()) do
+                if item:IsA("TextLabel") and visible(item) and item.Text ~= "" then
+                    local value = string.gsub(item.Text, "%s+", " ")
+                    if #value > 2 and #value < 50 and not seen[value] then
+                        seen[value] = true
+                        table.insert(found, value)
+                    end
+                end
+            end
+        end
+        safeClipboard(table.concat(found, "\n"))
+        log("Textos visíveis copiados para conferência.", THEME.cyan)
     end)
     addAction(page, "Loadout preset", "Código comunitário para Macro Catalog. Verifique slots e unidades antes de usar.", "COPY CODE", function()
         safeClipboard("AP-RSEHDXU")
@@ -1306,7 +1346,7 @@ local function processAutomation()
             clickWhenVisible("auto-join:" .. mode, {mode}, delayTime, false)
         end
         if state.toggles.autoStart then
-            clickWhenVisible("auto-start", {"vote start", "start match"}, 1.5, false)
+            clickWhenVisible("auto-start", {"vote start", "start match", "start"}, 1.8, false)
         end
         if state.toggles.autoSkip then
             clickWhenVisible("auto-skip", {"vote skip", "skip wave"}, 1.5, false)
@@ -1659,6 +1699,9 @@ table.insert(state.connections, inputConnection)
 setupAntiAfk()
 
 ENV[HUB_KEY] = {Unload = unload, Version = "2.0.0"}
+
+if state.toggles.lowQuality then applyLowQuality(true) end
+if state.toggles.hideEffects then applyHideEffects(true) end
 
 showPage("Overview")
 task.spawn(processAutomation)
