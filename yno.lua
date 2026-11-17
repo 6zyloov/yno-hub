@@ -554,10 +554,12 @@ local function findButton(phrases, exact, requiredContext, requireUnique)
     for _, button in ipairs(gameButtons()) do
         if button.Parent and button.AbsoluteSize.X > 2 and button.AbsoluteSize.Y > 2 then
             local context = contextText(button)
-            local contextOkay = not contextNeedle
-                or string.find(context, contextNeedle, 1, true) ~= nil
+            local contextMatches = contextNeedle
+                and string.find(context, contextNeedle, 1, true) ~= nil
 
-            if contextOkay then
+            -- Context is a ranking hint, not a hard filter: some game builds
+            -- rename/reparent menu containers while keeping the same button text.
+            do
                 local ownName = norm(button.Name)
                 local ownText = button:IsA("TextButton") and norm(button.Text) or ""
                 local haystack = buttonText(button)
@@ -593,7 +595,11 @@ local function findButton(phrases, exact, requiredContext, requireUnique)
                         end
 
                         if score > 0 then
-                            if contextNeedle then score = score + 36 end
+                            if contextMatches then
+                                score = score + 36
+                            elseif contextNeedle then
+                                score = score - 8
+                            end
                             local area = button.AbsoluteSize.X * button.AbsoluteSize.Y
                             score = score + math.min(area / 18000, 8)
                             score = score + math.min(button.ZIndex * 0.025, 1)
