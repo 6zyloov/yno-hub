@@ -1,5 +1,5 @@
 -- yno hub | anime crusaders x
--- v2.0.0 | 2026-11-17
+-- v2.1.0 | 2026-11-17
 -- Original client-side hub. Uses visible game UI and Roblox's built-in Smart Macro.
 -- No hidden remote calls, currency modification, server bypass or anti-cheat evasion.
 
@@ -96,7 +96,7 @@ local uiParent = gethuiSafe()
 local oldGui = uiParent:FindFirstChild("yno_hub")
 if oldGui then pcall(function() oldGui:Destroy() end) end
 
-local gui, main, page, pageLayout, nav, titleLabel, statusLabel, toast, uiScale
+local gui, main, page, pageLayout, nav, titleLabel, statusLabel, toast, uiScale, floatingButton
 local inputName, importBox, debugBox
 local navButtons = {}
 local featureCallbacks = {}
@@ -301,26 +301,18 @@ local function activate(button, actionKey, cooldown)
     end
     state.lastAction[key] = now
 
-    -- Prefer a real input so Activated and MouseButton1Click both behave as expected.
+    -- Prefer documented Solara mouse input; fall back to Roblox GuiButton:Activate().
     local center = button.AbsolutePosition + (button.AbsoluteSize / 2)
     local ok = false
     if type(mousemoveabs) == "function" and type(mouse1click) == "function" then
         ok = pcall(function()
             mousemoveabs(math.floor(center.X), math.floor(center.Y))
-            task.wait(0.035)
+            task.wait(0.04)
             mouse1click()
         end)
     end
-    -- Signal firing is a fallback for executors that do not expose mouse input.
-    if not ok and type(firesignal) == "function" then
-        ok = pcall(function()
-            firesignal(button.Activated)
-        end)
-        if not ok then
-            ok = pcall(function()
-                firesignal(button.MouseButton1Click)
-            end)
-        end
+    if not ok then
+        ok = pcall(function() button:Activate() end)
     end
     if ok then
         log("Ação executada: " .. tostring(actionKey or button.Name), THEME.green)
@@ -537,13 +529,19 @@ local function addToggle(parent, key, heading, description, defaultValue, callba
     }, holder)
     round(btn, 8)
     btn.MouseButton1Click:Connect(function()
-        state.toggles[key] = not state.toggles[key]
+        local nextValue = not state.toggles[key]
+        state.toggles[key] = nextValue
+        if callback then
+            local ok, accepted = pcall(callback, nextValue)
+            if not ok then
+                state.toggles[key] = not nextValue
+                log("Erro: " .. tostring(accepted), THEME.red)
+            elseif accepted == false then
+                state.toggles[key] = false
+            end
+        end
         btn.Text = state.toggles[key] and "ON" or "OFF"
         btn.BackgroundColor3 = state.toggles[key] and THEME.purple or THEME.panel3
-        if callback then
-            local ok, err = pcall(callback, state.toggles[key])
-            if not ok then log("Erro: " .. tostring(err), THEME.red) end
-        end
         log(heading .. (state.toggles[key] and " ativado." or " desativado."), state.toggles[key] and THEME.green or THEME.muted)
     end)
     return holder
@@ -803,7 +801,7 @@ local function sendKeyState(keyName, isDown)
         log("Tecla não mapeada para replay: " .. tostring(keyName), THEME.yellow)
         return false
     end
-    if type(isrbxactive) == "function" then
+    if isDown and type(isrbxactive) == "function" then
         local focusOk, focused = pcall(isrbxactive)
         if focusOk and not focused then return false end
     end
@@ -912,8 +910,12 @@ local function playMacro()
                 if generation ~= state.macroGeneration or state.stopMacro or not state.running then break end
                 local waitFor = math.max(0, (tonumber(action.t) or 0) - previous)
                 previous = tonumber(action.t) or previous
-                task.wait(math.min(waitFor, 30))
-                if generation ~= state.macroGeneration or state.stopMacro then break end
+                local deadline = os.clock() + waitFor
+                while waitFor > 0 and os.clock() < deadline do
+                    if generation ~= state.macroGeneration or state.stopMacro or not state.running then break end
+                    task.wait(math.min(deadline - os.clock(), 0.2))
+                end
+                if generation ~= state.macroGeneration or state.stopMacro or not state.running then break end
                 if action.kind == "click" then
                     local viewport = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1280, 720)
                     local x = math.clamp((tonumber(action.x) or 0.5) * viewport.X, 1, viewport.X - 1)
@@ -1009,6 +1011,7 @@ local function recordInput(input, isDown)
         })
     elseif input.UserInputType == Enum.UserInputType.Keyboard then
         local keyName = input.KeyCode.Name
+        if not VK[keyName] then return end
         if isDown then
             if not state.heldKeys[keyName] then
                 state.heldKeys[keyName] = true
@@ -1175,24 +1178,32 @@ end
 local function buildJoiner()
     section(page, "Joiner", "Seleciona o modo e aciona as opções visíveis do lobby.")
     addSelect(page, "joinMode", "Target mode", {
-        "Story", "Legend", "Raid", "Challenge", "Daily Challenge", "Weekly Challenge",
+        "Story", "Legend Stages", "Raids", "Challenges", "Daily Challenge", "Weekly Challenge",
         "Infinite", "Weekly Tower", "Boss Rush", "Boss Lair", "Events", "Portal",
         "Infinity Castle", "Tournament", "Infinite Tournament", "Testing Zone",
     }, "Clique para alternar o modo que o Joiner deve localizar.")
     addInput(page, "joinDelay", "Join delay (seconds)", "8", "8")
-    addToggle(page, "autoJoin", "Auto Join", "Procura o modo selecionado na interface do lobby e tenta abri-lo.", false)
-    addToggle(page, "autoSkipUnavailable", "Skip unavailable modes", "Se o modo selecionado não apresentar botão ativo, o hub aguarda sem spam.", true)
-    addAction(page, "Join selected mode", "Clique manualmente no botão do modo escolhido que estiver visível no lobby.", "JOIN NOW", function()
+    addToggle(page, "autoJoin", "Auto Open Selected Mode", "Abre a categoria quando o botão estiver visível no Play menu; mundo, ato, dificuldade e Start são confirmados no próprio jogo.", false)
+    addAction(page, "Open selected mode", "Abre Play se necessário; depois escolha o modo. Mundo, ato, dificuldade e início da partida são confirmados no menu do jogo.", "OPEN MODE", function()
         local mode = state.values.joinMode or "Story"
-        if not clickWhenVisible("join-manual", {mode}, 2.5, false) then
-            log("Botão " .. mode .. " não está visível. Abra o menu Play do jogo.", THEME.yellow)
+        local modeButton = findButton({mode}, false, "Play")
+        if modeButton then
+            activate(modeButton, "join-manual:" .. mode, 2.5)
+            return
+        end
+        local playButton = findButton({"Play"}, true)
+        if playButton then
+            activate(playButton, "join-open-play", 2.5)
+            log("Play aberto. Pressione Open Mode novamente quando os modos aparecerem.", THEME.cyan)
+        else
+            log("Abra Play no lobby; depois pressione Open Mode novamente.", THEME.yellow)
         end
     end)
     addInfo(page, "Prioridade de modos", "A ordem configurável do Joiner depende dos botões que o lobby expõe. Mantenha apenas um modo por vez se não quiser que ele selecione outra atividade.", "TIP", THEME.yellow, 74)
 end
 
 local function startBuiltInMacro()
-    local runTab = findButton({"Run"}, true)
+    local runTab = findButton({"Run"}, true, "Macro")
     if not runTab then
         local macroButton = findButton({"Macro"}, true)
         if not macroButton then
@@ -1201,7 +1212,7 @@ local function startBuiltInMacro()
         end
         if not activate(macroButton, "native-macro-open", 1.5) then return false end
         task.wait(0.4)
-        runTab = findButton({"Run"}, true)
+        runTab = findButton({"Run"}, true, "Macro")
     end
     if not runTab then
         log("Painel Macro não mostrou a aba Run. Abra Run manualmente.", THEME.yellow)
@@ -1231,9 +1242,9 @@ local function startBuiltInMacro()
 end
 
 local function stopBuiltInMacro()
-    local stopButton = findButton({"Stop"}, true)
+    local stopButton = findButton({"Stop"}, true, "Macro")
     if not stopButton then
-        local pauseButton = findButton({"Pause"}, true)
+        local pauseButton = findButton({"Pause"}, true, "Macro")
         if pauseButton then return activate(pauseButton, "native-macro-pause", 1.5) end
         log("Painel flutuante do Macro não está visível.", THEME.yellow)
         return false
@@ -1346,7 +1357,7 @@ local function applyLowQuality(enabled)
                     obj.Enabled = false
                 end
             end
-            for _, obj in ipairs(Lighting:GetChildren()) do disableEffect(obj) end
+            for _, obj in ipairs(Lighting:GetDescendants()) do disableEffect(obj) end
             Lighting.GlobalShadows = false
             if state.renderConnection then state.renderConnection:Disconnect() end
             state.renderConnection = Lighting.DescendantAdded:Connect(disableEffect)
@@ -1561,7 +1572,14 @@ local function buildShop()
     section(page, "Shop", "Compra limitada pela interface visível e por um nome de item opcional.")
     addInput(page, "shopItem", "Item name filter", "Ex.: Trait Remnant, Stat Cube", "")
     addInput(page, "shopLimit", "Maximum purchases", "1", "1")
-    addToggle(page, "autoBuy", "Auto Buy", "Clica em Buy quando o item configurado aparecer na mesma seção da loja.", false)
+    addToggle(page, "autoBuy", "Auto Buy", "Clica em Buy apenas quando o nome do item configurado aparecer na mesma seção da loja.", false, function(enabled)
+        if enabled and #normalize(state.values.shopItem) < 2 then
+            log("Digite o nome do item antes de ativar Auto Buy.", THEME.yellow)
+            return false
+        end
+        if enabled then state.shopCount = 0 end
+        return true
+    end)
     addAction(page, "Start purchase cycle", "Abra a loja desejada, informe um nome de item e confira moeda/quantidade antes de começar.", "START", function()
         if normalize(state.values.shopItem) == "" then
             log("Informe o nome específico do item antes de iniciar.", THEME.yellow)
@@ -1619,7 +1637,7 @@ end
 
 local function buildMinigames()
     section(page, "Minigames", "Use macros gravadas para repetir sequências de entrada que você mesmo configurou.")
-    addToggle(page, "autoMinigame", "Auto Minigames", "Tenta iniciar novamente uma atividade quando botões Play Again / Start aparecerem.", false)
+    addToggle(page, "autoMinigame", "Auto Re-enter Minigame", "Só reentra quando Play Again / Start Minigame aparecer; não joga a atividade sozinho.", false)
     addAction(page, "Open macro recorder", "Grave uma sequência para a atividade atual e salve com o nome do minigame.", "OPEN MACRO", function()
         originalShowPage("Macro")
     end)
@@ -1715,7 +1733,7 @@ local function buildSettings()
     addAction(page, "Unload yno hub", "Fecha a interface, para loops e desconecta eventos.", "UNLOAD", function()
         if ENV[HUB_KEY] and ENV[HUB_KEY].Unload then ENV[HUB_KEY].Unload() end
     end)
-    addInfo(page, "Build information", "yno hub · Anime Crusaders X · 2.0.0 · baseado nos recursos públicos consultados em 17/11/2026.", "BUILD", THEME.cyan, 76)
+    addInfo(page, "Build information", "yno hub · Anime Crusaders X · 2.1.0 · baseado nos recursos públicos consultados em 17/11/2026.", "BUILD", THEME.cyan, 76)
     addInfo(page, "Limits", "As ações automáticas dependem de botões visíveis. O jogo pode mudar nomes e layouts; o UI Scanner ajuda a identificar essas alterações. O hub não usa remotes privados ou funções internas adivinhadas.", "HONEST", THEME.green, 86)
 end
 
@@ -1762,9 +1780,12 @@ local function processAutomation()
     while state.running do
         local cycleOk, cycleError = pcall(function()
         if state.toggles.autoJoin and not isGameScreen() then
-            local delayTime = safeNumber(state.values.joinDelay, 8, 3, 90)
             local mode = state.values.joinMode or "Story"
-            clickWhenVisible("auto-join:" .. mode, {mode}, delayTime, false)
+            local modeButton = findButton({mode}, false, "Play")
+            if modeButton and activate(modeButton, "auto-open-mode:" .. mode, 2.5) then
+                state.toggles.autoJoin = false
+                log(mode .. " aberto. Escolha mundo/ato/dificuldade e confirme Start no Play menu.", THEME.cyan)
+            end
         end
         if state.toggles.autoStart then
             local startButton = findButton({"Vote Start", "Start Match"}, false)
@@ -1801,11 +1822,17 @@ local function processAutomation()
                 log("Limite de summon atingido: " .. tostring(limit), THEME.yellow)
             else
                 local amount = safeNumber(state.values.summonAmount, 10, 1, 10)
-                local button = findButton({"summon x" .. amount, "summon " .. amount}, true)
-                if not button then button = findButton({"summon"}, true) end
+                local button = findButton({
+                    "summon x" .. amount,
+                    "summon " .. amount,
+                    "x" .. amount .. " summon",
+                }, true)
+                if not button then
+                    log("Botão de summon X" .. amount .. " não encontrado. Confira o banner e o tamanho do pull.", THEME.yellow)
+                end
                 if button and state.summonCount + amount <= limit and activate(button, "summon-cycle", 2.1) then
                     state.summonCount = state.summonCount + amount
-                    log("Summon " .. tostring(state.summonCount) .. "/" .. tostring(limit), THEME.cyan)
+                    log("Tentativa de summon " .. tostring(state.summonCount) .. "/" .. tostring(limit), THEME.cyan)
                 elseif button and state.summonCount + amount > limit then
                     state.toggles.autoSummon = false
                     log("Limite próximo menor que o pull selecionado; ciclo parado para não ultrapassar.", THEME.yellow)
@@ -1843,7 +1870,7 @@ local function processAutomation()
                 local button = findTargetButtonForItem(state.values.shopItem)
                 if button and activate(button, "shop-buy-cycle", 2.0) then
                     state.shopCount = state.shopCount + 1
-                    log("Compra " .. tostring(state.shopCount) .. "/" .. tostring(limit), THEME.cyan)
+                    log("Clique de compra " .. tostring(state.shopCount) .. "/" .. tostring(limit), THEME.cyan)
                 end
             end
             end
@@ -2066,6 +2093,44 @@ local close = create("TextButton", {
 round(close, 7)
 close.MouseButton1Click:Connect(unload)
 
+local minimize = create("TextButton", {
+    AnchorPoint = Vector2.new(1, 0),
+    Position = UDim2.new(1, -34, 0, 16),
+    Size = UDim2.new(0, 28, 0, 25),
+    BackgroundColor3 = THEME.panel3,
+    Text = "—",
+    TextColor3 = THEME.muted,
+    TextSize = 16,
+    Font = Enum.Font.GothamBold,
+    BorderSizePixel = 0,
+}, topbar)
+round(minimize, 7)
+
+floatingButton = create("TextButton", {
+    AnchorPoint = Vector2.new(1, 1),
+    Position = UDim2.new(1, -24, 1, -126),
+    Size = UDim2.new(0, 48, 0, 48),
+    BackgroundColor3 = THEME.purpleDark,
+    Text = "y",
+    TextColor3 = Color3.new(1, 1, 1),
+    TextSize = 25,
+    Font = Enum.Font.GothamBold,
+    Visible = false,
+    BorderSizePixel = 0,
+    ZIndex = 50,
+}, gui)
+round(floatingButton, 15)
+outline(floatingButton, THEME.purple, 0.05, 1)
+gradient(floatingButton, THEME.purple, THEME.cyan, 35)
+floatingButton.MouseButton1Click:Connect(function()
+    if main and main.Parent then main.Visible = true end
+    if floatingButton and floatingButton.Parent then floatingButton.Visible = false end
+end)
+minimize.MouseButton1Click:Connect(function()
+    if main and main.Parent then main.Visible = false end
+    if floatingButton and floatingButton.Parent then floatingButton.Visible = true end
+end)
+
 page = create("ScrollingFrame", {
     BackgroundTransparency = 1,
     Position = UDim2.new(0, 0, 0, 69),
@@ -2085,7 +2150,7 @@ local bottomBar = create("Frame", {
 round(bottomBar, 8)
 statusLabel = textLabel(bottomBar, "Pronto. RightShift mostra/oculta o painel.", 9, THEME.muted, false, 22)
 statusLabel.Position = UDim2.new(0, 10, 0, 4)
-local versionLabel = textLabel(bottomBar, "2.0.0", 9, THEME.purple, true, 22)
+local versionLabel = textLabel(bottomBar, "2.1.0", 9, THEME.purple, true, 22)
 versionLabel.TextXAlignment = Enum.TextXAlignment.Right
 versionLabel.Position = UDim2.new(1, -52, 0, 4)
 versionLabel.Size = UDim2.new(0, 42, 0, 22)
@@ -2111,29 +2176,32 @@ outline(toast, THEME.line, 0.1, 1)
 local dragging = false
 local dragStart
 local startPosition
-topbar.InputBegan:Connect(function(input)
+table.insert(state.connections, topbar.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         dragging = true
         dragStart = input.Position
         startPosition = main.Position
     end
-end)
-topbar.InputEnded:Connect(function(input)
+end))
+table.insert(state.connections, topbar.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         dragging = false
     end
-end)
-UIS.InputChanged:Connect(function(input)
+end))
+table.insert(state.connections, UIS.InputChanged:Connect(function(input)
     if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
         local delta = input.Position - dragStart
         main.Position = UDim2.new(startPosition.X.Scale, startPosition.X.Offset + delta.X,
             startPosition.Y.Scale, startPosition.Y.Offset + delta.Y)
     end
-end)
+end))
 
 local inputConnection = UIS.InputBegan:Connect(function(input)
     if input.KeyCode == Enum.KeyCode.RightShift then
-        if gui and gui.Parent then main.Visible = not main.Visible end
+        if gui and gui.Parent then
+            main.Visible = not main.Visible
+            if floatingButton then floatingButton.Visible = not main.Visible end
+        end
         return
     end
     if input.KeyCode == Enum.KeyCode.F6 then startRecording() return end
@@ -2151,7 +2219,7 @@ table.insert(state.connections, inputEndedConnection)
 
 setupAntiAfk()
 
-ENV[HUB_KEY] = {Unload = unload, Version = "2.0.0"}
+ENV[HUB_KEY] = {Unload = unload, Version = "2.1.0"}
 
 if state.toggles.lowQuality then applyLowQuality(true) end
 if state.toggles.hideEffects then applyHideEffects(true) end
@@ -2162,7 +2230,7 @@ task.spawn(processAutomation)
 if game.CreatorId ~= 35139043 then
     log("Aviso: este não parece ser o CreatorId do Anime Crusaders X.", THEME.yellow)
 else
-    log("yno hub 2.0 carregado. RightShift oculta/mostra.", THEME.green)
+    log("yno hub 2.1 carregado. RightShift oculta/mostra.", THEME.green)
 end
 
 saveConfig()
