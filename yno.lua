@@ -1,5 +1,5 @@
 -- yno hub | anime crusaders x
--- v3.1.1 | 2026-11-17
+-- v3.2.0 | 2026-11-17
 -- LixHub-inspired game hub rebuilt around visible Anime Crusaders X workflows.
 -- All game actions use visible UI controls, normal movement, or normal key input.
 -- No private RemoteEvents, inventory edits, currency edits, or anti-cheat bypass.
@@ -2525,7 +2525,7 @@ local function unload()
     ENV[RUNTIME_KEY] = nil
 end
 
-ENV[RUNTIME_KEY] = {Unload = unload, Version = "3.1.1"}
+ENV[RUNTIME_KEY] = {Unload = unload, Version = "3.2.0"}
 
 loadConfig()
 showPage("Overview")
@@ -2533,4 +2533,4 @@ showPage("Overview")
 table.insert(state.threads, task.spawn(gameAutomationLoop))
 table.insert(state.threads, task.spawn(claimLoop))
 
-log("yno hub 3.1.1 carregado. RightShift oculta/mostra.", THEME.success)
+log("yno hub 3.2.0 carregado. RightShift oculta/mostra.", THEME.success)
