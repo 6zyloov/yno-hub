@@ -1,4 +1,4 @@
-# Fontes e atualização — yno hub 3.0.0
+# Fontes e atualização — yno hub 3.0.1
 
 Consulta em **17 de novembro de 2026**. As wikis e listagens são fontes comunitárias independentes, não documentação oficial dos desenvolvedores.
 
