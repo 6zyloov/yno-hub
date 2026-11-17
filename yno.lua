@@ -102,6 +102,8 @@ local state = {
     originalFpsCap = nil,
     originalShadows = nil,
     captureMissLogged = false,
+    lastLogMessage = "",
+    lastLogAt = 0,
 }
 
 local function norm(value)
@@ -188,8 +190,6 @@ local function getBackgroundAsset()
     if assetOk then return asset end
     return nil
 end
-
-local backgroundAsset = nil
 
 local gui = make("ScreenGui", {
     Name = "yno_hub",
@@ -470,7 +470,14 @@ local function notify(message, color)
 end
 
 local function log(message, color)
-    notify(message, color)
+    local value = tostring(message)
+    local now = os.clock()
+    if state.lastLogMessage == value and now - state.lastLogAt < 1.75 then
+        return
+    end
+    state.lastLogMessage = value
+    state.lastLogAt = now
+    notify(value, color)
 end
 
 local function visible(object)
