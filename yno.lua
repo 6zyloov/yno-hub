@@ -90,6 +90,7 @@ local state = {
     buttonCache = {},
     buttonCacheAt = 0,
     originalLighting = {},
+    originalAttackEffects = {},
     originalFpsCap = nil,
     originalShadows = nil,
     captureMissLogged = false,
@@ -886,6 +887,16 @@ local function clickPhrase(phrases, key, exact, context, unique)
     return clickButton(button, key, 1.1)
 end
 
+local function clickFirstPhrase(phrases, key, exact, context, unique)
+    for index, phrase in ipairs(phrases) do
+        local button = findButton({phrase}, exact, context, unique)
+        if button then
+            return clickButton(button, key .. ":" .. tostring(index), 1.1)
+        end
+    end
+    return false
+end
+
 local function openQuests(category)
     if not clickPhrase({"Quests"}, "open-quests", false, nil, true) then
         log("Abra Quests pelo menu lateral do jogo.", THEME.warning)
@@ -1093,7 +1104,7 @@ local function startUnitHunt()
 end
 
 local function startHuntBook()
-    if not clickPhrase({"Book", "Collection Book"}, "unit-hunt-book", false, nil, true) then
+    if not clickFirstPhrase({"Book", "Collection Book"}, "unit-hunt-book", false, nil, true) then
         if not clickPhrase({"Unit Hunt"}, "unit-hunt-book-open", false, "events", true) then
             log("Entre em Events → Unit Hunt e use Book.", THEME.warning)
             return false
@@ -1108,7 +1119,7 @@ local function startHuntEventQuests()
         return false
     end
     task.wait(0.3)
-    if not clickPhrase({"Unit Hunt"}, "event-quests-unit-hunt", false, "events", true) then
+    if not clickFirstPhrase({"Unit Hunt"}, "event-quests-unit-hunt", false, "events", true) then
         log("Selecione Unit Hunt na lista de eventos.", THEME.warning)
         return false
     end
@@ -1179,12 +1190,13 @@ local function processUnitHunt()
     if not state.toggles.autoUnitHunt then return end
     local now = os.clock()
     local text = allGuiText()
-    local inEncounter = string.find(text, "capture", 1, true) ~= nil
+    local hasCaptureTiming = findCaptureTiming()
+    local inEncounter = hasCaptureTiming
         or string.find(text, "perfect", 1, true) ~= nil
-        or string.find(text, "wild unit", 1, true) ~= nil
+        or string.find(text, "hit the center", 1, true) ~= nil
 
     if inEncounter then
-        if now - state.huntLastHit > 0.16 and findCaptureTiming() then
+        if now - state.huntLastHit > 0.16 and hasCaptureTiming then
             state.huntLastHit = now
             sendKey("Space")
         elseif not state.captureMissLogged and now - state.huntLastScan > 9 then
@@ -1347,8 +1359,30 @@ local function setFpsCap(value)
     return pcall(setfpscap, limit)
 end
 
+local function setAttackEffects(enabled)
+    if enabled then
+        for _, object in ipairs(workspace:GetDescendants()) do
+            if object:IsA("ParticleEmitter") or object:IsA("Trail") or object:IsA("Beam")
+                or object:IsA("Highlight") then
+                if state.originalAttackEffects[object] == nil then
+                    state.originalAttackEffects[object] = object.Enabled
+                end
+                object.Enabled = false
+            end
+        end
+    else
+        for object, oldValue in pairs(state.originalAttackEffects) do
+            if object and object.Parent then
+                pcall(function() object.Enabled = oldValue end)
+            end
+        end
+        state.originalAttackEffects = {}
+    end
+end
+
 local function restorePerformance()
     setPerformance(false)
+    setAttackEffects(false)
     if state.originalFpsCap ~= nil and type(setfpscap) == "function" then
         pcall(setfpscap, state.originalFpsCap)
         state.originalFpsCap = nil
@@ -1506,8 +1540,7 @@ local function drawPerformance()
         setPerformance(enabled)
     end)
     addToggle("Hide Attack Effects", "Desliga partículas, trails, beams e highlights locais.", "hideEffects", false, function(enabled)
-        -- Filled by the performance loop so original effect state can be restored.
-        state.hideEffectsEnabled = enabled
+        setAttackEffects(enabled)
     end)
     addInput("FPS cap", "Valor permitido: 30–360.", "fpsCap", "60")
     addButton("Apply FPS cap", "Aplica o limite selecionado com setfpscap.", "APPLY", function()
@@ -1771,16 +1804,16 @@ local function gameAutomationLoop()
     while state.running do
         local ok, err = pcall(function()
             if state.toggles.autoStart then
-                clickPhrase({"Vote Start", "Start Match"}, "auto-start", false, nil, true)
+                clickFirstPhrase({"Vote Start", "Start Match"}, "auto-start", false, nil, true)
             end
             if state.toggles.autoSkip then
-                clickPhrase({"Vote Skip", "Skip Wave"}, "auto-skip", false, nil, true)
+                clickFirstPhrase({"Vote Skip", "Skip Wave"}, "auto-skip", false, nil, true)
             end
             if state.toggles.autoNext then
-                clickPhrase({"Next Stage", "Next"}, "auto-next", false, nil, true)
+                clickFirstPhrase({"Next Stage", "Next"}, "auto-next", false, nil, true)
             end
             if state.toggles.autoRetry then
-                clickPhrase({"Retry", "Replay"}, "auto-retry", false, nil, true)
+                clickFirstPhrase({"Retry", "Replay"}, "auto-retry", false, nil, true)
             end
             if state.toggles.autoAbilities then
                 local buttons = gameButtons()
