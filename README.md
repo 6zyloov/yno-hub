@@ -1,53 +1,64 @@
 # yno hub — anime crusaders x
 
-Script hub Lua original para Anime Crusaders X, com interface no estilo de um hub de automação, abas completas e ferramentas client-side.
+**Version 2.0.0** · Hub Lua original com interface inspirada em hubs de automação e foco em Anime Crusaders X.
 
-## Instalação no Solara
+## Instalação rápida no Solara
 
-O repositório está privado. Um executor sem autenticação não consegue buscar o arquivo RAW. Para usar sem publicar o repositório:
-1. Abra [yno.lua](yno.lua).
-2. Copie o conteúdo completo.
-3. Cole no Solara e execute dentro de Anime Crusaders X.
-4. RightShift mostra/oculta o painel.
+O repositório está **público** e o loader remoto está pronto. Dentro de Anime Crusaders X, execute:
 
-O loader de uma linha em [loadstring.txt](loadstring.txt) só funciona quando o repositório for público:
-
-```lua
+~~~lua
 loadstring(game:HttpGet("https://raw.githubusercontent.com/6zyloov/yno-hub/main/yno.lua"))()
-```
+~~~
+
+Arquivo principal: [yno.lua](yno.lua) · Instruções: [docs/usage.md](docs/usage.md).
 
 ## Abas
 
-- Joiner — modo e repetição de seleção de menu.
-- Game — Start, Skip Wave, Replay, Next, habilidades, claims e assistência de Auto Upgrade.
-- Performance — baixa qualidade local, ocultação de efeitos e limite de FPS.
-- Summon — ciclo limitado com alvo de parada e número máximo.
-- Macro — gravação e reprodução de cliques/teclas, JSON, perfis locais e hotkeys F6–F9.
-- Auto Reroll — ciclos limitados e parada por resultado.
-- Shop — compras limitadas com filtro de item.
-- Webhook — notificação de teste via webhook fornecido pelo usuário e alerta de fim de fase.
-- Minigames — reentrada por botões visíveis e suporte a macro gravada.
-- Misc — resgatar código, claim, train e UI Scanner.
-- Settings — salvar configuração, escala, restaurar visuais, parar e descarregar.
+- **Overview** — painel e atalhos.
+- **Farm Planner** — rotas para Gems, Gold, Event Tokens, Blank Tokens, Trait Remnants, Stat Cubes, Relic Cubes e Curse Tokens.
+- **Joiner** — seleção de modo e tentativa de entrar pelo botão visível do lobby.
+- **Game** — Auto Start, Skip Wave, Replay/Next, habilidades, claims, Auto Sell helpers, atalhos Z/N e controle do Smart Macro nativo.
+- **Performance** — efeitos locais, sombras e limite de FPS.
+- **Summon** — ciclo com limite e parada ao detectar um resultado novo configurado.
+- **Macro** — gravar/reproduzir cliques e teclas, import/export JSON e perfis locais.
+- **Auto Reroll** — ciclos limitados com parada por resultado detectado.
+- **Shop** — compra pelo botão visível, com filtro e limite.
+- **Webhook** — teste de conexão e alerta básico de fim de fase.
+- **Minigames** — reinício por botão visível e suporte à macro gravada.
+- **Misc** — resgatar códigos, treinar unidade e UI Scanner.
+- **Settings** — escala, salvamento, restauração visual, Stop All e Unload.
 
-## Como a automação opera
+## Auto Farm: Smart Macro nativo
 
-O hub usa botões e textos visíveis no PlayerGui. Isso evita inventar RemoteEvents ou chamar APIs privadas desconhecidas. O nome e a hierarquia dos controles do jogo podem mudar em atualizações; a aba Misc inclui um UI Scanner para diagnosticar controles visíveis.
+O botão **Game → Start Auto Farm** abre o Macro nativo e tenta iniciar o modo escolhido: Loop, This Stage ou Routine.
 
-O Macro nativo do jogo continua sendo a opção mais robusta para posicionamento inteligente, upgrades por onda, venda de farm, rotinas, gravações por mapa e execução contínua. O yno hub inclui atalhos e macro de entradas para completar esse fluxo.
+Antes disso, configure o próprio jogo:
+1. Entre na fase pretendida e abra Macro → Units.
+2. Use Fill My Team.
+3. Configure cada slot: unidade, targeting, Auto upgrade, Auto abilities, placement limit e ondas.
+4. Configure Placement → Zones/Recording conforme o mapa.
+5. Em Run, escolha Loop ou Routine; para Routine, crie a fila de tarefas antes.
+6. No yno hub, selecione o modo e clique Start Auto Farm.
 
-## Fontes consultadas em 17/11/2026
+O Smart Macro do jogo faz posicionamento inteligente, upgrades, venda de farms, foco em chefes e cobertura de inimigos Flying. O yno hub inicia e organiza esse sistema; ele não inventa uma estratégia universal para qualquer equipe/mapa.
 
-- LixHub feature inventory: https://robloxscripts.com/script/anime-crusaders-x-lixhub
-- LixHub listing: https://www.rblxscripts.net/scripts/lixhub-anime-crusaders-x-4b2d1732
-- Game Macro: https://anime-crusaders-x.wiki/macro/
-- Macro Presets: https://anime-crusaders-x.wiki/macro-presets/
-- Settings & Controls: https://anime-crusaders-x.wiki/settings/
-- Updates: https://anime-crusaders-x.wiki/updates/
-- Resource Farming: https://anime-crusaders-x.wiki/resource-farming/
+## Preset de Macro incluído
 
-## Limitações
+O código comunitário **AP-RSEHDXU** é o preset de Icy para Sword Arena - Raid. Requer Beyond Heaven, Sun God VS Dragon, Mr. Champion, Useless Goddess, Loid e Speedcart. Confira slots e mapa antes de importar em Macro → Units → Import ou pesquisar no Catalog.
 
-Este script não foi executado em uma sessão real de Roblox/Solara neste ambiente. As rotinas de interface precisam ser verificadas contra os controles visíveis no seu cliente. A gravação e reprodução exigem que o executor permita VirtualInputManager; leitura/gravação JSON exigem as funções de arquivo do executor.
+## Como as ações automáticas operam
 
-Não há código-fonte aberto do backend do LixHub: o loader público encaminha para o sistema Luarmor, e seu key system está ofuscado. O yno hub é uma implementação própria inspirada na organização e na lista pública de funcionalidades, não uma cópia do código proprietário.
+As ações de cliente procuram controles visíveis em PlayerGui e usam funções de entrada documentadas do Solara. Não chamam RemoteEvents internos, não alteram moedas/inventário no servidor e não tentam contornar anti-cheat. O UI Scanner ajuda a identificar mudanças de texto/controles depois de atualizações do jogo.
+
+## Validação e limites
+
+- O arquivo passa pela checagem automática de sintaxe Lua 5.4 no GitHub Actions.
+- A API de entrada, clipboard, FPS e arquivos foi conferida na documentação do Solara.
+- **Não foi possível executar o jogo Roblox/Solara neste ambiente**; portanto, a compatibilidade dinâmica com os nomes e hierarquia atuais dos botões ainda precisa ser confirmada em uma sessão real.
+- Joiner, Summon, Reroll, Shop, botões de fim de fase e Webhook são baseados na interface visível e podem exigir ajuste se o jogo mudar.
+- A macro de entrada grava coordenadas e teclas; não interpreta estado do jogo nem substitui o Smart Macro nativo.
+- O backend do LixHub é protegido pelo Luarmor; o yno hub é uma implementação independente inspirada na lista pública de recursos, não uma cópia do código proprietário.
+
+## Fontes
+
+Veja [docs/sources.md](docs/sources.md) e [docs/feature-matrix.md](docs/feature-matrix.md).
