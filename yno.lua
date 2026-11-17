@@ -916,7 +916,7 @@ local function startRecording()
     state.heldKeys = {}
     state.macroRecording = true
     state.recordStart = os.clock()
-    log("Gravando cliques e teclas (incluindo duração). F7 para parar.", THEME.yellow)
+    log("Gravando cliques e duração das teclas. F7 para parar.", THEME.yellow)
 end
 
 local function isOverHub(position)
@@ -1118,19 +1118,22 @@ local function buildJoiner()
 end
 
 local function startBuiltInMacro()
-    local macroButton = findButton({"Macro"}, true)
-    if not macroButton then
-        log("Entre em uma partida e abra o botão Macro do jogo.", THEME.yellow)
-        return false
-    end
-    if not activate(macroButton, "native-macro-open", 1.5) then return false end
-    task.wait(0.4)
-
     local runTab = findButton({"Run"}, true)
     if not runTab then
-        log("Painel Macro abriu, mas a aba Run não foi localizada. Abra Run manualmente.", THEME.yellow)
+        local macroButton = findButton({"Macro"}, true)
+        if not macroButton then
+            log("Entre em uma partida e abra o botão Macro do jogo.", THEME.yellow)
+            return false
+        end
+        if not activate(macroButton, "native-macro-open", 1.5) then return false end
+        task.wait(0.4)
+        runTab = findButton({"Run"}, true)
+    end
+    if not runTab then
+        log("Painel Macro não mostrou a aba Run. Abra Run manualmente.", THEME.yellow)
         return false
     end
+
     activate(runTab, "native-macro-run-tab", 0.8)
     task.wait(0.25)
 
@@ -1141,11 +1144,11 @@ local function startBuiltInMacro()
         return false
     end
     activate(modeButton, "native-macro-mode:" .. mode, 0.8)
-    task.wait(0.2)
+    task.wait(0.25)
 
-    local startButton = findButton({"Start"}, true, "Run")
+    local startButton = findButton({"Start Macro", "Start"}, false, "Run")
     if not startButton then
-        log("Não encontrei Start dentro da aba Run. Verifique as configurações e inicie manualmente.", THEME.yellow)
+        log("Não encontrei Start na aba Run. Confira o preset e inicie manualmente.", THEME.yellow)
         return false
     end
     local ok = activate(startButton, "native-macro-start", 2)
@@ -1315,7 +1318,7 @@ local function buildSummon()
 end
 
 local function buildMacro()
-    section(page, "Macro", "Grave, salve, importe e reproduza ações de interface com coordenadas normalizadas.")
+    section(page, "Macro", "Grave, salve, importe e reproduza cliques e teclas, incluindo tempo de tecla pressionada.")
     addInfo(page, "Hotkeys", "F6 inicia a gravação · F7 para · F8 reproduz · F9 interrompe. Os cliques no próprio yno hub não são gravados.", "F6–F9", THEME.cyan, 72)
     addInput(page, "macroName", "Macro name", "farm_route", "farm_route")
     addSelect(page, "macroMode", "Playback mode", {"Once", "Loop"}, "Loop repete a sequência até você interromper com F9.")
@@ -1538,6 +1541,7 @@ local function buildSettings()
         state.toggles.lowQuality = false
         state.toggles.hideEffects = false
         log("Configurações visuais restauradas.", THEME.green)
+        originalShowPage("Performance")
     end)
     addAction(page, "Stop all automation", "Desativa todos os ciclos automáticos de UI, summon, reroll e shop.", "STOP ALL", function()
         for key, value in pairs(state.toggles) do
@@ -1604,10 +1608,9 @@ local function processAutomation()
             clickWhenVisible("auto-join:" .. mode, {mode}, delayTime, false)
         end
         if state.toggles.autoStart then
-            clickWhenVisible("auto-start", {"vote start", "start match"}, 1.8, false)
-            if not state.lastAction["auto-start"] or os.clock() - state.lastAction["auto-start"] > 1.8 then
-                clickWhenVisible("auto-start", {"start"}, 1.8, true)
-            end
+            local startButton = findButton({"Vote Start", "Start Match"}, false)
+            if not startButton then startButton = findButton({"Start"}, true) end
+            if startButton then activate(startButton, "auto-start", 1.8) end
         end
         if state.toggles.autoSkip then
             clickWhenVisible("auto-skip", {"vote skip", "skip wave"}, 1.5, false)
