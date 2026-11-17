@@ -86,6 +86,8 @@ local state = {
     huntLastScan = 0,
     huntLastPromptScan = 0,
     cachedCapturePrompt = nil,
+    npcPromptCache = {},
+    lastNpcPromptScan = {},
     huntLastMove = 0,
     huntLastHit = 0,
     lastClaim = 0,
@@ -1320,28 +1322,38 @@ local function interactWithNpc(npcName)
     local humanoid = character and character:FindFirstChildOfClass("Humanoid")
     if not root then return false end
 
-    local target, targetPart, distance = nil, nil, math.huge
     local needle = norm(npcName)
-    for _, object in ipairs(workspace:GetDescendants()) do
-        if object:IsA("ProximityPrompt") and object.Enabled then
-            local context = norm(object.Name .. " " .. object.ObjectText .. " " .. object.ActionText)
-            local ancestor = object.Parent
-            local depth = 0
-            while ancestor and depth < 4 do
-                context = context .. " " .. norm(ancestor.Name)
-                ancestor = ancestor.Parent
-                depth = depth + 1
-            end
-            if string.find(context, needle, 1, true) then
-                local part = promptPart(object)
-                if part then
-                    local dist = (root.Position - part.Position).Magnitude
-                    if dist < distance then
-                        target, targetPart, distance = object, part, dist
+    local cached = state.npcPromptCache[needle]
+    local now = os.clock()
+    local target, targetPart, distance = nil, nil, math.huge
+    if cached and cached.prompt and cached.prompt.Parent and cached.prompt.Enabled
+        and cached.part and cached.part.Parent and now - (state.lastNpcPromptScan[needle] or 0) < 2.5 then
+        target, targetPart = cached.prompt, cached.part
+        distance = (root.Position - targetPart.Position).Magnitude
+    elseif now - (state.lastNpcPromptScan[needle] or 0) >= 2.5 then
+        state.lastNpcPromptScan[needle] = now
+        for _, object in ipairs(workspace:GetDescendants()) do
+            if object:IsA("ProximityPrompt") and object.Enabled then
+                local context = norm(object.Name .. " " .. object.ObjectText .. " " .. object.ActionText)
+                local ancestor = object.Parent
+                local depth = 0
+                while ancestor and depth < 4 do
+                    context = context .. " " .. norm(ancestor.Name)
+                    ancestor = ancestor.Parent
+                    depth = depth + 1
+                end
+                if string.find(context, needle, 1, true) then
+                    local part = promptPart(object)
+                    if part then
+                        local dist = (root.Position - part.Position).Magnitude
+                        if dist < distance then
+                            target, targetPart, distance = object, part, dist
+                        end
                     end
                 end
             end
         end
+        state.npcPromptCache[needle] = target and {prompt = target, part = targetPart} or nil
     end
 
     if not target then
@@ -1361,6 +1373,11 @@ local function interactWithNpc(npcName)
         end
         return false
     end
+    local actionKey = "npc-interact:" .. needle
+    if state.lastAction[actionKey] and now - state.lastAction[actionKey] < 2 then
+        return true
+    end
+    state.lastAction[actionKey] = now
     return sendKey("E")
 end
 
@@ -1462,7 +1479,6 @@ local function claimKingIndex()
         end
     end
     local claim = findButton({"Claim All"}, true, "index", true)
-    if not claim then claim = findButton({"Claim All"}, true, nil, true) end
     if claim then
         return clickButton(claim, "king-index-claim-all", 1.8)
     end
