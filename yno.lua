@@ -1562,7 +1562,11 @@ local function buildShop()
     addInput(page, "shopItem", "Item name filter", "Ex.: Trait Remnant, Stat Cube", "")
     addInput(page, "shopLimit", "Maximum purchases", "1", "1")
     addToggle(page, "autoBuy", "Auto Buy", "Clica em Buy quando o item configurado aparecer na mesma seção da loja.", false)
-    addAction(page, "Start purchase cycle", "Abra a loja desejada e confira moeda/quantidade antes de começar.", "START", function()
+    addAction(page, "Start purchase cycle", "Abra a loja desejada, informe um nome de item e confira moeda/quantidade antes de começar.", "START", function()
+        if normalize(state.values.shopItem) == "" then
+            log("Informe o nome específico do item antes de iniciar.", THEME.yellow)
+            return
+        end
         state.shopCount = 0
         state.toggles.autoBuy = true
         log("Compra automática iniciada com limite " .. tostring(state.values.shopLimit), THEME.yellow)
@@ -1826,6 +1830,11 @@ local function processAutomation()
             end
         end
         if state.toggles.autoBuy then
+            local filter = normalize(state.values.shopItem)
+            if filter == "" then
+                state.toggles.autoBuy = false
+                log("Defina o nome do item antes de iniciar Auto Buy.", THEME.yellow)
+            else
             local limit = safeNumber(state.values.shopLimit, 1, 1, 100)
             if state.shopCount >= limit then
                 state.toggles.autoBuy = false
@@ -1836,6 +1845,7 @@ local function processAutomation()
                     state.shopCount = state.shopCount + 1
                     log("Compra " .. tostring(state.shopCount) .. "/" .. tostring(limit), THEME.cyan)
                 end
+            end
             end
         end
         if state.toggles.autoTrain then
