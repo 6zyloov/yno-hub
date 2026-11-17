@@ -1682,6 +1682,8 @@ local function buildSettings()
         end
         applyLowQuality(false)
         applyHideEffects(false)
+        restoreFpsCap()
+        if state.savedCoreGui then setStreamerMode(false) end
         stopPlayback()
         stopRecording()
         stopBuiltInMacro()
