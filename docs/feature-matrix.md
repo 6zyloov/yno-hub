@@ -1,8 +1,8 @@
-# yno hub — matriz de recursos 3.0.1
+# yno hub — matriz de recursos 3.2.0
 
 | Área | Estado | O que realmente faz |
 |---|---|---|
-| Panel UI | Implementado | Layout próximo ao LixHub, wallpaper local baseado na referência enviada, sidebar, search, janela arrastável, botão flutuante y, RightShift e Unload. |
+| Panel UI | Implementado | Layout próximo ao LixHub-inspired compact layout, requested anime wallpaper baseado na referência enviada, sidebar, search, janela arrastável, botão flutuante y, RightShift e Unload. |
 | Missions | UI automation | Abre All/Daily/Infinite/Story/Event/Guide, Claim All, Bounties, Story grind, Challenges e início de Auto Challenge Routine pré-configurada. |
 | Daily quests | Parcial | Coleta objetivos concluídos; Start Story quest grind ajuda em kills/stage clears com Auto Start/Skip/Next. Challenge/Summoning dependem do objetivo atual e do uso do jogo. |
 | Guidebook / Phoenix | Parcial | Abre Guide e reivindica recompensas visíveis; Phoenix exige as dez Guide Quests. |
@@ -25,3 +25,14 @@
 - Wallpaper é baixado do repositório para o filesystem do executor e usado via getcustomasset; se não estiver disponível, o painel abre com fundo escuro.
 - **Não houve teste em sessão real Roblox/Solara neste ambiente.** Story Runner depende dos rótulos atuais de Play; Perfect Capture Assist depende da UI da barra de captura.
 - Nenhum código altera inventário/moedas do servidor, chama RemoteEvents privados ou tenta contornar anti-cheat.
+
+
+## 3.2.0
+
+- Compact two-column Game / Wave Actions layout inspired by the supplied LixHub screenshot.
+- Dark slate-blue palette and the supplied anime photo as the panel background.
+- Game controls use two real columns instead of the previous generic card dashboard.
+- Button discovery ranks exact text, ancestor context, size and hierarchy; context is a hint rather than an absolute filter.
+- Solara click dispatch uses documented mousemoveabs, mouse1press and mouse1release functions.
+- Failed lookups now report the missing game control; Settings can copy a live UI hierarchy report.
+- Static syntax workflow still does not replace a live in-game test.
