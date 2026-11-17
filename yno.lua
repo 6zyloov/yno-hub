@@ -2068,7 +2068,12 @@ local function drawSettings()
         setToggleValue("autoHuntClaims", false)
         state.actionGeneration = state.actionGeneration + 1
         state.storyFlow = false
-        log("Todas as automações do yno hub foram interrompidas.", THEME.warning)
+        local macroStop = findButton({"Stop"}, true, "macro", true)
+            or findButton({"Pause"}, true, "macro", true)
+        if macroStop then
+            stopNativeMacro()
+        end
+        log("Automações do yno hub interrompidas; Smart Macro pausado/parado quando estava visível.", THEME.warning)
     end)
     addButton("Unload yno hub", "Desconecta eventos, restaura efeitos e fecha a interface.", "UNLOAD", function()
         if ENV[RUNTIME_KEY] and ENV[RUNTIME_KEY].Unload then
