@@ -76,6 +76,7 @@ local state = {
         storyEntry = "Matchmaking",
         macroMode = "Loop",
         blankUnit = "Shadow (Atomic)",
+        youtubeChannel = "",
         fpsCap = "60",
     },
     lastAction = {},
@@ -558,6 +559,24 @@ local function waitForButton(phrases, exact, timeout, context, unique)
     return nil
 end
 
+local function findTextBox(needles)
+    local targets = {}
+    for _, needle in ipairs(needles) do table.insert(targets, norm(needle)) end
+    for _, root in ipairs(playerGui:GetChildren()) do
+        for _, object in ipairs(root:GetDescendants()) do
+            if object:IsA("TextBox") and visible(object) then
+                local context = norm(object.Name .. " " .. object.PlaceholderText .. " " .. contextText(object))
+                for _, target in ipairs(targets) do
+                    if target ~= "" and string.find(context, target, 1, true) then
+                        return object
+                    end
+                end
+            end
+        end
+    end
+    return nil
+end
+
 local function isRobloxFocused()
     if type(isrbxactive) == "function" then
         local ok, focused = pcall(isrbxactive)
@@ -973,16 +992,20 @@ local function claimVisibleQuests()
 end
 
 local function openBountyBoard()
-    if clickPhrase({"Bounties"}, "open-bounties", false, nil, true) then
-        return true
-    end
+    if clickFirstPhrase({"Bounties"}, "open-bounties", false, nil, true) then return true end
     if clickPhrase({"Missions"}, "open-missions-npc", false, nil, true) then
-        task.wait(0.5)
-        if clickPhrase({"Bounties"}, "open-bounties-after-missions", false, nil, true) then
+        task.wait(0.4)
+        if clickFirstPhrase({"Bounties"}, "open-bounties-after-missions", false, nil, true) then return true end
+    end
+    for attempt = 1, 16 do
+        if not state.running then return false end
+        interactWithNpc("Navi")
+        task.wait(0.45)
+        if clickFirstPhrase({"Bounties"}, "open-bounties-after-navi", false, nil, true) then
             return true
         end
     end
-    log("Fale com Navi, marcado como Missions, no Request Board; depois escolha Bounties.", THEME.warning)
+    log("Não consegui abrir Navi's Bounty Board. Vá até Navi no lobby e tente novamente.", THEME.warning)
     return false
 end
 
@@ -1369,30 +1392,77 @@ local function claimLoginRewards()
 end
 
 local function openHesiaRewards()
+    task.spawn(function()
+        if not string.find(allGuiText(), "free rewards", 1, true) then
+            for attempt = 1, 16 do
+                if not state.running then return end
+                interactWithNpc("Hesia")
+                task.wait(0.45)
+                if clickFirstPhrase({"Free Rewards"}, "hesia-free-rewards", false, nil, true) then break end
+                if string.find(allGuiText(), "free rewards", 1, true) then break end
+            end
+        end
+        log("Hesia Free Rewards: conclua as quatro tarefas sociais e use Claim Rewards quando estiver disponível.", THEME.warning)
+    end)
+    return true
+end
+
+local function claimHesiaRewards()
     if not string.find(allGuiText(), "free rewards", 1, true) then
-        interactWithNpc("Hesia")
-        task.wait(0.4)
+        openHesiaRewards()
+        task.wait(0.7)
     end
-    return clickFirstPhrase({"Free Rewards"}, "hesia-free-rewards", false, nil, true)
+    local claim = findButton({"Claim Rewards"}, false, "free rewards", true)
+    if not claim then claim = findButton({"Claim Rewards"}, true, nil, true) end
+    if claim then
+        return clickButton(claim, "hesia-claim-rewards", 1.8)
+    end
+    log("Hesia's Claim Rewards ainda não está disponível. Conclua Join Group, Like + Favorite, Notifications e Follow Event.", THEME.warning)
+    return false
 end
 
 local function openYoutubeReward()
     if clickFirstPhrase({"YouTube Reward"}, "youtube-reward-open", false, nil, true) then
-        log("YouTube Reward aberto. Insira seu próprio nome de canal e conclua a verificação de inscrição.", THEME.warning)
+        log("YouTube Reward aberto. Informe seu canal e conclua a inscrição exigida.", THEME.warning)
         return true
     end
     log("Não encontrei YouTube Reward. Procure o botão correspondente no lobby.", THEME.warning)
     return false
 end
 
+local function redeemYoutubeReward()
+    if not string.find(allGuiText(), "youtube reward", 1, true) then openYoutubeReward() task.wait(0.35) end
+    local channel = tostring(state.values.youtubeChannel or "")
+    if channel == "" then
+        log("Digite seu nome de canal no campo YouTube Channel antes de tentar Redeem.", THEME.warning)
+        return false
+    end
+    local box = findTextBox({"channel name", "youtube channel", "channel"})
+    if not box then
+        log("Campo de canal não encontrado no painel YouTube Reward; preencha-o manualmente.", THEME.warning)
+        return false
+    end
+    box.Text = channel
+    local redeem = findButton({"Redeem"}, true, nil, true)
+    if redeem then
+        log("Enviando Redeem. A inscrição e a verificação da plataforma continuam sendo exigidas.", THEME.warning)
+        return clickButton(redeem, "youtube-redeem", 2)
+    end
+    log("Botão Redeem não está disponível no painel.", THEME.warning)
+    return false
+end
+
 local function claimKingIndex()
     if not string.find(allGuiText(), "index", 1, true) then
-        interactWithNpc("King")
-        task.wait(0.4)
-        clickFirstPhrase({"Open Index"}, "king-open-index", false, nil, true)
-        task.wait(0.35)
+        for attempt = 1, 16 do
+            if not state.running then return false end
+            interactWithNpc("King")
+            task.wait(0.45)
+            if clickFirstPhrase({"Open Index"}, "king-open-index", false, nil, true) then break end
+        end
     end
-    local claim = findButton({"Claim All"}, true, nil, true)
+    local claim = findButton({"Claim All"}, true, "index", true)
+    if not claim then claim = findButton({"Claim All"}, true, nil, true) end
     if claim then
         return clickButton(claim, "king-index-claim-all", 1.8)
     end
@@ -1622,7 +1692,10 @@ local function drawFreeUnits()
     newGrid()
     addButton("Claim Login Rewards", "Verifica e coleta separadamente Daily e Anniversary, quando houver Claim disponível.", "CLAIM LOGIN", claimLoginRewards)
     addButton("Open Hesia Free Rewards", "Vai até Hesia e abre as quatro tarefas sociais; conclua as que ainda faltam no jogo.", "HESIA", openHesiaRewards)
-    addButton("Open YouTube Reward", "Abre a verificação da recompensa de inscrição do canal oficial.", "YOUTUBE", openYoutubeReward)
+    addButton("Claim Hesia Rewards", "Coleta Claim Rewards depois que Join Group, Like + Favorite, Notifications e Follow Event estiverem concluídos.", "CLAIM", claimHesiaRewards)
+    addInput("YouTube channel name", "Digite o nome do seu próprio canal após concluir a inscrição.", "youtubeChannel", "")
+    addButton("Open YouTube Reward", "Abre a verificação de inscrição do canal oficial.", "YOUTUBE", openYoutubeReward)
+    addButton("Redeem YouTube Reward", "Envia o nome do canal informado. O jogo ainda valida a inscrição e as notificações.", "REDEEM", redeemYoutubeReward)
     addButton("Claim King's Index", "Vai até King, abre Open Index e reivindica Claim All quando estiver disponível.", "INDEX", claimKingIndex)
     addButton("Claim Phoenix", "Abre Guidebook e tenta coletar Guide Quests Complete! se as 10 tarefas estiverem feitas.", "CLAIM PHOENIX", claimPhoenix)
     addButton("Open Guidebook", "Veja progresso e objetivos individuais que faltam.", "OPEN", openGuidebook)
