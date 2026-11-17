@@ -68,6 +68,9 @@ local state = {
     summonCount = 0,
     rerollCount = 0,
     shopCount = 0,
+    summonBaseline = {},
+    rerollBaseline = {},
+    heldKeys = {},
     lastAction = {},
     connections = {},
     savedVisuals = {},
@@ -305,6 +308,22 @@ local function clickWhenVisible(actionKey, phrases, interval, exact, context)
     local button = findButton(phrases, exact, context)
     if not button then return false end
     return activate(button, actionKey, interval or 1.4)
+end
+
+local function clickAllWhenVisible(actionKey, phrases, interval)
+    local clicked = 0
+    for _, button in ipairs(gameButtons()) do
+        local haystack = getTextForButton(button)
+        for _, phrase in ipairs(phrases) do
+            if string.find(haystack, normalize(phrase), 1, true) then
+                if activate(button, actionKey .. ":" .. tostring(button), interval or 1.1) then
+                    clicked = clicked + 1
+                end
+                break
+            end
+        end
+    end
+    return clicked
 end
 
 local function allGuiText()
@@ -567,9 +586,18 @@ end
 
 local function saveConfig()
     if type(writefile) ~= "function" then return false end
+    local safeValues = {}
+    for key, value in pairs(state.values) do
+        if key ~= "webhook" and key ~= "webhookId" and key ~= "macroImport" then
+            safeValues[key] = value
+        end
+    end
     local payload = {
-        toggles = state.toggles,
-        values = state.values,
+        visual = {
+            lowQuality = state.toggles.lowQuality == true,
+            hideEffects = state.toggles.hideEffects == true,
+        },
+        values = safeValues,
     }
     local ok = pcall(function()
         if type(makefolder) == "function" then
@@ -587,9 +615,16 @@ local function loadConfig()
         return HttpService:JSONDecode(readfile("yno_hub/config.json"))
     end)
     if ok and type(data) == "table" then
-        if type(data.toggles) == "table" then state.toggles = data.toggles end
+        if type(data.visual) == "table" then
+            state.toggles.lowQuality = data.visual.lowQuality == true
+            state.toggles.hideEffects = data.visual.hideEffects == true
+        end
         if type(data.values) == "table" then
-            for k, v in pairs(data.values) do state.values[k] = v end
+            for k, v in pairs(data.values) do
+                if k ~= "webhook" and k ~= "webhookId" and k ~= "macroImport" then
+                    state.values[k] = v
+                end
+            end
         end
     end
 end
@@ -701,13 +736,22 @@ local function sendKey(keyName)
     return false
 end
 
+local function getViewportInset()
+    local ok, inset = pcall(function()
+        return game:GetService("GuiService"):GetGuiInset()
+    end)
+    if ok then return inset end
+    return Vector2.new(0, 0)
+end
+
 local function sendClick(x, y)
     if type(mousemoveabs) ~= "function" or type(mouse1click) ~= "function" then
         log("O executor não oferece mousemoveabs/mouse1click para replay.", THEME.red)
         return false
     end
+    local inset = getViewportInset()
     local ok = pcall(function()
-        mousemoveabs(math.floor(x), math.floor(y))
+        mousemoveabs(math.floor(x + inset.X), math.floor(y + inset.Y))
         task.wait(0.04)
         mouse1click()
     end)
@@ -766,8 +810,17 @@ local function playMacro()
     end)
 end
 
+local function appendKeyUps()
+    local t = os.clock() - (state.recordStart or os.clock())
+    for keyName in pairs(state.heldKeys) do
+        table.insert(state.macro, {t = t, kind = "key_up", key = keyName})
+    end
+    state.heldKeys = {}
+end
+
 local function stopRecording()
     if not state.macroRecording then return end
+    appendKeyUps()
     state.macroRecording = false
     state.recordStart = nil
     log("Gravação parada: " .. tostring(#state.macro) .. " ações.", THEME.green)
@@ -776,9 +829,10 @@ end
 local function startRecording()
     if state.macroPlaying then stopPlayback() end
     state.macro = {}
+    state.heldKeys = {}
     state.macroRecording = true
     state.recordStart = os.clock()
-    log("Gravando cliques e teclas do jogo. Use F7 para parar.", THEME.yellow)
+    log("Gravando cliques e teclas (incluindo duração). F7 para parar.", THEME.yellow)
 end
 
 local function isOverHub(position)
@@ -793,30 +847,76 @@ local function isOverHub(position)
     return false
 end
 
-local function recordInput(input)
+local function recordInput(input, isDown)
     if not state.macroRecording or state.macroPlaying then return end
     if input.KeyCode == Enum.KeyCode.RightShift or input.KeyCode == Enum.KeyCode.F6
         or input.KeyCode == Enum.KeyCode.F7 or input.KeyCode == Enum.KeyCode.F8
         or input.KeyCode == Enum.KeyCode.F9 then return end
     local focusedBox = UIS:GetFocusedTextBox()
-    if focusedBox and gui and focusedBox:IsDescendantOf(gui) then return end
+    if focusedBox then return end
     local now = os.clock() - (state.recordStart or os.clock())
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+    if input.UserInputType == Enum.UserInputType.MouseButton1 and isDown then
         if isOverHub(input.Position) then return end
         local viewport = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1280, 720)
+        local inset = getViewportInset()
+        local x = input.Position.X - inset.X
+        local y = input.Position.Y - inset.Y
         table.insert(state.macro, {
             t = now,
             kind = "click",
-            x = input.Position.X / math.max(viewport.X, 1),
-            y = input.Position.Y / math.max(viewport.Y, 1),
+            x = math.clamp(x / math.max(viewport.X, 1), 0, 1),
+            y = math.clamp(y / math.max(viewport.Y, 1), 0, 1),
         })
     elseif input.UserInputType == Enum.UserInputType.Keyboard then
-        table.insert(state.macro, {
-            t = now,
-            kind = "key",
-            key = input.KeyCode.Name,
-        })
+        local keyName = input.KeyCode.Name
+        if isDown then
+            if not state.heldKeys[keyName] then
+                state.heldKeys[keyName] = true
+                table.insert(state.macro, {t = now, kind = "key_down", key = keyName})
+            end
+        elseif state.heldKeys[keyName] then
+            state.heldKeys[keyName] = nil
+            table.insert(state.macro, {t = now, kind = "key_up", key = keyName})
+        end
     end
+end
+
+local function countTargetLabels(targets)
+    local counts = {}
+    local tokens = {}
+    for token in string.gmatch(tostring(targets or ""), "[^,\\n]+") do
+        local normalized = normalize(token)
+        if normalized ~= "" then table.insert(tokens, {original = token, normalized = normalized}) end
+    end
+    for _, root in ipairs(playerGui:GetChildren()) do
+        for _, item in ipairs(root:GetDescendants()) do
+            if item:IsA("TextLabel") and visible(item) and item.Text and item.Text ~= "" then
+                local value = normalize(item.Text)
+                for _, token in ipairs(tokens) do
+                    if string.find(value, token.normalized, 1, true) then
+                        counts[token.normalized] = (counts[token.normalized] or 0) + 1
+                    end
+                end
+            end
+        end
+    end
+    return counts, tokens
+end
+
+local function captureTargetBaseline(targets)
+    local counts = countTargetLabels(targets)
+    return counts
+end
+
+local function targetFoundAfterBaseline(targets, baseline)
+    local current, tokens = countTargetLabels(targets)
+    baseline = baseline or {}
+    for _, token in ipairs(tokens) do
+        if (current[token.normalized] or 0) > (baseline[token.normalized] or 0) then
+            return true, token.original
+        end
+    end
+    return false, nil
 end
 
 local function findTargetButtonForItem(needle)
@@ -1051,9 +1151,12 @@ local function buildSummon()
     addSelect(page, "summonAmount", "Pull amount", {"1", "10"}, "Escolha o botão de summon que já está selecionado no jogo.")
     addInput(page, "summonLimit", "Maximum pulls", "10", "10")
     addInput(page, "summonTarget", "Stop when unit appears", "Ex.: Twenty One, Goju", "")
-    addToggle(page, "autoSummon", "Auto Summon", "Clica no botão Summon visível até encontrar um alvo ou atingir o limite.", false)
+    addToggle(page, "autoSummon", "Auto Summon", "Clica no botão Summon visível até encontrar um alvo novo ou atingir o limite.", false, function(enabled)
+        if enabled then state.summonBaseline = captureTargetBaseline(state.values.summonTarget) end
+    end)
     addAction(page, "Start summon cycle", "Inicie somente após selecionar o banner correto e conferir o saldo no jogo.", "START", function()
         state.summonCount = 0
+        state.summonBaseline = captureTargetBaseline(state.values.summonTarget)
         state.toggles.autoSummon = true
         log("Ciclo de summon iniciado com limite " .. tostring(state.values.summonLimit), THEME.yellow)
     end)
@@ -1136,9 +1239,12 @@ local function buildReroll()
     addSelect(page, "rerollKind", "Reroll type", {"Trait", "Stat", "Relic", "Curse"}, "Abra primeiro o painel correspondente no jogo.")
     addInput(page, "rerollTarget", "Desired result", "Ex.: Shining, SSS, desired trait", "")
     addInput(page, "rerollLimit", "Maximum rerolls", "10", "10")
-    addToggle(page, "autoReroll", "Auto Reroll", "Pressiona o botão Reroll da janela aberta e para por alvo/limite.", false)
+    addToggle(page, "autoReroll", "Auto Reroll", "Pressiona o botão Reroll da janela aberta e para por alvo novo/limite.", false, function(enabled)
+        if enabled then state.rerollBaseline = captureTargetBaseline(state.values.rerollTarget) end
+    end)
     addAction(page, "Start reroll cycle", "Confirme unidade, tipo e saldo antes de iniciar.", "START", function()
         state.rerollCount = 0
+        state.rerollBaseline = captureTargetBaseline(state.values.rerollTarget)
         state.toggles.autoReroll = true
         log("Reroll iniciado: " .. tostring(state.values.rerollKind) .. ".", THEME.yellow)
     end)
@@ -1358,7 +1464,7 @@ local function processAutomation()
             clickWhenVisible("auto-next", {"next stage", "next"}, 2.0, false)
         end
         if state.toggles.autoAbilities then
-            clickWhenVisible("auto-ability", {"use ability", "ability ready"}, 1.1, false)
+            clickAllWhenVisible("auto-ability", {"use ability", "ability ready"}, 1.1)
         end
         if state.toggles.autoClaim then
             clickWhenVisible("auto-claim", {"claim all", "claim reward"}, 1.8, false)
@@ -1367,7 +1473,7 @@ local function processAutomation()
             -- The join mode selection is intentionally rate-limited by its action key.
         end
         if state.toggles.autoSummon then
-            local found, name = targetFound(state.values.summonTarget)
+            local found, name = targetFoundAfterBaseline(state.values.summonTarget, state.summonBaseline)
             local limit = safeNumber(state.values.summonLimit, 10, 1, 500)
             if found then
                 state.toggles.autoSummon = false
@@ -1389,7 +1495,7 @@ local function processAutomation()
             end
         end
         if state.toggles.autoReroll then
-            local found, name = targetFound(state.values.rerollTarget)
+            local found, name = targetFoundAfterBaseline(state.values.rerollTarget, state.rerollBaseline)
             local limit = safeNumber(state.values.rerollLimit, 10, 1, 500)
             if found then
                 state.toggles.autoReroll = false
@@ -1692,9 +1798,14 @@ local inputConnection = UIS.InputBegan:Connect(function(input)
     if input.KeyCode == Enum.KeyCode.F7 then stopRecording() return end
     if input.KeyCode == Enum.KeyCode.F8 then playMacro() return end
     if input.KeyCode == Enum.KeyCode.F9 then stopPlayback() return end
-    recordInput(input)
+    recordInput(input, true)
 end)
 table.insert(state.connections, inputConnection)
+
+local inputEndedConnection = UIS.InputEnded:Connect(function(input)
+    recordInput(input, false)
+end)
+table.insert(state.connections, inputEndedConnection)
 
 setupAntiAfk()
 
