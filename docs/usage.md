@@ -1,4 +1,4 @@
-# Uso do yno hub 3.0.1
+# Uso do yno hub 3.2.0
 
 ## Instalação no Solara
 
@@ -6,7 +6,7 @@
 loadstring(game:HttpGet("https://raw.githubusercontent.com/6zyloov/yno-hub/main/yno.lua"))()
 ~~~
 
-O script baixa o wallpaper em [assets/lixhub-bg.jpg](../assets/lixhub-bg.jpg), grava no filesystem do executor e usa getcustomasset. Sem esse suporte, o painel abre com fundo escuro simples.
+O script baixa o wallpaper em [assets/yno-background.jpg](../assets/yno-background.jpg), grava no filesystem do executor e usa getcustomasset. Sem esse suporte, o painel abre com fundo escuro simples.
 
 ## Controles
 
@@ -15,7 +15,7 @@ O script baixa o wallpaper em [assets/lixhub-bg.jpg](../assets/lixhub-bg.jpg), g
 - Clique em **y** para reabrir.
 - Arraste pela barra superior.
 - **×** — Unload, encerra loops, desconecta eventos e restaura efeitos locais.
-- Search filtra os cartões da página atual.
+- Search filtra os controles da página atual. Settings → Copy Game UI report copia o texto e a hierarquia dos botões visíveis do jogo para diagnosticar ações que não encontram seus controles.
 
 ## Missions
 
@@ -79,6 +79,12 @@ Golden Crusader é um inimigo permanente, com chance base de 1 em 5.000.000 por 
 6. Na aba Macro do yno hub, pressione Start Smart Macro.
 
 O Macro nativo faz posicionamento, upgrades, habilidades e venda conforme slots e zonas. O yno hub abre/seleciona controles visíveis e inicia/para o sistema configurado.
+
+## Diagnóstico de cliques
+
+Os comandos procuram controles ativos no PlayerGui e priorizam correspondência exata, contexto do menu, tamanho e hierarquia. O contexto não é filtro absoluto, porque atualizações podem reparentar os mesmos controles. Se uma ação ainda não encontrar um botão, use Settings → Copy Game UI report; o relatório não executa ações, apenas copia os controles que o jogo está exibindo.
+
+O Solara envia o clique com mousemoveabs + mouse1press/mouse1release. A confirmação visual da ação depende do jogo e não é presumida pelo script.
 
 ## Performance
 
