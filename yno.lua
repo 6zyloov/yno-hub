@@ -1471,17 +1471,18 @@ local function openHesiaRewards()
 end
 
 local function claimHesiaRewards()
-    if not string.find(allGuiText(), "free rewards", 1, true) then
-        openHesiaRewards()
-        task.wait(0.7)
-    end
-    local claim = findButton({"Claim Rewards"}, false, "free rewards", true)
-    if not claim then claim = findButton({"Claim Rewards"}, true, nil, true) end
-    if claim then
-        return clickButton(claim, "hesia-claim-rewards", 1.8)
-    end
-    log("Hesia's Claim Rewards ainda não está disponível. Conclua Join Group, Like + Favorite, Notifications e Follow Event.", THEME.warning)
-    return false
+    task.spawn(function()
+        if not string.find(allGuiText(), "free rewards", 1, true) then
+            openHesiaRewards()
+        end
+        local claim = waitForButton({"Claim Rewards"}, false, 10, "free rewards", true)
+        if claim then
+            clickButton(claim, "hesia-claim-rewards", 1.8)
+        else
+            log("Hesia's Claim Rewards ainda não está disponível. Conclua Join Group, Like + Favorite, Notifications e Follow Event.", THEME.warning)
+        end
+    end)
+    return true
 end
 
 local function openYoutubeReward()
@@ -1754,9 +1755,10 @@ local function drawMissions()
         state.values.macroMode = "Routine"
         startNativeMacro()
     end)
-    addToggle("Auto quest farming", "Mantém Auto Start e Auto Next ativos para objetivos de kills e clears enquanto você joga Story.", "autoQuestLoop", false, function(enabled)
+    addToggle("Auto quest farming", "Mantém Auto Start, Auto Skip e Auto Next ativos para objetivos de kills e clears enquanto você joga Story.", "autoQuestLoop", false, function(enabled)
         if enabled then
             setToggleValue("autoStart", true)
+            setToggleValue("autoSkip", true)
             setToggleValue("autoNext", true)
         end
     end)
@@ -1837,7 +1839,7 @@ local function drawFreeUnits()
     finishGrid()
     addNotice("Twenty One", "A trilha Anniversary Login de sete dias dá Twenty One no Day 1 e oito Anniversary Tickets no total. Daily e Anniversary são abas diferentes: reivindique as duas separadamente enquanto o evento estiver ativo.", "FREE LOGIN")
     addNotice("Phoenix", "Phoenix é a recompensa de completar todas as 10 Guide Quests e reivindicar Guide Quests Complete! Phoenix (Rebirth) é outra forma, não a recompensa original.", "10 QUESTS")
-    addNotice("Hesia / YouTube / Index", "Hesia oferece quatro tarefas sociais com Claim Rewards; YouTube Reward exige subscrever @32xGames e inserir seu próprio canal; King's Index entrega recompensas por unidades registradas. Essas verificações devem ser concluídas pelo jogador.", "REWARDS")
+    addNotice("Hesia / YouTube / Index", "Hesia oferece quatro tarefas sociais com Claim Rewards; YouTube Reward exige subscrever @32xGames e inserir seu próprio canal; King's Index entrega recompensas por unidades registradas. O YouTube Reward consultado lista 30 Trait Remnants, 1.000 Gems, 10 Stat Cubes, 5 Perfect Stat Cubes, 5 Relic Cubes, 5 Curse Tokens e 2.500 Gold.", "REWARDS")
     addNotice("Blank Units are not free", "Shadow (Atomic) custa 30 Blank Tokens e Lao (Heart) custa 30. O yno hub não gasta esses tokens automaticamente; o botão de claim acima só age quando você o aciona.", "30 TOKENS")
     addNotice("Other free rewards", "Use Missions → Claim All para recolher Daily, Story, Infinite e Event quest rewards concluídos. Códigos e recompensas podem expirar; verifique a lista atual dentro do jogo.", "CLAIM")
 end
@@ -2177,7 +2179,8 @@ local function gameAutomationLoop()
                 or string.find(visibleText, "completed the stage", 1, true)
             local matchLost = string.find(visibleText, "defeat", 1, true)
                 or string.find(visibleText, "you lost", 1, true)
-                or string.find(visibleText, "loss", 1, true)
+                or string.find(visibleText, "you were defeated", 1, true)
+                or string.find(visibleText, "match lost", 1, true)
 
             if state.toggles.autoStart then
                 clickFirstPhrase({"Vote Start", "Start Match"}, "auto-start", false, nil, true)
