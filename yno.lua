@@ -655,6 +655,17 @@ local function clearPage()
 end
 
 local currentGrid = nil
+local toggleButtons = {}
+
+local function setToggleValue(key, enabled)
+    state.toggles[key] = enabled == true
+    local button = toggleButtons[key]
+    if button and button.Parent then
+        button.Text = state.toggles[key] and "ON" or "OFF"
+        button.BackgroundColor3 = state.toggles[key] and THEME.accentDark or THEME.panel3
+    end
+end
+
 local function section(titleText, subtitle)
     local holder = make("Frame", {
         BackgroundTransparency = 1,
@@ -673,16 +684,18 @@ local function newGrid()
         Size = UDim2.new(1, 0, 0, 0),
         ZIndex = 5,
     }, pageScroll)
+    local gridFrame = currentGrid
+    gridFrame.Size = UDim2.new(1, 0, 0, 8)
     local gridLayout = make("UIGridLayout", {
         CellSize = UDim2.new(0.5, -7, 0, 74),
         CellPadding = UDim2.new(0, 10, 0, 8),
         FillDirectionMaxCells = 2,
         SortOrder = Enum.SortOrder.LayoutOrder,
         HorizontalAlignment = Enum.HorizontalAlignment.Left,
-    }, currentGrid)
+    }, gridFrame)
     gridLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        if currentGrid and currentGrid.Parent then
-            currentGrid.Size = UDim2.new(1, 0, 0, gridLayout.AbsoluteContentSize.Y)
+        if gridFrame and gridFrame.Parent then
+            gridFrame.Size = UDim2.new(1, 0, 0, gridLayout.AbsoluteContentSize.Y)
         end
     end)
 end
@@ -723,6 +736,7 @@ local function makeControlCard(titleText, description, controlText, callback, co
             ZIndex = 7,
         }, card)
         round(control, 3)
+        toggleButtons[controlText] = control
         control.MouseButton1Click:Connect(function()
             local nextValue = not state.toggles[controlText]
             local accepted = true
@@ -735,10 +749,7 @@ local function makeControlCard(titleText, description, controlText, callback, co
                     accepted = false
                 end
             end
-            if accepted then state.toggles[controlText] = nextValue end
-            local value = state.toggles[controlText] == true
-            control.Text = value and "ON" or "OFF"
-            control.BackgroundColor3 = value and THEME.accentDark or THEME.panel3
+            if accepted then setToggleValue(controlText, nextValue) end
         end)
     elseif controlKind == "select" then
         control = make("TextButton", {
@@ -847,10 +858,13 @@ end
 
 local function finishGrid()
     if currentGrid then
-        local layout = currentGrid:FindFirstChildOfClass("UIGridLayout")
-        if layout then
-            currentGrid.Size = UDim2.new(1, 0, 0, layout.AbsoluteContentSize.Y)
-        end
+        local gridFrame = currentGrid
+        local layout = gridFrame:FindFirstChildOfClass("UIGridLayout")
+        task.defer(function()
+            if gridFrame and gridFrame.Parent and layout then
+                gridFrame.Size = UDim2.new(1, 0, 0, layout.AbsoluteContentSize.Y)
+            end
+        end)
     end
     currentGrid = nil
 end
@@ -1436,8 +1450,8 @@ local function drawMissions()
     addButton("Claim completed bounties", "Coleta recompensas dos cartões de Bounty já concluídos.", "CLAIM", claimBounties)
     addToggle("Auto quest farming", "Mantém Auto Start/Next/Skip ativos para objetivos de kills e clears enquanto você joga Story.", "autoQuestLoop", false, function(enabled)
         if enabled then
-            state.toggles.autoStart = true
-            state.toggles.autoNext = true
+            setToggleValue("autoStart", true)
+            setToggleValue("autoNext", true)
         end
     end)
     finishGrid()
@@ -1626,15 +1640,15 @@ local function drawSettings()
         log(ok and "Configuração salva em yno_hub/config.json." or "Falha ao salvar configuração.", ok and THEME.success or THEME.warning)
     end)
     addButton("Stop All automation", "Interrompe ciclos de quests, Story Runner, Unit Hunt e automações de tela.", "STOP ALL", function()
-        state.toggles.autoClaim = false
-        state.toggles.autoStart = false
-        state.toggles.autoSkip = false
-        state.toggles.autoNext = false
-        state.toggles.autoRetry = false
-        state.toggles.autoAbilities = false
-        state.toggles.autoQuestLoop = false
-        state.toggles.autoUnitHunt = false
-        state.toggles.autoHuntClaims = false
+        setToggleValue("autoClaim", false)
+        setToggleValue("autoStart", false)
+        setToggleValue("autoSkip", false)
+        setToggleValue("autoNext", false)
+        setToggleValue("autoRetry", false)
+        setToggleValue("autoAbilities", false)
+        setToggleValue("autoQuestLoop", false)
+        setToggleValue("autoUnitHunt", false)
+        setToggleValue("autoHuntClaims", false)
         state.storyFlow = false
         log("Todas as automações do yno hub foram interrompidas.", THEME.warning)
     end)
@@ -1791,6 +1805,20 @@ table.insert(state.connections, UIS.InputChanged:Connect(function(input)
     if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
         local delta = input.Position - dragStart
         main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end))
+table.insert(state.connections, UIS.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end))
+table.insert(state.connections, UIS.InputBegan:Connect(function(input, processed)
+    if not processed and input.KeyCode == Enum.KeyCode.RightShift then
+        if main and main.Parent then
+            main.Visible = not main.Visible
+            floatingButton.Visible = not main.Visible
+            state.minimized = not main.Visible
+        end
     end
 end))
 
