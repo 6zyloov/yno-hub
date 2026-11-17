@@ -1120,7 +1120,7 @@ local function startUnitHunt()
 end
 
 local function startHuntBook()
-    if not clickFirstPhrase({"Book", "Collection Book"}, "unit-hunt-book", false, nil, true) then
+    if not clickFirstPhrase({"Collection Book", "Book"}, "unit-hunt-book", false, nil, true) then
         if not clickPhrase({"Unit Hunt"}, "unit-hunt-book-open", false, "events", true) then
             log("Entre em Events → Unit Hunt e use Book.", THEME.warning)
             return false
@@ -1448,7 +1448,7 @@ local function drawMissions()
     addButton("Open Guidebook", "Quests → Guide. Use para seguir as 10 tarefas que liberam Phoenix.", "GUIDE", openGuidebook)
     addButton("Open Bounty Board", "Navi, marcado Missions, no Request Board → Bounties.", "BOUNTIES", openBountyBoard)
     addButton("Claim completed bounties", "Coleta recompensas dos cartões de Bounty já concluídos.", "CLAIM", claimBounties)
-    addToggle("Auto quest farming", "Mantém Auto Start/Next/Skip ativos para objetivos de kills e clears enquanto você joga Story.", "autoQuestLoop", false, function(enabled)
+    addToggle("Auto quest farming", "Mantém Auto Start e Auto Next ativos para objetivos de kills e clears enquanto você joga Story.", "autoQuestLoop", false, function(enabled)
         if enabled then
             setToggleValue("autoStart", true)
             setToggleValue("autoNext", true)
@@ -1847,16 +1847,25 @@ end
 local function gameAutomationLoop()
     while state.running do
         local ok, err = pcall(function()
+            local visibleText = allGuiText()
+            local matchWon = string.find(visibleText, "victory", 1, true)
+                or string.find(visibleText, "stage cleared", 1, true)
+                or string.find(visibleText, "wave completed", 1, true)
+                or string.find(visibleText, "completed the stage", 1, true)
+            local matchLost = string.find(visibleText, "defeat", 1, true)
+                or string.find(visibleText, "you lost", 1, true)
+                or string.find(visibleText, "loss", 1, true)
+
             if state.toggles.autoStart then
                 clickFirstPhrase({"Vote Start", "Start Match"}, "auto-start", false, nil, true)
             end
             if state.toggles.autoSkip then
                 clickFirstPhrase({"Vote Skip", "Skip Wave"}, "auto-skip", false, nil, true)
             end
-            if state.toggles.autoNext then
+            if state.toggles.autoNext and matchWon then
                 clickFirstPhrase({"Next Stage", "Next"}, "auto-next", false, nil, true)
             end
-            if state.toggles.autoRetry then
+            if state.toggles.autoRetry and matchLost then
                 clickFirstPhrase({"Retry", "Replay"}, "auto-retry", false, nil, true)
             end
             if state.toggles.autoAbilities then
