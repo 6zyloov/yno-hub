@@ -69,6 +69,7 @@ local state = {
     renderConnection = nil,
     effectConnection = nil,
     originalFpsCap = nil,
+    savedCoreGui = nil,
     summonCount = 0,
     rerollCount = 0,
     shopCount = 0,
@@ -1226,6 +1227,33 @@ local function stopBuiltInMacro()
     return activate(stopButton, "native-macro-stop", 1.5)
 end
 
+local function setStreamerMode(enabled)
+    local StarterGui = game:GetService("StarterGui")
+    if enabled then
+        if not state.savedCoreGui then
+            state.savedCoreGui = {}
+            for _, coreType in ipairs({Enum.CoreGuiType.PlayerList, Enum.CoreGuiType.Chat, Enum.CoreGuiType.EmotesMenu}) do
+                local ok, isEnabled = pcall(function()
+                    return StarterGui:GetCoreGuiEnabled(coreType)
+                end)
+                if ok then state.savedCoreGui[coreType] = isEnabled end
+            end
+        end
+        for _, coreType in ipairs({Enum.CoreGuiType.PlayerList, Enum.CoreGuiType.Chat, Enum.CoreGuiType.EmotesMenu}) do
+            pcall(function() StarterGui:SetCoreGuiEnabled(coreType, false) end)
+        end
+        log("Streamer Mode: PlayerList, Chat e Emotes ocultos. Overhead names não são ocultados.", THEME.green)
+    else
+        if state.savedCoreGui then
+            for coreType, previous in pairs(state.savedCoreGui) do
+                pcall(function() StarterGui:SetCoreGuiEnabled(coreType, previous) end)
+            end
+            state.savedCoreGui = nil
+        end
+        log("Streamer Mode desativado; CoreGui restaurado.", THEME.cyan)
+    end
+end
+
 local function buildGame()
     section(page, "Game", "Ações automáticas em botões reais e controles do Anime Crusaders X.")
     addSelect(page, "smartMacroMode", "Built-in Smart Macro mode", {"Loop", "This Stage", "Routine"}, "O script inicia o modo escolhido na aba Run do Macro nativo.")
@@ -1240,6 +1268,7 @@ local function buildGame()
     addToggle(page, "antiAfk", "Anti AFK", "Quando o evento Idle dispara, move o cursor 1 px e volta; VirtualUser é apenas fallback.", false, function(enabled)
         if enabled then log("Anti AFK local ativado (melhor esforço).", THEME.green) end
     end)
+    addToggle(page, "streamerMode", "Streamer Mode", "Oculta PlayerList, Chat e Emotes do CoreGui. Não oculta nomes acima dos personagens.", false, setStreamerMode)
     addAction(page, "Cycle Auto Upgrade priority", "Com uma unidade selecionada, envia Z para alternar P1 → P2 → P3 → P4 → P5 → P6 → Off.", "PRESS Z", function()
         if not sendKeyTap("Z") then log("Selecione uma unidade e deixe Roblox em primeiro plano.", THEME.yellow) end
     end)
@@ -1266,10 +1295,10 @@ local function buildGame()
         if unitsButton then activate(unitsButton, "game-settings-units", 1.2)
         else log("Abra Settings → Units manualmente; selecione cada unidade e escolha a habilidade automática.", THEME.yellow) end
     end)
-    addAction(page, "Toggle Auto Sell Farms", "Abre Settings → Gameplay e procura a opção Auto Sell Farms. Deixe essa seção aberta no jogo.", "TOGGLE FARM", function()
+    addAction(page, "Toggle Auto Sell Farms", "Abra Settings → Auto Sell e deixe essa categoria visível no jogo.", "TOGGLE FARM", function()
         toggleFromLabel("Auto Sell Farms")
     end)
-    addAction(page, "Toggle Auto Sell Units", "Procura Auto Sell Units na página de Settings já aberta.", "TOGGLE UNITS", function()
+    addAction(page, "Toggle Auto Sell Units", "Procura Auto Sell Units na categoria Settings → Auto Sell já aberta.", "TOGGLE UNITS", function()
         toggleFromLabel("Auto Sell Units")
     end)
     addAction(page, "Toggle Auto Retry", "Use Settings → Gameplay → Match. Deixe essa categoria aberta no jogo.", "TOGGLE RETRY", function()
@@ -1853,6 +1882,7 @@ local function unload()
     applyLowQuality(false)
     applyHideEffects(false)
     restoreFpsCap()
+    if state.savedCoreGui then setStreamerMode(false) end
     for _, connection in ipairs(state.connections) do
         pcall(function() connection:Disconnect() end)
     end
