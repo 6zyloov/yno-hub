@@ -1,6 +1,6 @@
 # Uso do yno hub
 
-## Solara: loader de uma linha
+## Loader do Solara
 
 O repositório 6zyloov/yno-hub está público. Dentro de Anime Crusaders X, execute:
 
@@ -8,43 +8,44 @@ O repositório 6zyloov/yno-hub está público. Dentro de Anime Crusaders X, exec
 loadstring(game:HttpGet("https://raw.githubusercontent.com/6zyloov/yno-hub/main/yno.lua"))()
 ~~~
 
-Também é possível abrir yno.lua, copiar tudo e executar diretamente.
+Também é possível abrir [yno.lua](../yno.lua), copiar o arquivo inteiro e executar diretamente.
 
-## Painel
+## Janela flutuante
 
-- **RightShift** — mostrar/ocultar.
+- **RightShift** — mostrar/ocultar a janela.
+- **—** na barra superior — minimizar para o pequeno botão flutuante **y**.
+- Clique no botão **y** para reabrir.
 - Arraste a janela pela barra superior.
-- **×** — fechar a interface.
-- **Settings → Stop All** — interromper ciclos e tentar parar o Macro nativo.
-- **Settings → Unload** — encerrar o script, desconectar eventos e restaurar efeitos visuais alterados.
+- **×** — descarregar o yno hub, interromper os ciclos e restaurar os efeitos locais/FPS alterados.
+- Fechar somente o editor do Solara não deveria fechar a GUI, pois ela é parentada ao container do executor. O script precisa continuar ativo no cliente Roblox.
 
-## Auto Farm
+## Auto Farm com Smart Macro
 
-O yno hub usa o Smart Macro nativo para a automação principal:
-1. Entre na fase que quer farmar.
-2. Abra Macro → Units → Fill My Team.
-3. Configure slots, unidades, targeting, Auto upgrade, Auto abilities, waves e placement.
-4. Em Macro → Placement, configure Zones ou Recording para o mapa.
-5. Em Macro → Run, selecione Loop para repetir uma fase ou Routine para executar uma fila previamente criada.
-6. No yno hub, abra Game, escolha o modo e clique Start Auto Farm.
+O jogo fornece o sistema de automação principal. Para configurar:
 
-O botão tenta abrir Macro/Run, escolher o modo e pressionar Start. Se os controles do jogo mudarem ou não estiverem visíveis, o painel informa que essa etapa deve ser concluída manualmente. Stop Auto Farm usa o botão Stop do painel flutuante do jogo.
+1. Entre na fase desejada e abra Macro → Units → Fill My Team.
+2. Configure os seis slots e Hero, inclusive targeting, Auto upgrade, Auto abilities, placement limit e ondas.
+3. Em Macro → Placement, configure Zones ou Recording para o mapa.
+4. Em Macro → Run, selecione Loop para repetir a fase atual ou Routine para executar uma fila de tarefas criada previamente.
+5. No yno hub, abra Game, escolha Loop, This Stage ou Routine e pressione Start Auto Farm.
+6. Use Stop Auto Farm para acionar Stop/Pause do painel Macro nativo.
 
-O Smart Macro nativo é responsável por colocar, atualizar e vender unidades conforme os slots e a estratégia configurados. O yno hub não configura sozinho a equipe completa nem cria uma estratégia ideal sem conhecer seu mapa/time.
+O botão Start tenta encontrar Macro → Run, selecionar o modo e pressionar Start. Caso o layout do jogo mude ou o controle não esteja visível, faça essa etapa manualmente. O posicionamento, upgrades e venda inteligentes são feitos pelo Macro nativo, de acordo com sua configuração.
 
-## Preset comunitário
+## Joiner
 
-O preset **AP-RSEHDXU** (Icy, Sword Arena - Raid) usa:
-- Beyond Heaven — P2
-- Sun God VS Dragon — P3
-- Mr. Champion — P2
-- Useless Goddess — P2
-- Loid — P1
-- Speedcart — P1
+Abra a aba Joiner, escolha uma categoria e pressione Open Mode. O hub pode abrir Play e o botão visível da categoria escolhida. Depois, selecione o mundo, ato, dificuldade e Matchmaking/Select Stage no jogo e confirme Start. Auto Open Selected Mode executa apenas a abertura da categoria quando ela está visível; não finge completar toda a seleção de partida.
 
-Requer essas unidades e bindings compatíveis. Pesquise o código no Macro Catalog ou abra Macro → Units → Import e cole-o.
+## Summon, Reroll e Shop
 
-## Macro de entrada do yno hub
+- Configure banner/tipo, nome de alvo e limite antes de ligar ciclos.
+- Summon procura o botão correspondente ao tamanho de pull escolhido; não clica em um botão genérico se o botão X1/X10 não aparecer.
+- O contador registra tentativas de clique, não pulls confirmados pelo servidor.
+- Alvos são detectados por textos novos na interface. Se o jogo substituir o texto de uma label sem criar um novo item visível, a detecção pode não perceber.
+- Shop exige um filtro de item com pelo menos dois caracteres. O contador registra cliques no botão Buy, não compras confirmadas. Confira moeda, estoque e quantidade.
+- Use Stop para interromper cada ciclo. Settings → Stop All interrompe todos os ciclos.
+
+## Macro de entrada
 
 Hotkeys:
 - **F6** — iniciar gravação.
@@ -52,23 +53,22 @@ Hotkeys:
 - **F8** — reproduzir.
 - **F9** — interromper reprodução.
 
-A gravação salva cliques em coordenadas relativas à tela e teclas pressionadas/soltas, incluindo a duração. O buffer pode ser salvo em JSON na pasta yno_hub/macros, carregado, importado e exportado. O modo Loop repete até F9.
+A gravação captura cliques em coordenadas relativas à tela e teclas pressionadas/soltas, incluindo sua duração. O buffer pode ser salvo em JSON em yno_hub/macros, carregado, importado e exportado. O modo Loop repete até F9.
 
-A macro de entrada não reconhece ondas, unidades ou resultados do jogo. Para posicionamento inteligente e upgrades por onda, use o Smart Macro do Anime Crusaders X.
+Essa macro não reconhece ondas, unidades ou resultados. Para posicionamento inteligente e upgrades por onda, use o Smart Macro nativo.
 
-## Recursos e segurança
+## Webhook
 
-- Summon, Reroll e Shop têm limite máximo configurável. Configure o banner, a loja e o custo antes de iniciar.
-- O alvo de Summon/Reroll é comparado com textos visíveis antes/depois do ciclo; a detecção depende do resultado ser apresentado na interface.
-- Webhook usa apenas URL fornecida por você. A URL não é salva no arquivo de configuração.
-- Configurações salvas guardam opções visuais e campos, mas não reativam automações de gasto ao reiniciar.
-- Não cole senha, cookie Roblox, token de conta ou token de bot.
-- O script não chama RemoteEvents privados, não gera recursos e não altera dados no servidor.
+O endpoint é opcional e permanece apenas na sessão. Por segurança, o hub aceita somente endereços HTTPS de webhook do Discord nos domínios discord.com/api/webhooks ou discordapp.com/api/webhooks. Não cole token de bot, senha, cookie Roblox ou token de conta.
+
+## Performance
+
+Low Quality Effects desativa sombras globais e pós-processamento local. Hide Attack Effects desativa partículas, trails, beams e highlights. Os valores anteriores são guardados para restauração. O FPS cap original também é restaurado em Unload quando getfpscap estiver disponível.
 
 ## Diagnóstico
 
-Na aba Misc, use UI Scanner para copiar os nomes/textos dos botões visíveis. Se uma atualização mudar a interface do jogo, isso ajuda a localizar o novo rótulo. A automação só consegue clicar nos controles que estejam visíveis e ativos.
+Na aba Misc, use UI Scanner para listar os botões visíveis. Se uma atualização mudar a interface do jogo, isso ajuda a localizar novos rótulos. A automação só clica controles visíveis e ativos.
 
-## Estado de validação
+## Limites de validação
 
-O arquivo é validado por sintaxe Lua no GitHub Actions. A API de entrada do Solara foi conferida na documentação. Não foi possível executar uma sessão real do Roblox neste ambiente; por isso, não há alegação de teste ao vivo nem garantia de que cada botão do jogo permaneça com o mesmo nome após patches.
+O código passa pelo workflow de sintaxe Lua do GitHub Actions quando a verificação termina com sucesso. A API do Solara foi conferida na documentação. Não foi possível executar uma sessão Roblox/Solara ao vivo neste ambiente; por isso, não afirmamos teste real de cada botão ou automação no jogo.
