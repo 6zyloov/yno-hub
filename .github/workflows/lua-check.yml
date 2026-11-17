@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install luau
+      - name: Install Lua 5.4
         run: |
           sudo apt-get update
           sudo apt-get install -y lua5.4
