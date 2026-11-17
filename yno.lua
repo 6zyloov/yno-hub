@@ -235,15 +235,15 @@ local function applyBackground(asset)
             BackgroundTransparency = 1,
             Size = UDim2.fromScale(1, 1),
             Image = asset,
-            ImageColor3 = Color3.fromRGB(155, 181, 174),
-            ImageTransparency = 0.56,
+            ImageColor3 = Color3.fromRGB(224, 235, 244),
+            ImageTransparency = 0.48,
             ScaleType = Enum.ScaleType.Crop,
             ZIndex = 0,
         }, main)
     else
         backgroundImage.Image = asset
     end
-    backgroundTint.BackgroundTransparency = 0.28
+    backgroundTint.BackgroundTransparency = 0.43
 end
 
 -- Download/render the wallpaper after the panel exists so a slow HTTP request
@@ -797,8 +797,8 @@ local function newGrid()
     local gridFrame = currentGrid
     gridFrame.Size = UDim2.new(1, 0, 0, 8)
     local gridLayout = make("UIGridLayout", {
-        CellSize = UDim2.new(0.5, -7, 0, 74),
-        CellPadding = UDim2.new(0, 10, 0, 8),
+        CellSize = UDim2.new(0.5, -7, 0, 52),
+        CellPadding = UDim2.new(0, 8, 0, 5),
         FillDirectionMaxCells = 2,
         SortOrder = Enum.SortOrder.LayoutOrder,
         HorizontalAlignment = Enum.HorizontalAlignment.Left,
@@ -814,33 +814,48 @@ local function makeControlCard(titleText, description, controlText, callback, co
     if not currentGrid then newGrid() end
     local card = make("Frame", {
         BackgroundColor3 = THEME.panel,
-        BackgroundTransparency = 0.12,
+        BackgroundTransparency = 0.36,
         BorderSizePixel = 0,
         ZIndex = 5,
     }, currentGrid)
-    round(card, 4)
-    outline(card, THEME.line, 0.58, 1)
+    round(card, 2)
+    outline(card, THEME.line, 0.84, 1)
 
-    local title = label(card, titleText, 11, THEME.text, true, 19)
-    title.Position = UDim2.new(0, 11, 0, 7)
-    title.Size = UDim2.new(1, -118, 0, 18)
+    local title = label(card, titleText, 10, THEME.text, true, 16)
+    title.Position = UDim2.new(0, 9, 0, 5)
+    title.Size = UDim2.new(1, -116, 0, 16)
     title.ZIndex = 6
-    local desc = label(card, description, 9, THEME.muted, false, 34)
-    desc.Position = UDim2.new(0, 11, 0, 29)
-    desc.Size = UDim2.new(1, -20, 0, 35)
+    local desc = label(card, description, 8, THEME.muted, false, 16)
+    desc.Position = UDim2.new(0, 9, 0, 23)
+    desc.Size = UDim2.new(1, -16, 0, 16)
     desc.ZIndex = 6
+
+    local function runAction()
+        if not callback then
+            log(titleText .. ": ação não configurada.", THEME.warning)
+            return
+        end
+        local ok, result = pcall(callback)
+        if not ok then
+            log(titleText .. " falhou: " .. tostring(result), THEME.danger)
+        elseif result == false or (type(result) == "number" and result <= 0) then
+            log(titleText .. ": não encontrou um controle válido. Confira o menu aberto.", THEME.warning)
+        elseif result == true or (type(result) == "number" and result > 0) then
+            log(titleText .. ": comando enviado; confirme o resultado no jogo.", THEME.success)
+        end
+    end
 
     local control
     if controlKind == "toggle" then
-        local enabled = state.toggles[controlText]
+        local enabled = state.toggles[controlText] == true
         control = make("TextButton", {
-            AnchorPoint = Vector2.new(1, 0),
-            Position = UDim2.new(1, -10, 0, 10),
-            Size = UDim2.new(0, 45, 0, 23),
+            AnchorPoint = Vector2.new(1, 0.5),
+            Position = UDim2.new(1, -9, 0.5, 0),
+            Size = UDim2.new(0, 39, 0, 20),
             BackgroundColor3 = enabled and THEME.accentDark or THEME.panel3,
             Text = enabled and "ON" or "OFF",
             TextColor3 = THEME.text,
-            TextSize = 9,
+            TextSize = 8,
             Font = Enum.Font.GothamBold,
             BorderSizePixel = 0,
             ZIndex = 7,
@@ -854,22 +869,23 @@ local function makeControlCard(titleText, description, controlText, callback, co
                 local ok, result = pcall(callback, nextValue)
                 if not ok then
                     accepted = false
-                    log("Toggle falhou: " .. tostring(result), THEME.danger)
+                    log(titleText .. " falhou: " .. tostring(result), THEME.danger)
                 elseif result == false then
                     accepted = false
+                    log(titleText .. ": o jogo não apresentou o controle esperado.", THEME.warning)
                 end
             end
             if accepted then setToggleValue(controlText, nextValue) end
         end)
     elseif controlKind == "select" then
         control = make("TextButton", {
-            AnchorPoint = Vector2.new(1, 0),
-            Position = UDim2.new(1, -10, 0, 9),
-            Size = UDim2.new(0, 106, 0, 25),
+            AnchorPoint = Vector2.new(1, 0.5),
+            Position = UDim2.new(1, -9, 0.5, 0),
+            Size = UDim2.new(0, 104, 0, 22),
             BackgroundColor3 = THEME.panel3,
             Text = tostring(state.values[controlText] or initialValue[1]),
             TextColor3 = THEME.text,
-            TextSize = 9,
+            TextSize = 8,
             Font = Enum.Font.GothamSemibold,
             BorderSizePixel = 0,
             ZIndex = 7,
@@ -886,19 +902,22 @@ local function makeControlCard(titleText, description, controlText, callback, co
             if index > #list then index = 1 end
             state.values[controlText] = list[index]
             control.Text = list[index]
-            if callback then pcall(callback, list[index]) end
+            if callback then
+                local ok, err = pcall(callback, list[index])
+                if not ok then log(titleText .. ": " .. tostring(err), THEME.danger) end
+            end
         end)
     elseif controlKind == "input" then
         control = make("TextBox", {
-            AnchorPoint = Vector2.new(1, 0),
-            Position = UDim2.new(1, -10, 0, 9),
-            Size = UDim2.new(0, 106, 0, 25),
+            AnchorPoint = Vector2.new(1, 0.5),
+            Position = UDim2.new(1, -9, 0.5, 0),
+            Size = UDim2.new(0, 104, 0, 22),
             BackgroundColor3 = THEME.panel3,
             Text = tostring(state.values[controlText] or initialValue or ""),
             PlaceholderText = "Value",
             PlaceholderColor3 = THEME.muted,
             TextColor3 = THEME.text,
-            TextSize = 9,
+            TextSize = 8,
             Font = Enum.Font.Gotham,
             ClearTextOnFocus = false,
             BorderSizePixel = 0,
@@ -907,28 +926,26 @@ local function makeControlCard(titleText, description, controlText, callback, co
         round(control, 3)
         control.FocusLost:Connect(function()
             state.values[controlText] = control.Text
-            if callback then pcall(callback, control.Text) end
+            if callback then
+                local ok, err = pcall(callback, control.Text)
+                if not ok then log(titleText .. ": " .. tostring(err), THEME.danger) end
+            end
         end)
     else
         control = make("TextButton", {
-            AnchorPoint = Vector2.new(1, 0),
-            Position = UDim2.new(1, -10, 0, 9),
-            Size = UDim2.new(0, 104, 0, 25),
+            AnchorPoint = Vector2.new(1, 0.5),
+            Position = UDim2.new(1, -9, 0.5, 0),
+            Size = UDim2.new(0, 88, 0, 22),
             BackgroundColor3 = THEME.accentDark,
             Text = controlText,
             TextColor3 = THEME.text,
-            TextSize = 9,
+            TextSize = 8,
             Font = Enum.Font.GothamBold,
             BorderSizePixel = 0,
             ZIndex = 7,
         }, card)
         round(control, 3)
-        control.MouseButton1Click:Connect(function()
-            if callback then
-                local ok, err = pcall(callback)
-                if not ok then log("Ação falhou: " .. tostring(err), THEME.danger) end
-            end
-        end)
+        control.MouseButton1Click:Connect(runAction)
     end
     card:SetAttribute("yno_search", norm(titleText .. " " .. description))
     return card
@@ -2389,7 +2406,7 @@ local function unload()
     ENV[RUNTIME_KEY] = nil
 end
 
-ENV[RUNTIME_KEY] = {Unload = unload, Version = "3.0.1"}
+ENV[RUNTIME_KEY] = {Unload = unload, Version = "3.1.0"}
 
 loadConfig()
 showPage("Overview")
@@ -2397,4 +2414,4 @@ showPage("Overview")
 table.insert(state.threads, task.spawn(gameAutomationLoop))
 table.insert(state.threads, task.spawn(claimLoop))
 
-log("yno hub 3.0.1 carregado. RightShift oculta/mostra.", THEME.success)
+log("yno hub 3.1.0 carregado. RightShift oculta/mostra.", THEME.success)
