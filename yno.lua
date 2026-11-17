@@ -104,6 +104,7 @@ local state = {
     captureMissLogged = false,
     lastLogMessage = "",
     lastLogAt = 0,
+    actionGeneration = 0,
 }
 
 local function norm(value)
@@ -204,6 +205,7 @@ local viewport = camera and camera.ViewportSize or Vector2.new(1280, 720)
 local uiScale = make("UIScale", {
     Scale = math.clamp(math.min(viewport.X / 1220, viewport.Y / 790), 0.68, 1),
 }, gui)
+state.values.uiScale = string.format("%.2f", uiScale.Scale)
 
 local main = make("Frame", {
     AnchorPoint = Vector2.new(0.5, 0.5),
@@ -586,9 +588,9 @@ local function findButton(phrases, exact, requiredContext, requireUnique)
     return nil
 end
 
-local function waitForButton(phrases, exact, timeout, context, unique)
+local function waitForButton(phrases, exact, timeout, context, unique, runToken)
     local deadline = os.clock() + (timeout or 8)
-    while state.running and os.clock() < deadline do
+    while state.running and (not runToken or runToken == state.actionGeneration) and os.clock() < deadline do
         local found = findButton(phrases, exact, context, unique)
         if found then return found end
         task.wait(0.2)
@@ -1074,9 +1076,12 @@ local function claimBounties()
     return claimVisibleQuests() > 0
 end
 
-local function storyStep(phrases, title, exact, context, timeout, unique)
+local function storyStep(phrases, title, exact, context, timeout, unique, runToken)
+    if runToken and runToken ~= state.actionGeneration then
+        error("ação cancelada pelo Stop All")
+    end
     log("Story: aguardando " .. title .. "...", THEME.muted)
-    local button = waitForButton(phrases, exact, timeout or 8, context, unique)
+    local button = waitForButton(phrases, exact, timeout or 8, context, unique, runToken)
     if not button then
         error("controle '" .. title .. "' não apareceu. Confira o menu aberto.")
     end
@@ -1103,27 +1108,29 @@ local function startStory()
     end
 
     state.storyFlow = true
+    local runToken = state.actionGeneration
     task.spawn(function()
         local ok, err = pcall(function()
-            storyStep({"Play"}, "Play", true, nil, 5, true)
-            storyStep({"Story"}, "Story", true, "play", 6, true)
-            storyStep({world}, world, false, "play", 8, true)
+            storyStep({"Play"}, "Play", true, nil, 5, true, runToken)
+            storyStep({"Story"}, "Story", true, "play", 6, true, runToken)
+            storyStep({world}, world, false, "play", 8, true, runToken)
 
             if mode == "World Skip" then
-                storyStep({"World Skip"}, "World Skip", true, nil, 6, true)
+                storyStep({"World Skip"}, "World Skip", true, nil, 6, true, runToken)
             else
-                storyStep({act}, act, false, nil, 6, true)
+                storyStep({act}, act, false, nil, 6, true, runToken)
             end
 
-            storyStep({difficulty}, difficulty, true, nil, 5, true)
-            storyStep({entry}, entry, true, nil, 6, true)
+            storyStep({difficulty}, difficulty, true, nil, 5, true, runToken)
+            storyStep({entry}, entry, true, nil, 6, true, runToken)
 
             if entry == "Matchmaking" then
+                if runToken ~= state.actionGeneration then error("ação cancelada pelo Stop All") end
                 log(world .. " · " .. mode .. " · " .. difficulty .. " enviado para Matchmaking.", THEME.success)
                 return
             end
 
-            local startButton = waitForButton({"Start"}, true, 10, nil, true)
+            local startButton = waitForButton({"Start"}, true, 10, nil, true, runToken)
             if startButton then
                 clickButton(startButton, "story-final-start", 2)
                 log(world .. " · " .. mode .. " · " .. difficulty .. " enviado para Start.", THEME.success)
@@ -1186,11 +1193,12 @@ local function stopNativeMacro()
 end
 
 local function startUnitHunt()
+    local runToken = state.actionGeneration
     task.spawn(function()
         local ok, err = pcall(function()
-            storyStep({"Events"}, "Events", false, nil, 5, true)
-            storyStep({"Unit Hunt"}, "Unit Hunt", false, "events", 6, true)
-            storyStep({"Start Hunt"}, "Start Hunt", true, nil, 6, true)
+            storyStep({"Events"}, "Events", false, nil, 5, true, runToken)
+            storyStep({"Unit Hunt"}, "Unit Hunt", false, "events", 6, true, runToken)
+            storyStep({"Start Hunt"}, "Start Hunt", true, nil, 6, true, runToken)
         end)
         if ok then
             log("Unit Hunt aberto. Q procura unidades raras; aproxime-se do alvo e use E para capturar.", THEME.success)
@@ -2010,13 +2018,7 @@ local function saveConfig()
     end
     local payload = {
         values = state.values,
-        toggles = {},
     }
-    for key, value in pairs(state.toggles) do
-        if key ~= "autoUnitHunt" and key ~= "autoClaim" and key ~= "autoRetry" then
-            payload.toggles[key] = value
-        end
-    end
     local ok = pcall(function()
         if type(makefolder) == "function" and type(isfolder) == "function" and not isfolder("yno_hub") then
             makefolder("yno_hub")
@@ -2039,13 +2041,7 @@ local function loadConfig()
             if state.values[key] ~= nil then state.values[key] = value end
         end
     end
-    if type(data.toggles) == "table" then
-        for key, value in pairs(data.toggles) do
-            if state.toggles[key] ~= nil then
-                state.toggles[key] = value == true
-            end
-        end
-    end
+    -- Automation toggles intentionally start OFF on every execution.
     return true
 end
 
@@ -2070,6 +2066,7 @@ local function drawSettings()
         setToggleValue("autoQuestLoop", false)
         setToggleValue("autoUnitHunt", false)
         setToggleValue("autoHuntClaims", false)
+        state.actionGeneration = state.actionGeneration + 1
         state.storyFlow = false
         log("Todas as automações do yno hub foram interrompidas.", THEME.warning)
     end)
