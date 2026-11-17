@@ -1,0 +1,21 @@
+name: lua syntax check
+
+on:
+  push:
+    paths:
+      - '**.lua'
+  pull_request:
+    paths:
+      - '**.lua'
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install luau
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lua5.4
+      - name: Check Lua syntax
+        run: luac5.4 -p yno.lua
