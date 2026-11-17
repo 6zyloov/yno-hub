@@ -22,7 +22,7 @@ Loader de uma linha: [loadstring.txt](loadstring.txt) · Código principal: [yno
 - **Game** — Auto Vote Start, Skip Wave, Next, Retry, Auto Abilities, Auto Sell helpers e abertura de Settings.
 - **Macro** — inicia/para Smart Macro nativo com Loop, This Stage ou Routine.
 - **Performance** — Low Effects, Hide Attack Effects, FPS cap e restauração.
-- **Settings** — escala, salvar configuração, Stop All e Unload.
+- **Settings** — escala, salvar preferências, Stop All (inclui cancelar navegação Story/Unit Hunt ativa) e Unload.
 - Janela arrastável, wallpaper local, pesquisa, RightShift, minimizar para botão flutuante y e fechar em ×.
 
 ## Missões e farming
