@@ -609,7 +609,7 @@ local function findButton(phrases, exact, requiredContext, requireUnique)
         end
     end
 
-    if bestButton and requireUnique and tied > 1 then return nil end
+    -- Choose the strongest match even if multiple menus reuse the same label.
     return bestButton
 end
 
@@ -2118,9 +2118,36 @@ local function loadConfig()
     return true
 end
 
+local function copyGameUiReport()
+    local buttons = gameButtons()
+    local lines = {"yno hub · visible Roblox UI controls · " .. tostring(#buttons) .. " buttons"}
+    table.sort(buttons, function(left, right)
+        return left:GetFullName() < right:GetFullName()
+    end)
+    for index, button in ipairs(buttons) do
+        if index > 180 then break end
+        table.insert(lines, string.format(
+            "%03d | %s | %s | context=%s",
+            index, button:GetFullName(), buttonText(button), contextText(button)
+        ))
+    end
+    local report = table.concat(lines, "\n")
+    if type(setclipboard) == "function" then
+        local ok = pcall(setclipboard, report)
+        if ok then
+            log("Relatório de UI copiado: " .. tostring(math.min(#buttons, 180)) .. " controles.", THEME.success)
+            return true
+        end
+    end
+    log("Clipboard indisponível; relatório enviado ao console.", THEME.warning)
+    print(report)
+    return false
+end
+
 local function drawSettings()
     section("Settings", "Preferências, diagnóstico e encerramento.")
     newGrid()
+    addButton("Copy Game UI report", "Copia nomes, textos e hierarquia dos controles visíveis para diagnosticar ações.", "COPY UI", copyGameUiReport)
     addSelect("UI scale", "Ajuste a escala do painel.", "uiScale", {"0.80", "0.90", "1.00", "1.10"})
     addButton("Apply UI scale", "Aplica a escala escolhida.", "APPLY", function()
         uiScale.Scale = tonumber(state.values.uiScale) or 1
