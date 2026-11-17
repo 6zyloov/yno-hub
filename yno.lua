@@ -1,5 +1,5 @@
 -- yno hub | anime crusaders x
--- v3.0.0 | 2026-11-17
+-- v3.0.1 | 2026-11-17
 -- LixHub-inspired game hub rebuilt around visible Anime Crusaders X workflows.
 -- All game actions use visible UI controls, normal movement, or normal key input.
 -- No private RemoteEvents, inventory edits, currency edits, or anti-cheat bypass.
@@ -1025,7 +1025,7 @@ local function claimVisibleQuests()
             local context = contextText(button)
             local isClaim = exactChildText(button, "Claim Rewards") or exactChildText(button, "Claim Reward")
             if isClaim and hasAnyScope(context, scopes) then
-                if clickButton(button, "scoped-quest-claim:" .. tostring(button), 0.8) then
+                if clickButton(button, "scoped-quest-claim:" .. button:GetFullName(), 0.8) then
                     claimed = claimed + 1
                     task.wait(0.15)
                 end
@@ -2324,7 +2324,7 @@ local function unload()
     ENV[RUNTIME_KEY] = nil
 end
 
-ENV[RUNTIME_KEY] = {Unload = unload, Version = "3.0.0"}
+ENV[RUNTIME_KEY] = {Unload = unload, Version = "3.0.1"}
 
 loadConfig()
 showPage("Overview")
@@ -2332,4 +2332,4 @@ showPage("Overview")
 table.insert(state.threads, task.spawn(gameAutomationLoop))
 table.insert(state.threads, task.spawn(claimLoop))
 
-log("yno hub 3.0.0 carregado. RightShift oculta/mostra.", THEME.success)
+log("yno hub 3.0.1 carregado. RightShift oculta/mostra.", THEME.success)
