@@ -1,585 +1,1558 @@
--- yno hub | anime crusaders x companion
--- Version: 1.0.0 | 2026-11-17
--- Informational companion for the game's built-in Smart Macro.
--- This script does not automate gameplay, call undocumented remotes, or modify game data.
+-- yno hub | anime crusaders x
+-- v2.0.0 | 2026-11-17
+-- Original client-side hub. Uses visible game UI and Roblox's built-in Smart Macro.
+-- No hidden remote calls, currency modification, server bypass or anti-cheat evasion.
 
 local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService")
+local Lighting = game:GetService("Lighting")
 local CoreGui = game:GetService("CoreGui")
+local VIM = game:GetService("VirtualInputManager")
+local VirtualUser = game:GetService("VirtualUser")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
+local ENV = (type(getgenv) == "function" and getgenv()) or _G
+local HUB_KEY = "yno_hub_runtime"
 
-local oldGui
-pcall(function()
-    local holder = (type(gethui) == "function" and gethui()) or CoreGui
-    oldGui = holder:FindFirstChild("yno_hub")
-end)
-if oldGui then
-    pcall(function() oldGui:Destroy() end)
+if ENV[HUB_KEY] and ENV[HUB_KEY].Unload then
+    pcall(ENV[HUB_KEY].Unload)
 end
 
-local theme = {
-    bg = Color3.fromRGB(8, 10, 18),
-    panel = Color3.fromRGB(13, 16, 28),
-    panel2 = Color3.fromRGB(18, 22, 37),
-    panel3 = Color3.fromRGB(24, 29, 48),
-    line = Color3.fromRGB(42, 49, 73),
-    text = Color3.fromRGB(239, 242, 255),
-    muted = Color3.fromRGB(145, 155, 184),
-    purple = Color3.fromRGB(143, 105, 255),
-    purple2 = Color3.fromRGB(91, 66, 190),
+local THEME = {
+    bg = Color3.fromRGB(9, 10, 18),
+    sidebar = Color3.fromRGB(12, 14, 24),
+    panel = Color3.fromRGB(17, 20, 33),
+    panel2 = Color3.fromRGB(22, 26, 42),
+    panel3 = Color3.fromRGB(29, 34, 54),
+    line = Color3.fromRGB(47, 54, 78),
+    text = Color3.fromRGB(241, 243, 255),
+    muted = Color3.fromRGB(142, 151, 177),
+    purple = Color3.fromRGB(145, 104, 255),
+    purpleDark = Color3.fromRGB(79, 55, 150),
     cyan = Color3.fromRGB(82, 211, 232),
-    green = Color3.fromRGB(90, 220, 165),
+    green = Color3.fromRGB(91, 219, 162),
     yellow = Color3.fromRGB(255, 194, 92),
-    red = Color3.fromRGB(255, 105, 124),
+    red = Color3.fromRGB(255, 103, 125),
 }
-local currentPage = "Overview"
-local compact = false
-local gui, main, pageScroll, pageLayout, navHolder, toast
-local uiScale
 
-local function make(className, props, parent)
-    local obj = Instance.new(className)
-    for key, value in pairs(props or {}) do
-        obj[key] = value
+local state = {
+    running = true,
+    page = "Overview",
+    minimized = false,
+    toggles = {},
+    values = {
+        joinMode = "Story",
+        joinDelay = "8",
+        summonLimit = "10",
+        summonTarget = "",
+        summonAmount = "10",
+        rerollKind = "Trait",
+        rerollLimit = "10",
+        rerollTarget = "",
+        shopItem = "",
+        shopLimit = "1",
+        macroName = "farm_route",
+        macroMode = "Once",
+        macroImport = "",
+        redeemCode = "",
+        webhook = "",
+        fpsCap = "60",
+        uiScale = "1.00",
+        autoJoinDelay = "8",
+    },
+    macro = {},
+    macroRecording = false,
+    macroPlaying = false,
+    stopMacro = false,
+    summonCount = 0,
+    rerollCount = 0,
+    shopCount = 0,
+    lastAction = {},
+    connections = {},
+    savedVisuals = {},
+    savedRender = nil,
+    log = {},
+}
+
+local function gethuiSafe()
+    if type(gethui) == "function" then
+        local ok, result = pcall(gethui)
+        if ok and result then return result end
     end
+    return CoreGui
+end
+
+local uiParent = gethuiSafe()
+local oldGui = uiParent:FindFirstChild("yno_hub")
+if oldGui then pcall(function() oldGui:Destroy() end) end
+
+local gui, main, page, pageLayout, nav, titleLabel, statusLabel, toast
+local inputName, importBox, debugBox
+local navButtons = {}
+local featureCallbacks = {}
+local originalShowPage
+
+local function create(className, props, parent)
+    local obj = Instance.new(className)
+    for k, v in pairs(props or {}) do obj[k] = v end
     obj.Parent = parent
     return obj
 end
 
-local function corner(parent, radius)
-    make("UICorner", {CornerRadius = UDim.new(0, radius or 12)}, parent)
+local function round(obj, amount)
+    create("UICorner", {CornerRadius = UDim.new(0, amount or 10)}, obj)
 end
 
-local function stroke(parent, color, transparency, thickness)
-    make("UIStroke", {
-        Color = color or theme.line,
-        Transparency = transparency or 0,
+local function outline(obj, color, transparency, thickness)
+    create("UIStroke", {
+        Color = color or THEME.line,
+        Transparency = transparency or 0.15,
         Thickness = thickness or 1,
-    }, parent)
+    }, obj)
 end
 
-local function label(parent, text, size, color, bold, height)
-    return make("TextLabel", {
+local function gradient(obj, c1, c2, rotation)
+    create("UIGradient", {
+        Color = ColorSequence.new(c1, c2),
+        Rotation = rotation or 0,
+    }, obj)
+end
+
+local function textLabel(parent, text, size, color, bold, height)
+    return create("TextLabel", {
         BackgroundTransparency = 1,
-        Size = UDim2.new(1, 0, 0, height or 24),
+        Size = UDim2.new(1, 0, 0, height or 22),
         Font = bold and Enum.Font.GothamBold or Enum.Font.Gotham,
-        Text = text,
-        TextColor3 = color or theme.text,
-        TextSize = size or 13,
+        Text = tostring(text or ""),
+        TextColor3 = color or THEME.text,
+        TextSize = size or 12,
         TextXAlignment = Enum.TextXAlignment.Left,
         TextYAlignment = Enum.TextYAlignment.Center,
         TextWrapped = true,
     }, parent)
 end
 
-local function button(parent, text, callback, width)
-    local b = make("TextButton", {
+local function normalize(value)
+    value = string.lower(tostring(value or ""))
+    value = string.gsub(value, "[%p%c]", " ")
+    value = string.gsub(value, "%s+", " ")
+    return string.gsub(value, "^%s*(.-)%s*$", "%1")
+end
+
+local function log(message, color)
+    local item = {
+        time = os.date("%H:%M:%S"),
+        message = tostring(message),
+        color = color or THEME.muted,
+    }
+    table.insert(state.log, 1, item)
+    while #state.log > 8 do table.remove(state.log) end
+    if statusLabel and statusLabel.Parent then
+        statusLabel.Text = item.message
+        statusLabel.TextColor3 = item.color
+    end
+    if toast and toast.Parent then
+        toast.Text = item.message
+        toast.TextColor3 = item.color
+        toast.Visible = true
+        toast.BackgroundTransparency = 0.08
+        toast.Position = UDim2.new(1, -18, 1, -58)
+        task.delay(2.2, function()
+            if toast and toast.Parent then
+                toast.Visible = false
+                toast.BackgroundTransparency = 1
+            end
+        end)
+    end
+end
+
+local function safeClipboard(value)
+    if type(setclipboard) ~= "function" then
+        log("Clipboard não está disponível neste executor.", THEME.yellow)
+        return false
+    end
+    local ok = pcall(setclipboard, tostring(value))
+    log(ok and "Copiado." or "Não foi possível copiar.", ok and THEME.green or THEME.yellow)
+    return ok
+end
+
+local function safeNumber(value, fallback, minimum, maximum)
+    local n = tonumber(value)
+    if not n then return fallback end
+    return math.clamp(math.floor(n), minimum or 1, maximum or 9999)
+end
+
+local function visible(obj)
+    local current = obj
+    while current and current ~= game do
+        if current:IsA("GuiObject") and not current.Visible then return false end
+        if current:IsA("ScreenGui") and not current.Enabled then return false end
+        current = current.Parent
+    end
+    return true
+end
+
+local function getTextForButton(button)
+    local parts = {button.Name}
+    if button:IsA("TextButton") then table.insert(parts, button.Text) end
+    for _, child in ipairs(button:GetDescendants()) do
+        if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
+            if child.Text and child.Text ~= "" then table.insert(parts, child.Text) end
+        end
+    end
+    return normalize(table.concat(parts, " "))
+end
+
+local function gameButtons()
+    local found = {}
+    for _, root in ipairs(playerGui:GetChildren()) do
+        if root ~= gui then
+            for _, item in ipairs(root:GetDescendants()) do
+                if item:IsA("GuiButton") and visible(item) and item.Active then
+                    table.insert(found, item)
+                end
+            end
+        end
+    end
+    return found
+end
+
+local function findButton(needles, exact, requiredContext)
+    local buttons = gameButtons()
+    local context = requiredContext and normalize(requiredContext) or nil
+    for _, button in ipairs(buttons) do
+        if not (gui and button:IsDescendantOf(gui)) then
+            local haystack = getTextForButton(button)
+            local contextOkay = true
+            if context then
+                local parentText = normalize((button.Parent and button.Parent.Name) or "")
+                contextOkay = string.find(haystack .. " " .. parentText, context, 1, true) ~= nil
+            end
+            if contextOkay then
+                for _, needle in ipairs(needles) do
+                    local target = normalize(needle)
+                    if target ~= "" then
+                        local matched = exact and haystack == target
+                            or (not exact and string.find(haystack, target, 1, true) ~= nil)
+                        if matched then return button, haystack end
+                    end
+                end
+            end
+        end
+    end
+    return nil, nil
+end
+
+local function activate(button, actionKey, cooldown)
+    if not button or not button.Parent then return false end
+    local now = os.clock()
+    local key = actionKey or tostring(button)
+    if state.lastAction[key] and now - state.lastAction[key] < (cooldown or 1.2) then
+        return false
+    end
+    state.lastAction[key] = now
+    local ok, err = pcall(function()
+        button:Activate()
+    end)
+    if not ok and type(firesignal) == "function" then
+        ok, err = pcall(function()
+            firesignal(button.Activated)
+        end)
+    end
+    if ok then
+        log("Ação executada: " .. tostring(actionKey or button.Name), THEME.green)
+        return true
+    end
+    log("Não foi possível ativar o botão: " .. tostring(err), THEME.red)
+    return false
+end
+
+local function clickWhenVisible(actionKey, phrases, interval, exact, context)
+    local button = findButton(phrases, exact, context)
+    if not button then return false end
+    return activate(button, actionKey, interval or 1.4)
+end
+
+local function allGuiText()
+    local parts = {}
+    for _, root in ipairs(playerGui:GetChildren()) do
+        for _, item in ipairs(root:GetDescendants()) do
+            if item:IsA("TextLabel") or item:IsA("TextButton") or item:IsA("TextBox") then
+                if visible(item) and item.Text and item.Text ~= "" then
+                    table.insert(parts, normalize(item.Text))
+                end
+            end
+        end
+    end
+    return table.concat(parts, " | ")
+end
+
+local function targetFound(targets)
+    local joined = allGuiText()
+    for token in string.gmatch(tostring(targets or ""), "[^,\n]+") do
+        local needle = normalize(token)
+        if needle ~= "" and string.find(joined, needle, 1, true) then
+            return true, token
+        end
+    end
+    return false, nil
+end
+
+local function findTextBox(needle)
+    local target = normalize(needle)
+    for _, root in ipairs(playerGui:GetChildren()) do
+        for _, item in ipairs(root:GetDescendants()) do
+            if item:IsA("TextBox") and visible(item) then
+                local hint = normalize(item.Name .. " " .. item.PlaceholderText)
+                if target == "" or string.find(hint, target, 1, true) then
+                    return item
+                end
+            end
+        end
+    end
+    return nil
+end
+
+local function toggleFromLabel(needle)
+    local target = normalize(needle)
+    for _, root in ipairs(playerGui:GetChildren()) do
+        for _, label in ipairs(root:GetDescendants()) do
+            if label:IsA("TextLabel") and visible(label) then
+                local value = normalize(label.Text)
+                if value == target or string.find(value, target, 1, true) then
+                    local parent = label.Parent
+                    for depth = 1, 3 do
+                        if not parent then break end
+                        for _, item in ipairs(parent:GetDescendants()) do
+                            if item:IsA("GuiButton") and visible(item) and item.Active then
+                                return activate(item, "settings:" .. target, 1.5)
+                            end
+                        end
+                        parent = parent.Parent
+                    end
+                end
+            end
+        end
+    end
+    log("Abra a opção '" .. needle .. "' no menu do jogo primeiro.", THEME.yellow)
+    return false
+end
+
+local function makeButton(parent, caption, callback, width, accent)
+    local b = create("TextButton", {
         AutoButtonColor = false,
-        BackgroundColor3 = theme.panel3,
-        Size = UDim2.new(0, width or 104, 0, 34),
-        Font = Enum.Font.GothamSemibold,
-        Text = text,
-        TextColor3 = theme.text,
-        TextSize = 12,
+        BackgroundColor3 = accent and THEME.purpleDark or THEME.panel3,
+        Size = UDim2.new(0, width or 112, 0, 34),
+        Font = Enum.Font.GothamBold,
+        Text = caption,
+        TextColor3 = THEME.text,
+        TextSize = 11,
         BorderSizePixel = 0,
     }, parent)
-    corner(b, 9)
-    stroke(b, theme.line, 0.25, 1)
+    round(b, 9)
+    outline(b, accent and THEME.purple or THEME.line, 0.3, 1)
     b.MouseEnter:Connect(function()
-        TweenService:Create(b, TweenInfo.new(0.14), {BackgroundColor3 = theme.purple2}):Play()
+        b.BackgroundColor3 = accent and THEME.purple or Color3.fromRGB(42, 48, 72)
     end)
     b.MouseLeave:Connect(function()
-        TweenService:Create(b, TweenInfo.new(0.14), {BackgroundColor3 = theme.panel3}):Play()
+        b.BackgroundColor3 = accent and THEME.purpleDark or THEME.panel3
     end)
     b.MouseButton1Click:Connect(function()
-        if callback then callback() end
+        if callback then
+            local ok, err = pcall(callback)
+            if not ok then log("Erro: " .. tostring(err), THEME.red) end
+        end
     end)
     return b
 end
 
-local function notify(message, accent)
-    if not toast or not toast.Parent then return end
-    toast.Text = message
-    toast.TextColor3 = accent or theme.text
-    toast.Visible = true
-    toast.BackgroundTransparency = 0.08
-    TweenService:Create(toast, TweenInfo.new(0.18), {Position = UDim2.new(1, -22, 1, -62)}):Play()
-    task.delay(2.6, function()
-        if toast and toast.Parent then
-            TweenService:Create(toast, TweenInfo.new(0.2), {
-                Position = UDim2.new(1, 340, 1, -62),
-                BackgroundTransparency = 1,
-            }):Play()
-            task.delay(0.22, function()
-                if toast and toast.Parent then toast.Visible = false end
-            end)
-        end
-    end)
+local function section(parent, heading, subtitle)
+    local holder = create("Frame", {
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, 0, 0, 58),
+    }, parent)
+    textLabel(holder, heading, 21, THEME.text, true, 27)
+    local sub = textLabel(holder, subtitle or "", 11, THEME.muted, false, 22)
+    sub.Position = UDim2.new(0, 0, 0, 29)
+    return holder
 end
 
-local function copyText(value)
-    if type(setclipboard) == "function" then
-        local ok = pcall(setclipboard, value)
-        if ok then
-            notify("Copiado para a área de transferência", theme.green)
-            return
-        end
-    end
-    notify("Clipboard indisponível neste executor", theme.yellow)
-end
-
-local function makeCard(parent, titleText, bodyText, tagText, tagColor, height)
-    local card = make("Frame", {
-        BackgroundColor3 = theme.panel2,
-        Size = UDim2.new(1, 0, 0, height or 112),
+local function row(parent, height)
+    local holder = create("Frame", {
+        BackgroundColor3 = THEME.panel,
+        Size = UDim2.new(1, 0, 0, height or 64),
         BorderSizePixel = 0,
     }, parent)
-    corner(card, 13)
-    stroke(card, theme.line, 0.28, 1)
-    make("UIPadding", {
-        PaddingTop = UDim.new(0, 13),
-        PaddingBottom = UDim.new(0, 12),
-        PaddingLeft = UDim.new(0, 15),
-        PaddingRight = UDim.new(0, 15),
-    }, card)
-    local title = label(card, titleText, 14, theme.text, true, 22)
-    title.Size = UDim2.new(1, tagText and -108 or 0, 0, 22)
-    local body = label(card, bodyText, 12, theme.muted, false, 48)
-    body.Position = UDim2.new(0, 0, 0, 30)
-    body.Size = UDim2.new(1, 0, 0, height and height - 66 or 48)
-    if tagText then
-        local tag = make("TextLabel", {
+    round(holder, 11)
+    outline(holder, THEME.line, 0.5, 1)
+    create("UIPadding", {
+        PaddingLeft = UDim.new(0, 14),
+        PaddingRight = UDim.new(0, 14),
+        PaddingTop = UDim.new(0, 9),
+        PaddingBottom = UDim.new(0, 8),
+    }, holder)
+    return holder
+end
+
+local function addInfo(parent, heading, description, tag, color, height)
+    local holder = row(parent, height or 77)
+    local title = textLabel(holder, heading, 13, THEME.text, true, 20)
+    title.Size = UDim2.new(1, tag and -112 or 0, 0, 20)
+    local body = textLabel(holder, description, 11, THEME.muted, false, (height or 77) - 34)
+    body.Position = UDim2.new(0, 0, 0, 25)
+    body.Size = UDim2.new(1, 0, 0, (height or 77) - 34)
+    if tag then
+        local badge = create("TextLabel", {
             AnchorPoint = Vector2.new(1, 0),
             Position = UDim2.new(1, 0, 0, 0),
-            Size = UDim2.new(0, 94, 0, 22),
-            BackgroundColor3 = tagColor or theme.purple2,
+            Size = UDim2.new(0, 98, 0, 20),
+            BackgroundColor3 = color or THEME.purpleDark,
             Font = Enum.Font.GothamBold,
-            Text = tagText,
-            TextColor3 = theme.text,
-            TextSize = 10,
+            Text = tag,
+            TextColor3 = THEME.text,
+            TextSize = 9,
             BorderSizePixel = 0,
-        }, card)
-        corner(tag, 7)
+        }, holder)
+        round(badge, 6)
     end
-    return card
+    return holder
 end
 
-local function addSection(titleText, subtitle)
-    local wrap = make("Frame", {
-        BackgroundTransparency = 1,
-        Size = UDim2.new(1, 0, 0, 62),
-    }, pageScroll)
-    label(wrap, titleText, 22, theme.text, true, 30)
-    local sub = label(wrap, subtitle or "", 12, theme.muted, false, 24)
-    sub.Position = UDim2.new(0, 0, 0, 32)
-end
-
-local function addActionCard(titleText, bodyText, actionText, action)
-    local card = makeCard(pageScroll, titleText, bodyText, nil, nil, 112)
-    local b = button(card, actionText, action, 112)
+local function addAction(parent, heading, description, caption, callback)
+    local holder = addInfo(parent, heading, description, nil, nil, 91)
+    local b = makeButton(holder, caption, callback, 112, true)
     b.AnchorPoint = Vector2.new(1, 1)
-    b.Position = UDim2.new(1, 0, 1, -2)
+    b.Position = UDim2.new(1, 0, 1, -1)
+    return holder
+end
+
+local function addToggle(parent, key, heading, description, defaultValue, callback)
+    if state.toggles[key] == nil then state.toggles[key] = defaultValue or false end
+    local holder = row(parent, 65)
+    textLabel(holder, heading, 12, THEME.text, true, 19)
+    local sub = textLabel(holder, description or "", 10, THEME.muted, false, 24)
+    sub.Position = UDim2.new(0, 0, 0, 23)
+    local btn = create("TextButton", {
+        AnchorPoint = Vector2.new(1, 0.5),
+        Position = UDim2.new(1, 0, 0.5, 0),
+        Size = UDim2.new(0, 48, 0, 26),
+        BackgroundColor3 = state.toggles[key] and THEME.purple or THEME.panel3,
+        Text = state.toggles[key] and "ON" or "OFF",
+        TextColor3 = THEME.text,
+        TextSize = 9,
+        Font = Enum.Font.GothamBold,
+        BorderSizePixel = 0,
+    }, holder)
+    round(btn, 8)
+    btn.MouseButton1Click:Connect(function()
+        state.toggles[key] = not state.toggles[key]
+        btn.Text = state.toggles[key] and "ON" or "OFF"
+        btn.BackgroundColor3 = state.toggles[key] and THEME.purple or THEME.panel3
+        if callback then
+            local ok, err = pcall(callback, state.toggles[key])
+            if not ok then log("Erro: " .. tostring(err), THEME.red) end
+        end
+        log(heading .. (state.toggles[key] and " ativado." or " desativado."), state.toggles[key] and THEME.green or THEME.muted)
+    end)
+    return holder
+end
+
+local function addInput(parent, key, heading, placeholder, defaultValue, callback, width)
+    local holder = row(parent, 74)
+    textLabel(holder, heading, 12, THEME.text, true, 20)
+    local box = create("TextBox", {
+        Position = UDim2.new(0, 0, 0, 27),
+        Size = UDim2.new(1, width and -width or 0, 0, 31),
+        BackgroundColor3 = THEME.panel3,
+        Text = state.values[key] or defaultValue or "",
+        PlaceholderText = placeholder or "",
+        PlaceholderColor3 = THEME.muted,
+        TextColor3 = THEME.text,
+        TextSize = 11,
+        Font = Enum.Font.Gotham,
+        ClearTextOnFocus = false,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        BorderSizePixel = 0,
+    }, holder)
+    round(box, 7)
+    box.FocusLost:Connect(function()
+        state.values[key] = box.Text
+        if callback then callback(box.Text) end
+    end)
+    return box, holder
+end
+
+local function addSelect(parent, key, heading, choices, description)
+    local holder = row(parent, 68)
+    textLabel(holder, heading, 12, THEME.text, true, 20)
+    local sub = textLabel(holder, description or "Clique para alternar as opções.", 9, THEME.muted, false, 16)
+    sub.Position = UDim2.new(0, 0, 0, 25)
+    local button = makeButton(holder, tostring(state.values[key] or choices[1]), function()
+        local current = state.values[key] or choices[1]
+        local index = 1
+        for i, choice in ipairs(choices) do
+            if choice == current then index = i break end
+        end
+        index = index + 1
+        if index > #choices then index = 1 end
+        state.values[key] = choices[index]
+        button.Text = choices[index]
+        log(heading .. ": " .. choices[index], THEME.cyan)
+    end, 130)
+    button.AnchorPoint = Vector2.new(1, 0.5)
+    button.Position = UDim2.new(1, 0, 0.5, 0)
+    return holder, button
+end
+
+local function addSpacer(parent, height)
+    create("Frame", {BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, height or 3)}, parent)
 end
 
 local function clearPage()
-    for _, child in ipairs(pageScroll:GetChildren()) do
-        child:Destroy()
-    end
-    pageScroll.CanvasPosition = Vector2.new(0, 0)
-    pageLayout = make("UIListLayout", {
-        Padding = UDim.new(0, 11),
+    for _, item in ipairs(page:GetChildren()) do item:Destroy() end
+    page.CanvasPosition = Vector2.new(0, 0)
+    pageLayout = create("UIListLayout", {
+        Padding = UDim.new(0, 8),
         SortOrder = Enum.SortOrder.LayoutOrder,
-    }, pageScroll)
-    make("UIPadding", {
-        PaddingTop = UDim.new(0, 4),
+    }, page)
+    create("UIPadding", {
+        PaddingTop = UDim.new(0, 3),
         PaddingBottom = UDim.new(0, 18),
-        PaddingLeft = UDim.new(0, 3),
-        PaddingRight = UDim.new(0, 10),
-    }, pageScroll)
+        PaddingLeft = UDim.new(0, 2),
+        PaddingRight = UDim.new(0, 9),
+    }, page)
     pageLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        pageScroll.CanvasSize = UDim2.new(0, 0, 0, pageLayout.AbsoluteContentSize.Y + 22)
+        page.CanvasSize = UDim2.new(0, 0, 0, pageLayout.AbsoluteContentSize.Y + 25)
     end)
 end
 
-local function buildOverview()
-    addSection("Bem-vindo ao yno hub", "Seu centro de planejamento para Anime Crusaders X.")
-    local hero = make("Frame", {
-        BackgroundColor3 = theme.panel2,
-        Size = UDim2.new(1, 0, 0, 142),
-        BorderSizePixel = 0,
-    }, pageScroll)
-    corner(hero, 15)
-    stroke(hero, theme.purple, 0.34, 1)
-    make("UIGradient", {
-        Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(35, 28, 67)),
-            ColorSequenceKeypoint.new(1, theme.panel2),
-        }),
-        Rotation = 0,
-    }, hero)
-    make("UIPadding", {
-        PaddingTop = UDim.new(0, 16),
-        PaddingLeft = UDim.new(0, 18),
-        PaddingRight = UDim.new(0, 18),
-    }, hero)
-    label(hero, "FARM SMARTER. PLAN BETTER.", 10, theme.cyan, true, 18)
-    label(hero, "Seu progresso, sob seu controle.", 20, theme.text, true, 30).Position = UDim2.new(0, 0, 0, 24)
-    local desc = label(hero, "O yno hub organiza rotas, equipes, códigos e o Smart Macro nativo. A execução das partidas continua no próprio jogo.", 12, theme.muted, false, 42)
-    desc.Position = UDim2.new(0, 0, 0, 60)
-    local chips = make("Frame", {BackgroundTransparency = 1, Position = UDim2.new(0, 0, 1, -27), Size = UDim2.new(1, 0, 0, 22)}, hero)
-    local chipLayout = make("UIListLayout", {FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 8)}, chips)
-    local function chip(text, color)
-        local c = make("TextLabel", {
-            BackgroundColor3 = theme.panel3, Size = UDim2.new(0, 120, 0, 22),
-            Font = Enum.Font.GothamBold, Text = text, TextColor3 = color,
-            TextSize = 9, BorderSizePixel = 0,
-        }, chips)
-        corner(c, 7)
-    end
-    chip("SMART MACRO GUIDE", theme.cyan)
-    chip("PATCH · 16 NOV", theme.green)
-    chip("BUILD 1.0.0", theme.purple)
-
-    addSection("Atalhos", "Abra uma área sem perder tempo.")
-    addActionCard("Farm Planner", "Rotas para Gems, Gold, Event Tokens e materiais de evolução.", "ABRIR ROTAS", function() showPage("Farm Planner") end)
-    addActionCard("Smart Macro", "Configure Loop, Routine, seis slots, Hero, upgrades e habilidades no painel nativo.", "CONFIGURAR", function() showPage("Smart Macro") end)
-    addActionCard("Códigos recentes", "Novos códigos foram adicionados em 16 de novembro. Confirmados separados dos não verificados.", "VER CÓDIGOS", function() showPage("Codes") end)
-    local note = makeCard(pageScroll, "Como funciona", "Este hub não injeta RemoteEvents, não altera moedas e não tenta contornar o anti-cheat. Ele organiza informação e presets para você configurar o sistema oficial do jogo.", "COMPANION", theme.green, 100)
+local function saveConfig()
+    if type(writefile) ~= "function" then return false end
+    local payload = {
+        toggles = state.toggles,
+        values = state.values,
+    }
+    local ok = pcall(function()
+        if type(makefolder) == "function" then
+            pcall(makefolder, "yno_hub")
+        end
+        writefile("yno_hub/config.json", HttpService:JSONEncode(payload))
+    end)
+    return ok
 end
 
-local function buildFarm()
-    addSection("Farm Planner", "Escolha o recurso e siga a rota adequada ao seu objetivo.")
-    makeCard(pageScroll, "Gems · rota diária", "Resgate o login diário, finalize as cinco missões diárias e recolha recompensas do Guidebook. O track semanal completo informa 22.500 Gems + 225 Trait Remnants.", "DAILY", theme.green, 118)
-    makeCard(pageScroll, "Gold · rota de minigames", "Crusader Dash paga 10 Gold por moeda, até 100.000 Gold por dia. Chess paga 1.000 Gold por vitória contra outro jogador. Reel Rush tem duas tentativas diárias com recompensas.", "GOLD", theme.yellow, 118)
-    makeCard(pageScroll, "Event Tokens + Blank Tokens", "Complete os três objetivos de um Bounty Card: a recompensa indicada é 5 Event Tokens e 1 Blank Token.", "BOUNTY", theme.cyan, 104)
-    makeCard(pageScroll, "Trait Remnants / Trait Tokens", "Use Daily Login e Guidebook para Trait Remnants. Algumas unidades têm custo de reroll diferente; confira o custo da unidade antes de gastar.", "TRAITS", theme.purple, 104)
-    makeCard(pageScroll, "Stat Cube / Perfect Stat Cube", "Stat Cube altera Damage, SPA e Range juntos. Perfect Stat Cube altera apenas um atributo escolhido. Multi gasta 1 Stat Cube por unidade selecionada.", "STATS", theme.purple, 104)
-    makeCard(pageScroll, "Relic Cubes / Curse Tokens", "Relic Cube rerrola atributos de relíquia. Curse Token é usado para aplicar curse em Twenty One; trocar entre curse ativa e salva é gratuito.", "RELICS", theme.cyan, 104)
-    makeCard(pageScroll, "Boss Rush shops", "Control usa Token of Chains; Perfection usa Token of Resonance. Compare o saldo e o estoque de cada loja antes de planejar compras.", "SHOP", theme.yellow, 104)
-    addActionCard("Abrir guia completo de recursos", "Confira os valores e condições de cada recompensa na referência comunitária.", "COPIAR URL", function()
-        copyText("https://anime-crusaders-x.wiki/resource-farming/")
+local function loadConfig()
+    if type(readfile) ~= "function" or type(isfile) ~= "function" then return end
+    local ok, data = pcall(function()
+        if not isfile("yno_hub/config.json") then return nil end
+        return HttpService:JSONDecode(readfile("yno_hub/config.json"))
     end)
-end
-
-local function buildMacro()
-    addSection("Smart Macro", "Guia de configuração do sistema integrado do Anime Crusaders X.")
-    makeCard(pageScroll, "1 · Escolha o modo", "This Stage executa uma partida. Loop repete a fase atual. Routine percorre uma fila de tarefas com modo, mundo, ato, dificuldade e meta de runs. Para farm repetível, configure Retry nas opções da partida.", "CORE", theme.cyan, 110)
-    makeCard(pageScroll, "2 · Configure seu time", "Macro → Units → Slots oferece seis slots e um Hero slot. Use Fill My Team para preencher a formação equipada. Você pode seguir a posição do time ou vincular um slot a uma unidade específica e até cinco substitutas.", "6 + HERO", theme.purple, 110)
-    makeCard(pageScroll, "3 · Upgrade e habilidade", "Ative Slot enabled, Targeting, Auto upgrade e Auto abilities. Na aba Advanced configure Place from wave, Place through wave, Upgrade priority, Maximum upgrade e Abilities from wave.", "TIMING", theme.green, 110)
-    makeCard(pageScroll, "4 · Prioridades", "O botão Auto de upgrade alterna entre prioridades P1–P6 e depois Off. No painel de upgrades, passar o cursor sobre um pip mostra o alcance daquele upgrade. Ajuste a prioridade para o seu plano.", "P1 — P6", theme.yellow, 110)
-    makeCard(pageScroll, "5 · Posicionamento", "Placement permite Zones ou Recording. Use Add Zone na aba do slot para definir áreas próprias. Shared area define uma área global. Recording permite gravar e gerenciar posições por mapa.", "MAP", theme.cyan, 110)
-    makeCard(pageScroll, "6 · Auto Challenge", "Em Dailies → Auto Challenge, selecione categorias de desafios para agendar junto à automação. Confira a fila e os limites antes de iniciar.", "DAILIES", theme.purple, 100)
-    makeCard(pageScroll, "7 · Desempenho", "O menu oferece None, Low, Medium, High e Extreme. Comece em High se quiser priorizar FPS durante o macro; teste Extreme apenas se ainda houver queda forte de desempenho. Use None/Low quando preferir os efeitos visuais.", "FPS", theme.green, 110)
-    addActionCard("Copiar checklist de preparação", "Use esta lista antes de iniciar uma rotina longa.", "COPIAR", function()
-        copyText("YNO HUB — CHECKLIST\n1. Entrar na fase correta.\n2. Macro > Units > Fill My Team.\n3. Conferir slots, Hero, targeting e Auto abilities.\n4. Ajustar Zones/Recording.\n5. Configurar This Stage, Loop ou Routine.\n6. Escolher otimização.\n7. Start e conferir Activity, Runs, Wins e Losses.\n8. Pausar ou Stop se a estratégia falhar.")
-    end)
-    addActionCard("Abrir guia completo do Macro", "Consulte capturas e explicações do painel nativo.", "COPIAR URL", function()
-        copyText("https://anime-crusaders-x.wiki/macro/")
-    end)
-end
-
-local function buildTeam()
-    addSection("Team Builder", "Formação comunitária de referência. Use somente as unidades que você possui.")
-    makeCard(pageScroll, "Twenty One", "Dano principal · desenvolva esta unidade para sustentar as ondas iniciais.", "DAMAGE", theme.purple, 92)
-    makeCard(pageScroll, "Loid", "Farm · ajuda a construir economia para upgrades posteriores.", "FARM", theme.green, 92)
-    makeCard(pageScroll, "AI (Idol)", "Buff / suporte · posicione para cobrir o núcleo de dano.", "SUPPORT", theme.cyan, 92)
-    makeCard(pageScroll, "Speedcart", "Farm · custo de implantação baixo (550 Yen), bom para abrir economia.", "FARM", theme.green, 92)
-    makeCard(pageScroll, "Useless Goddess", "Suporte para atacantes Magic · mantenha os atacantes dentro do alcance.", "MAGIC BUFF", theme.purple, 92)
-    makeCard(pageScroll, "Phoenix (Rebirth)", "Dano Magic e summons com cobertura de Flying. Não confunda com a forma Phoenix base.", "FLYING", theme.yellow, 92)
-    makeCard(pageScroll, "Alternativa", "Se não tiver Phoenix (Rebirth), use outra unidade de dano disponível. Goju VS Sukuno é uma alternativa citada pelo guia, mas reavalie sua cobertura contra Flying.", "SWAP", theme.yellow, 108)
-    addActionCard("Copiar formação", "Use como checklist de equipe, não como promessa de equipe universal.", "COPIAR", function()
-        copyText("Twenty One | Loid | AI (Idol) | Speedcart | Useless Goddess | Phoenix (Rebirth)\nAjuste por mapa, orçamento, raridade e inimigos Flying.")
-    end)
-    addActionCard("Abrir guia de equipes", "Veja sinergias e alternativas de acordo com o tipo de dano.", "COPIAR URL", function()
-        copyText("https://anime-crusaders-x.wiki/team-building/")
-    end)
-end
-
-local codes = {
-    {code="ACBESTTD2026", reward="50 Curse Tokens · 50 Relic Cubes · 50 Stat Cubes · 5.000 Gems", verified=true},
-    {code="ACCOMEBACK", reward="200 Trait Remnants · requisito: nível 20+", verified=true},
-    {code="ANNIVERSARY", reward="100 Trait Remnants · requisito: nível 10+", verified=true},
-    {code="SORRYFORSHUTDOWNEA2026", reward="50 Trait Remnants", verified=true},
-    {code="WELCOMETOACX", reward="200 Trait Remnants · 5.000 Gems", verified=true},
-    {code="THANKYOUFOR30KMAJORFIXES", reward="50 Trait Remnants · 1.000 Gems · ainda não verificado", verified=false},
-}
-local function buildCodes()
-    addSection("Codes", "Códigos publicados ou atualizados em 16 de novembro de 2026. Resgate no jogo; disponibilidade pode mudar.")
-    for _, item in ipairs(codes) do
-        local status = item.verified and "CONFIRMADO" or "NÃO VERIFICADO"
-        local color = item.verified and theme.green or theme.yellow
-        local card = makeCard(pageScroll, item.code, item.reward, status, color, 92)
-        local b = button(card, "COPIAR", function() copyText(item.code) end, 94)
-        b.AnchorPoint = Vector2.new(1, 1)
-        b.Position = UDim2.new(1, 0, 1, -1)
-    end
-    makeCard(pageScroll, "Como resgatar", "Abra o menu de Codes no jogo, digite o código exatamente como aparece e pressione Redeem. Códigos expirados ou já usados podem falhar.", "TIP", theme.cyan, 88)
-    addActionCard("Conferir lista atualizada", "Fonte comunitária de códigos. Verifique novamente antes de iniciar uma sessão longa.", "ABRIR URL", function()
-        copyText("https://rblxstat.com/pt/games/7660436108/codes")
-    end)
-end
-
-local function buildUpdates()
-    addSection("Patch Notes", "Resumo das mudanças recentes listadas para 16 de novembro de 2026.")
-    makeCard(pageScroll, "Novos servidores · Raids e Play window", "Todas as raids ficam abertas por padrão; mundos e atos bloqueados podem ser visualizados. Controles de upgrade de unidade receberam melhorias.", "16 NOV", theme.green, 104)
-    makeCard(pageScroll, "Auto Upgrade P1–P6", "O botão Auto alterna pelas prioridades P1 até P6 e depois desliga. Passar o cursor sobre um pip de upgrade mostra o alcance.", "GAMEPLAY", theme.cyan, 94)
-    makeCard(pageScroll, "Patch 1 · Ayzen, Shadow e Falcon", "Ayzen's Boss Rush retorna com partidas ilimitadas. Shadow retorna e Falcon recebe uma área de evolução. Einz's Boons lembra a última carta e os slots Small Army.", "CONTENT", theme.purple, 110)
-    makeCard(pageScroll, "Melhorias do Macro", "Foram listadas correções de execução automática de Einz, seleção de portal, interface de Macro e vários problemas de jogo e menus.", "FIXES", theme.green, 100)
-    makeCard(pageScroll, "Code Redemption Patch", "A página de updates lista uma melhoria planejada para reduzir a espera na hora de resgatar códigos. Ainda estava marcada como em desenvolvimento na consulta.", "PLANNED", theme.yellow, 100)
-    addActionCard("Abrir histórico de updates", "Veja os detalhes completos e confirme se houve outra atualização após esta consulta.", "COPIAR URL", function()
-        copyText("https://anime-crusaders-x.wiki/updates/")
-    end)
-end
-
-local function buildSettings()
-    addSection("Settings", "Preferências visuais e informações do projeto.")
-    local scaleCard = makeCard(pageScroll, "Escala da interface", "Altere o tamanho visual do painel para caber melhor na tela.", "UI", theme.cyan, 104)
-    local compactBtn = button(scaleCard, "COMPACT", function()
-        compact = true
-        if uiScale then uiScale.Scale = 0.86 end
-        notify("Escala compacta ativada", theme.cyan)
-    end, 98)
-    compactBtn.AnchorPoint = Vector2.new(1, 1)
-    compactBtn.Position = UDim2.new(1, -106, 1, -2)
-    local normalBtn = button(scaleCard, "NORMAL", function()
-        compact = false
-        if uiScale then uiScale.Scale = 1 end
-        notify("Escala normal ativada", theme.green)
-    end, 98)
-    normalBtn.AnchorPoint = Vector2.new(1, 1)
-    normalBtn.Position = UDim2.new(1, 0, 1, -2)
-    addActionCard("GitHub do projeto", "O repositório yno-hub está privado. Um executor sem autenticação não consegue buscar arquivos raw de um repositório privado.", "COPIAR URL", function()
-        copyText("https://github.com/6zyloov/yno-hub")
-    end)
-    addActionCard("Loader remoto (quando público)", "Este loader só funcionará remotamente depois que o repositório for tornado público. A fonte continua no seu GitHub.", "COPIAR", function()
-        copyText('loadstring(game:HttpGet("https://raw.githubusercontent.com/6zyloov/yno-hub/main/yno.lua"))()')
-    end)
-    makeCard(pageScroll, "Controles", "RightShift: mostrar/ocultar o painel. Arraste pela barra superior. O botão X fecha a interface atual.", "HOTKEY", theme.purple, 82)
-    makeCard(pageScroll, "Privacidade e limites", "O yno hub não pede senha, cookie, token, chave de conta ou webhook. Não injeta chamadas de rede no jogo nem promete recompensas automáticas.", "SAFETY", theme.green, 94)
-    makeCard(pageScroll, "Build", "yno hub · Anime Crusaders X companion · 1.0.0 · 17 nov 2026.", "ABOUT", theme.cyan, 76)
-end
-
-local pages = {
-    ["Overview"] = buildOverview,
-    ["Farm Planner"] = buildFarm,
-    ["Smart Macro"] = buildMacro,
-    ["Team Builder"] = buildTeam,
-    ["Codes"] = buildCodes,
-    ["Patch Notes"] = buildUpdates,
-    ["Settings"] = buildSettings,
-}
-
-function showPage(name)
-    if not pages[name] then return end
-    currentPage = name
-    clearPage()
-    pages[name]()
-    for pageName, navButton in pairs(_G.__yno_nav_buttons or {}) do
-        local active = pageName == name
-        navButton.BackgroundColor3 = active and Color3.fromRGB(43, 35, 76) or theme.panel
-        navButton.TextColor3 = active and theme.text or theme.muted
-        local bar = navButton:FindFirstChild("active_bar")
-        if bar then bar.Visible = active end
+    if ok and type(data) == "table" then
+        if type(data.toggles) == "table" then state.toggles = data.toggles end
+        if type(data.values) == "table" then
+            for k, v in pairs(data.values) do state.values[k] = v end
+        end
     end
 end
 
-local function createNavButton(name, iconText)
-    local b = make("TextButton", {
+local function filePath(name)
+    name = tostring(name or "macro")
+    name = string.gsub(name, "[^%w_%-]", "_")
+    if name == "" then name = "macro" end
+    return "yno_hub/macros/" .. name .. ".json"
+end
+
+local function ensureMacroFolder()
+    if type(makefolder) == "function" then
+        pcall(makefolder, "yno_hub")
+        pcall(makefolder, "yno_hub/macros")
+    end
+end
+
+local function saveMacro(name)
+    if type(writefile) ~= "function" then
+        log("Este executor não oferece writefile.", THEME.yellow)
+        return false
+    end
+    ensureMacroFolder()
+    local payload = {
+        version = 1,
+        game = "anime crusaders x",
+        placeId = game.PlaceId,
+        map = state.values.macroMap or "current",
+        actions = state.macro,
+    }
+    local ok, err = pcall(function()
+        writefile(filePath(name), HttpService:JSONEncode(payload))
+    end)
+    log(ok and ("Macro salva: " .. tostring(name)) or ("Falha ao salvar macro: " .. tostring(err)), ok and THEME.green or THEME.red)
+    return ok
+end
+
+local function loadMacro(name)
+    if type(readfile) ~= "function" or type(isfile) ~= "function" then
+        log("Este executor não oferece leitura de arquivos.", THEME.yellow)
+        return false
+    end
+    local path = filePath(name)
+    local ok, result = pcall(function()
+        if not isfile(path) then error("Arquivo não encontrado: " .. path) end
+        return HttpService:JSONDecode(readfile(path))
+    end)
+    if not ok then
+        log("Falha ao carregar macro: " .. tostring(result), THEME.red)
+        return false
+    end
+    if type(result) ~= "table" or type(result.actions) ~= "table" then
+        log("Arquivo de macro inválido.", THEME.red)
+        return false
+    end
+    state.macro = result.actions
+    log("Macro carregada: " .. tostring(name) .. " (" .. tostring(#state.macro) .. " ações)", THEME.green)
+    return true
+end
+
+local function listMacros()
+    local result = {}
+    if type(listfiles) ~= "function" then return result end
+    ensureMacroFolder()
+    local ok, files = pcall(listfiles, "yno_hub/macros")
+    if ok and type(files) == "table" then
+        for _, path in ipairs(files) do
+            if string.sub(string.lower(path), -5) == ".json" then
+                local name = string.match(path, "([^/\\]+)%.json$")
+                if name then table.insert(result, name) end
+            end
+        end
+    end
+    table.sort(result)
+    return result
+end
+
+local function sendKey(keyName, pressed)
+    local keyCode = Enum.KeyCode[keyName]
+    if not keyCode then return false end
+    local ok = pcall(function()
+        VIM:SendKeyEvent(pressed, keyCode, false, game)
+    end)
+    return ok
+end
+
+local function sendClick(x, y)
+    local ok = pcall(function()
+        VIM:SendMouseMoveEvent(x, y, game)
+        VIM:SendMouseButtonEvent(x, y, 0, true, game, 0)
+        task.wait(0.045)
+        VIM:SendMouseButtonEvent(x, y, 0, false, game, 0)
+    end)
+    if not ok and type(mouse1click) == "function" then
+        ok = pcall(mouse1click)
+    end
+    return ok
+end
+
+local function stopPlayback()
+    state.stopMacro = true
+    state.macroPlaying = false
+end
+
+local function playMacro()
+    if state.macroPlaying then
+        log("Macro já está em execução.", THEME.yellow)
+        return
+    end
+    if #state.macro == 0 then
+        log("Nenhuma ação gravada ou carregada.", THEME.yellow)
+        return
+    end
+    state.stopMacro = false
+    state.macroPlaying = true
+    local repetitions = state.values.macroMode == "Loop" and 999999 or 1
+    log("Reprodução iniciada: " .. tostring(#state.macro) .. " ações.", THEME.green)
+    task.spawn(function()
+        for loopIndex = 1, repetitions do
+            local previous = 0
+            for _, action in ipairs(state.macro) do
+                if state.stopMacro or not state.running then break end
+                local waitFor = math.max(0, (tonumber(action.t) or 0) - previous)
+                previous = tonumber(action.t) or previous
+                task.wait(math.min(waitFor, 30))
+                if state.stopMacro then break end
+                if action.kind == "click" then
+                    local viewport = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1280, 720)
+                    local x = math.clamp((tonumber(action.x) or 0.5) * viewport.X, 1, viewport.X - 1)
+                    local y = math.clamp((tonumber(action.y) or 0.5) * viewport.Y, 1, viewport.Y - 1)
+                    if not sendClick(x, y) then
+                        log("VirtualInputManager bloqueou o clique de macro. Reprodução interrompida.", THEME.red)
+                        state.stopMacro = true
+                        break
+                    end
+                elseif action.kind == "key" then
+                    local okDown = sendKey(action.key, true)
+                    task.wait(0.05)
+                    local okUp = sendKey(action.key, false)
+                    if not okDown or not okUp then
+                        log("Tecla não suportada pelo executor: " .. tostring(action.key), THEME.red)
+                    end
+                end
+            end
+            if state.stopMacro then break end
+            if loopIndex < repetitions then task.wait(1) end
+        end
+        state.macroPlaying = false
+        state.stopMacro = false
+        log("Reprodução finalizada.", THEME.cyan)
+    end)
+end
+
+local function stopRecording()
+    if not state.macroRecording then return end
+    state.macroRecording = false
+    state.recordStart = nil
+    log("Gravação parada: " .. tostring(#state.macro) .. " ações.", THEME.green)
+end
+
+local function startRecording()
+    if state.macroPlaying then stopPlayback() end
+    state.macro = {}
+    state.macroRecording = true
+    state.recordStart = os.clock()
+    log("Gravando cliques e teclas do jogo. Use F7 para parar.", THEME.yellow)
+end
+
+local function isOverHub(position)
+    if not gui then return false end
+    local ok, objects = pcall(function()
+        return game:GetService("GuiService"):GetGuiObjectsAtPosition(position.X, position.Y)
+    end)
+    if not ok then return false end
+    for _, obj in ipairs(objects) do
+        if obj:IsDescendantOf(gui) then return true end
+    end
+    return false
+end
+
+local function recordInput(input)
+    if not state.macroRecording or state.macroPlaying then return end
+    local now = os.clock() - (state.recordStart or os.clock())
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        if isOverHub(input.Position) then return end
+        local viewport = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1280, 720)
+        table.insert(state.macro, {
+            t = now,
+            kind = "click",
+            x = input.Position.X / math.max(viewport.X, 1),
+            y = input.Position.Y / math.max(viewport.Y, 1),
+        })
+    elseif input.UserInputType == Enum.UserInputType.Keyboard then
+        table.insert(state.macro, {
+            t = now,
+            kind = "key",
+            key = input.KeyCode.Name,
+        })
+    end
+end
+
+local function findTargetButtonForItem(needle)
+    local target = normalize(needle)
+    for _, button in ipairs(gameButtons()) do
+        local current = button
+        local context = getTextForButton(button)
+        local depth = 0
+        while current and depth < 4 do
+            context = context .. " " .. normalize(current.Name)
+            for _, child in ipairs(current:GetChildren()) do
+                if child:IsA("TextLabel") then context = context .. " " .. normalize(child.Text) end
+            end
+            current = current.Parent
+            depth = depth + 1
+        end
+        if string.find(context, "buy", 1, true) and (target == "" or string.find(context, target, 1, true)) then
+            return button
+        end
+    end
+    return nil
+end
+
+local function redeemCode(code)
+    local box = findTextBox("code")
+    if not box then
+        log("Abra a janela de códigos do jogo para resgatar.", THEME.yellow)
+        return false
+    end
+    box.Text = tostring(code)
+    local redeem = findButton({"redeem", "resgatar"}, false)
+    if not redeem then
+        log("Campo preenchido; botão Redeem não encontrado.", THEME.yellow)
+        return false
+    end
+    return activate(redeem, "redeem:" .. tostring(code), 0.7)
+end
+
+local function makeTab(parent, name, icon)
+    local b = create("TextButton", {
         AutoButtonColor = false,
-        BackgroundColor3 = theme.panel,
-        Size = UDim2.new(1, 0, 0, 42),
+        BackgroundColor3 = THEME.sidebar,
+        Size = UDim2.new(1, 0, 0, 37),
         Font = Enum.Font.GothamSemibold,
-        Text = "   " .. iconText .. "    " .. name,
-        TextColor3 = theme.muted,
-        TextSize = 12,
+        Text = "   " .. icon .. "   " .. name,
+        TextColor3 = THEME.muted,
+        TextSize = 11,
         TextXAlignment = Enum.TextXAlignment.Left,
         BorderSizePixel = 0,
-    }, navHolder)
-    corner(b, 9)
-    local bar = make("Frame", {
+    }, parent)
+    round(b, 8)
+    local bar = create("Frame", {
         Name = "active_bar",
-        BackgroundColor3 = theme.purple,
+        BackgroundColor3 = THEME.purple,
         Position = UDim2.new(0, 0, 0.18, 0),
         Size = UDim2.new(0, 3, 0.64, 0),
         Visible = false,
         BorderSizePixel = 0,
     }, b)
-    corner(bar, 3)
-    b.MouseButton1Click:Connect(function() showPage(name) end)
+    round(bar, 2)
+    b.MouseButton1Click:Connect(function()
+        if originalShowPage then originalShowPage(name) end
+    end)
+    navButtons[name] = b
     return b
 end
 
-gui = make("ScreenGui", {
+local function buildOverview()
+    section(page, "Overview", "Painel de controle do yno hub para Anime Crusaders X.")
+    local hero = row(page, 132)
+    gradient(hero, Color3.fromRGB(40, 29, 76), THEME.panel, 0)
+    textLabel(hero, "YNO HUB // ACX", 9, THEME.cyan, true, 17)
+    local headline = textLabel(hero, "Farm. Optimize. Repeat.", 22, THEME.text, true, 31)
+    headline.Position = UDim2.new(0, 0, 0, 22)
+    local desc = textLabel(hero, "Automação de interface, macro gravável, presets e atalhos para os sistemas do próprio jogo.", 11, THEME.muted, false, 35)
+    desc.Position = UDim2.new(0, 0, 0, 56)
+    local quick = row(page, 67)
+    textLabel(quick, "QUICK ACTIONS", 10, THEME.muted, true, 16)
+    local b1 = makeButton(quick, "START", function()
+        clickWhenVisible("quick-start", {"vote start", "start match", "start"}, 1.5, false)
+    end, 82, true)
+    b1.Position = UDim2.new(0, 0, 0, 23)
+    local b2 = makeButton(quick, "SKIP WAVE", function()
+        clickWhenVisible("quick-skip", {"skip wave", "vote skip"}, 1.5, false)
+    end, 95)
+    b2.Position = UDim2.new(0, 91, 0, 23)
+    local b3 = makeButton(quick, "REPLAY", function()
+        clickWhenVisible("quick-replay", {"replay", "retry"}, 1.5, false)
+    end, 82)
+    b3.Position = UDim2.new(0, 195, 0, 23)
+    addInfo(page, "Smart Macro nativo", "O jogo já possui This Stage, Loop, Routine, zonas, gravações, slots, upgrades e habilidades automáticas. Abra a aba Smart Macro para usar o preset comunitário e as configurações documentadas.", "GAME SYSTEM", THEME.green, 87)
+    addInfo(page, "Compatibilidade", "Creator do jogo esperado: 35139043. O hub usa botões visíveis da interface do jogo; se uma atualização mudar os nomes dos botões, use o UI Scanner para verificar a nova interface.", "UI-BASED", THEME.cyan, 83)
+    local overviewBar = row(page, 72)
+    textLabel(overviewBar, "MACRO HOTKEYS", 10, THEME.muted, true, 16)
+    textLabel(overviewBar, "F6  Gravar     F7  Parar     F8  Reproduzir     F9  Interromper", 11, THEME.text, true, 28).Position = UDim2.new(0, 0, 0, 26)
+end
+
+local function buildJoiner()
+    section(page, "Joiner", "Seleciona o modo e aciona as opções visíveis do lobby.")
+    addSelect(page, "joinMode", "Target mode", {
+        "Story", "Legend", "Raid", "Challenge", "Daily Challenge", "Weekly Challenge",
+        "Infinite", "Weekly Tower", "Boss Rush", "Boss Lair", "Events", "Portal",
+        "Infinity Castle", "Tournament", "Infinite Tournament", "Testing Zone",
+    }, "Clique para alternar o modo que o Joiner deve localizar.")
+    addInput(page, "joinDelay", "Join delay (seconds)", "8", "8")
+    addToggle(page, "autoJoin", "Auto Join", "Procura o modo selecionado na interface do lobby e tenta abri-lo.", false)
+    addToggle(page, "autoSkipUnavailable", "Skip unavailable modes", "Se o modo selecionado não apresentar botão ativo, o hub aguarda sem spam.", true)
+    addAction(page, "Join selected mode", "Clique manualmente no botão do modo escolhido que estiver visível no lobby.", "JOIN NOW", function()
+        local mode = state.values.joinMode or "Story"
+        if not clickWhenVisible("join-manual", {mode}, 2.5, false) then
+            log("Botão " .. mode .. " não está visível. Abra o menu Play do jogo.", THEME.yellow)
+        end
+    end)
+    addInfo(page, "Prioridade de modos", "A ordem configurável do Joiner depende dos botões que o lobby expõe. Mantenha apenas um modo por vez se não quiser que ele selecione outra atividade.", "TIP", THEME.yellow, 74)
+end
+
+local function buildGame()
+    section(page, "Game", "Ações automáticas em botões reais e controles do Anime Crusaders X.")
+    addToggle(page, "autoStart", "Auto Start / Auto Vote Start", "Clica em Start ou Vote Start quando o botão estiver visível.", false)
+    addToggle(page, "autoSkip", "Auto Skip Wave", "Envia o voto quando aparecer Skip Wave / Vote Skip.", false)
+    addToggle(page, "autoReplay", "Auto Replay / Retry", "Reentra quando o botão Replay ou Retry aparecer no fim da partida.", false)
+    addToggle(page, "autoNext", "Auto Next", "Avança quando o botão Next / Next Stage aparecer.", false)
+    addToggle(page, "autoAbilities", "Auto Use Abilities", "Aciona botões de habilidade visíveis e ativos. Use com a unidade selecionada.", false)
+    addToggle(page, "autoClaim", "Auto Claim Rewards", "Clica em Claim All / Claim quando a recompensa estiver visível.", false)
+    addToggle(page, "antiAfk", "Anti AFK", "Tenta manter a sessão ativa usando o VirtualUser do cliente.", false, function(enabled)
+        if enabled then log("Anti AFK ativo enquanto a sessão estiver carregada.", THEME.green) end
+    end)
+    addAction(page, "Apply Auto Upgrade to selected unit", "Na partida, selecione uma unidade e use o botão Auto do próprio painel dela. O jogo alterna P1 → P6 → Off; o Smart Macro controla upgrades automaticamente por slot.", "CLICK AUTO", function()
+        if not clickWhenVisible("selected-unit-auto", {"auto"}, 2.2, true) then
+            log("Selecione uma unidade para exibir o botão Auto do jogo.", THEME.yellow)
+        end
+    end)
+    addAction(page, "Open Auto Sell settings", "Abre Settings → Gameplay no jogo e procura a opção Auto Sell Farms, se a página estiver aberta.", "TOGGLE SETTING", function()
+        toggleFromLabel("Auto Sell Farms")
+    end)
+    addInfo(page, "Auto Upgrade priority", "A atualização de 16/11 adicionou o ciclo P1, P2, P3, P4, P5, P6 e Off no botão Auto ou na tecla Z. A tecla N é uma ação Auto instantânea separada.", "PATCH 16 NOV", THEME.cyan, 83)
+end
+
+local function applyLowQuality(enabled)
+    if enabled then
+        state.savedRender = state.savedRender or {}
+        pcall(function()
+            state.savedRender.globalShadows = Lighting.GlobalShadows
+            state.savedRender.effects = {}
+            for _, obj in ipairs(Lighting:GetChildren()) do
+                if obj:IsA("PostEffect") then
+                    state.savedRender.effects[obj] = obj.Enabled
+                    obj.Enabled = false
+                end
+            end
+            Lighting.GlobalShadows = false
+        end)
+    else
+        if state.savedRender then
+            pcall(function()
+                if state.savedRender.globalShadows ~= nil then
+                    Lighting.GlobalShadows = state.savedRender.globalShadows
+                end
+                for obj, value in pairs(state.savedRender.effects or {}) do
+                    if obj and obj.Parent then obj.Enabled = value end
+                end
+            end)
+            state.savedRender = nil
+        end
+    end
+end
+
+local function applyHideEffects(enabled)
+    if enabled then
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            local property
+            if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam")
+                or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles") then
+                property = "Enabled"
+            elseif obj:IsA("Highlight") then
+                property = "Enabled"
+            end
+            if property then
+                if state.savedVisuals[obj] == nil then
+                    local ok, value = pcall(function() return obj[property] end)
+                    if ok then state.savedVisuals[obj] = value end
+                end
+                pcall(function() obj[property] = false end)
+            end
+        end
+    else
+        for obj, value in pairs(state.savedVisuals) do
+            if obj and obj.Parent then pcall(function() obj.Enabled = value end) end
+        end
+        state.savedVisuals = {}
+    end
+end
+
+local function applyFpsCap(value)
+    local cap = safeNumber(value, 60, 15, 240)
+    if type(setfpscap) == "function" then
+        local ok = pcall(setfpscap, cap)
+        log(ok and ("FPS cap: " .. cap) or "Não foi possível alterar o FPS cap.", ok and THEME.green or THEME.yellow)
+    else
+        log("setfpscap não está disponível neste executor.", THEME.yellow)
+    end
+end
+
+local function buildPerformance()
+    section(page, "Performance", "Reduza efeitos locais e limite o FPS sem alterar dados do servidor.")
+    addToggle(page, "lowQuality", "Low Quality Effects", "Desliga sombras globais e efeitos de pós-processamento locais.", false, applyLowQuality)
+    addToggle(page, "hideEffects", "Hide Attack Effects", "Desativa partículas, beams, trails e highlights locais do mapa.", false, applyHideEffects)
+    addInput(page, "fpsCap", "FPS limit", "60", "60")
+    addAction(page, "Apply FPS limit", "Aplica o limite usando setfpscap, se o executor oferecer essa função.", "APPLY", function()
+        applyFpsCap(state.values.fpsCap)
+    end)
+    addToggle(page, "lowPerformance", "Low Performance Mode", "Ativa simultaneamente Low Quality Effects e Hide Attack Effects.", false, function(enabled)
+        state.toggles.lowQuality = enabled
+        state.toggles.hideEffects = enabled
+        applyLowQuality(enabled)
+        applyHideEffects(enabled)
+    end)
+    addInfo(page, "Restoration", "Desative os modos visuais antes de sair. O yno hub guarda os valores locais e tenta restaurá-los ao desativar ou descarregar.", "LOCAL ONLY", THEME.green, 76)
+end
+
+local function buildSummon()
+    section(page, "Summon", "Automação de interface com limite de tentativas e parada por alvo.")
+    addSelect(page, "summonAmount", "Pull amount", {"1", "10"}, "Escolha o botão de summon que já está selecionado no jogo.")
+    addInput(page, "summonLimit", "Maximum pulls", "10", "10")
+    addInput(page, "summonTarget", "Stop when unit appears", "Ex.: Twenty One, Goju", "")
+    addToggle(page, "autoSummon", "Auto Summon", "Clica no botão Summon visível até encontrar um alvo ou atingir o limite.", false)
+    addAction(page, "Start summon cycle", "Inicie somente após selecionar o banner correto e conferir o saldo no jogo.", "START", function()
+        state.summonCount = 0
+        state.toggles.autoSummon = true
+        log("Ciclo de summon iniciado com limite " .. tostring(state.values.summonLimit), THEME.yellow)
+    end)
+    addAction(page, "Stop summon cycle", "Interrompe o ciclo imediatamente.", "STOP", function()
+        state.toggles.autoSummon = false
+        log("Ciclo de summon parado.", THEME.muted)
+    end)
+    addInfo(page, "Spending safety", "O hub não escolhe banner nem calcula a moeda do servidor. Defina o limite antes de iniciar; o script para no máximo configurado.", "LIMITED", THEME.yellow, 78)
+end
+
+local function buildMacro()
+    section(page, "Macro", "Grave, salve, importe e reproduza ações de interface com coordenadas normalizadas.")
+    addInfo(page, "Hotkeys", "F6 inicia a gravação · F7 para · F8 reproduz · F9 interrompe. Os cliques no próprio yno hub não são gravados.", "F6–F9", THEME.cyan, 72)
+    addInput(page, "macroName", "Macro name", "farm_route", "farm_route")
+    addSelect(page, "macroMode", "Playback mode", {"Once", "Loop"}, "Loop repete a sequência até você interromper com F9.")
+    addAction(page, "Start recording", "Limpa o buffer e começa a registrar cliques e teclas do jogo.", "RECORD", startRecording)
+    addAction(page, "Stop recording", "Finaliza a gravação atual e deixa o buffer pronto para salvar.", "STOP", stopRecording)
+    addAction(page, "Save macro", "Grava o buffer em yno_hub/macros/ usando JSON.", "SAVE", function()
+        saveMacro(state.values.macroName)
+    end)
+    addAction(page, "Load macro", "Carrega o JSON local com o nome informado.", "LOAD", function()
+        loadMacro(state.values.macroName)
+    end)
+    addAction(page, "Playback macro", "Reproduz os cliques e teclas registrados. Use F9 para interromper.", "PLAY", playMacro)
+    addAction(page, "Stop playback", "Interrompe a reprodução atual.", "STOP", stopPlayback)
+    addAction(page, "Export JSON", "Copia a macro atual em formato JSON.", "COPY JSON", function()
+        safeClipboard(HttpService:JSONEncode({version=1, game="anime crusaders x", actions=state.macro}))
+    end)
+    addInput(page, "macroImport", "Import JSON", "Cole JSON aqui; depois clique IMPORT.", "")
+    addAction(page, "Import JSON", "Valida e carrega a lista de ações colada no campo acima.", "IMPORT", function()
+        local ok, result = pcall(function() return HttpService:JSONDecode(state.values.macroImport or "") end)
+        if ok and type(result) == "table" and type(result.actions) == "table" then
+            state.macro = result.actions
+            log("Macro importada: " .. tostring(#state.macro) .. " ações.", THEME.green)
+        else
+            log("JSON inválido ou sem lista actions.", THEME.red)
+        end
+    end)
+    addAction(page, "List local macros", "Mostra os perfis encontrados na pasta yno_hub/macros.", "REFRESH", function()
+        local files = listMacros()
+        log(#files > 0 and ("Macros: " .. table.concat(files, ", ")) or "Nenhuma macro encontrada.", THEME.cyan)
+    end)
+    addAction(page, "Loadout preset", "Código comunitário para Macro Catalog. Verifique slots e unidades antes de usar.", "COPY CODE", function()
+        safeClipboard("AP-RSEHDXU")
+    end)
+    addInfo(page, "Built-in Smart Macro", "A macro gravada pelo yno hub repete entrada de mouse/teclado. Para posicionamento inteligente e upgrades por onda, prefira Macro → Catalog → Presets e o Smart Macro nativo do jogo.", "IMPORTANT", THEME.yellow, 86)
+end
+
+local function buildReroll()
+    section(page, "Auto Reroll", "Repetição limitada de botões visíveis. O hub interrompe por alvo ou limite.")
+    addSelect(page, "rerollKind", "Reroll type", {"Trait", "Stat", "Relic", "Curse"}, "Abra primeiro o painel correspondente no jogo.")
+    addInput(page, "rerollTarget", "Desired result", "Ex.: Shining, SSS, desired trait", "")
+    addInput(page, "rerollLimit", "Maximum rerolls", "10", "10")
+    addToggle(page, "autoReroll", "Auto Reroll", "Pressiona o botão Reroll da janela aberta e para por alvo/limite.", false)
+    addAction(page, "Start reroll cycle", "Confirme unidade, tipo e saldo antes de iniciar.", "START", function()
+        state.rerollCount = 0
+        state.toggles.autoReroll = true
+        log("Reroll iniciado: " .. tostring(state.values.rerollKind) .. ".", THEME.yellow)
+    end)
+    addAction(page, "Stop reroll cycle", "Interrompe o ciclo de reroll.", "STOP", function()
+        state.toggles.autoReroll = false
+        log("Reroll parado.", THEME.muted)
+    end)
+    addInfo(page, "Worthiness & costs", "Stat Cube e Perfect Stat Cube gastam Worthiness. Confira o custo por unidade antes de deixar um ciclo rodando.", "LIMITED", THEME.yellow, 77)
+end
+
+local function buildShop()
+    section(page, "Shop", "Compra limitada pela interface visível e por um nome de item opcional.")
+    addInput(page, "shopItem", "Item name filter", "Ex.: Trait Remnant, Stat Cube", "")
+    addInput(page, "shopLimit", "Maximum purchases", "1", "1")
+    addToggle(page, "autoBuy", "Auto Buy", "Clica em Buy quando o item configurado aparecer na mesma seção da loja.", false)
+    addAction(page, "Start purchase cycle", "Abra a loja desejada e confira moeda/quantidade antes de começar.", "START", function()
+        state.shopCount = 0
+        state.toggles.autoBuy = true
+        log("Compra automática iniciada com limite " .. tostring(state.values.shopLimit), THEME.yellow)
+    end)
+    addAction(page, "Stop purchase cycle", "Para compras imediatamente.", "STOP", function()
+        state.toggles.autoBuy = false
+        log("Compra automática parada.", THEME.muted)
+    end)
+    addInfo(page, "Supported shop areas", "Gold Shop, Event, Raid, Boss Rush, Control, Perfection, Kitchen Madness e Einz's Shop são categorias listadas pelo LixHub; selecione a loja no próprio jogo.", "SHOP", THEME.cyan, 82)
+end
+
+local function sendWebhook(content)
+    local url = tostring(state.values.webhook or "")
+    if url == "" then
+        log("Informe uma URL de webhook antes de testar.", THEME.yellow)
+        return false
+    end
+    local requestFunction = request or http_request or (syn and syn.request)
+    if type(requestFunction) ~= "function" then
+        log("Este executor não oferece request/http_request.", THEME.yellow)
+        return false
+    end
+    local ok, result = pcall(function()
+        return requestFunction({
+            Url = url,
+            Method = "POST",
+            Headers = {["Content-Type"] = "application/json"},
+            Body = HttpService:JSONEncode({content = content}),
+        })
+    end)
+    log(ok and "Webhook enviado." or ("Falha no webhook: " .. tostring(result)), ok and THEME.green or THEME.red)
+    return ok
+end
+
+local function buildWebhook()
+    section(page, "Webhook", "Notificações opcionais para um endpoint seu. A URL fica somente nesta sessão.")
+    addInput(page, "webhook", "Discord webhook URL", "https://discord.com/api/webhooks/...", "")
+    addAction(page, "Send test notification", "Envia uma mensagem de teste para o endpoint informado.", "TEST", function()
+        sendWebhook("yno hub: teste de conexão.")
+    end)
+    addToggle(page, "webhookStage", "Notify on stage end", "Detecta texto de vitória/derrota na interface e envia um aviso.", false)
+    addToggle(page, "webhookPing", "Mention Discord ID", "Adiciona menção apenas ao ID digitado no próximo campo.", false)
+    addInput(page, "webhookId", "Discord user ID", "123456789012345678", "")
+    addInfo(page, "Security", "Não cole tokens de bot, cookies Roblox ou senhas. Use somente um webhook criado para este canal e remova-o depois se ficar exposto.", "PRIVATE", THEME.yellow, 82)
+end
+
+local function buildMinigames()
+    section(page, "Minigames", "Use macros gravadas para repetir sequências de entrada que você mesmo configurou.")
+    addToggle(page, "autoMinigame", "Auto Minigames", "Tenta iniciar novamente uma atividade quando botões Play Again / Start aparecerem.", false)
+    addAction(page, "Open macro recorder", "Grave uma sequência para a atividade atual e salve com o nome do minigame.", "OPEN MACRO", function()
+        originalShowPage("Macro")
+    end)
+    addInfo(page, "Available activity guides", "Crusader Dash, Chess e Reel Rush têm regras e controles próprios. Para jogos de reflexo, revise a gravação antes de usar Loop.", "GUIDE", THEME.cyan, 76)
+end
+
+local function buildMisc()
+    section(page, "Misc", "Recompensas, códigos, treinamento e inspeção da interface.")
+    addToggle(page, "autoTrain", "Auto Train Selected Unit", "Tenta acionar Train / Training em um painel de unidade aberto.", false)
+    addAction(page, "Redeem code", "Preenche o campo Code visível e clica Redeem.", "REDEEM", function()
+        if tostring(state.values.redeemCode or "") == "" then
+            log("Digite um código antes de resgatar.", THEME.yellow)
+        else
+            redeemCode(state.values.redeemCode)
+        end
+    end)
+    addInput(page, "redeemCode", "Code", "ACBESTTD2026", "")
+    addAction(page, "Redeem confirmed codes", "Tenta resgatar a lista confirmada na consulta de 17/11/2026; códigos já usados/expirados serão ignorados pelo jogo.", "REDEEM LIST", function()
+        local list = {"ACBESTTD2026", "ACCOMEBACK", "ANNIVERSARY", "SORRYFORSHUTDOWNEA2026", "WELCOMETOACX"}
+        task.spawn(function()
+            for _, code in ipairs(list) do
+                if not state.running then break end
+                redeemCode(code)
+                task.wait(1.8)
+            end
+        end)
+    end)
+    addAction(page, "UI Scanner", "Lista botões visíveis do PlayerGui para diagnosticar alterações do jogo.", "SCAN UI", function()
+        local found = {}
+        for _, button in ipairs(gameButtons()) do
+            local name = getTextForButton(button)
+            if name ~= "" then table.insert(found, name) end
+        end
+        local output = table.concat(found, "\n")
+        debugBox.Text = output ~= "" and output or "Nenhum botão visível foi encontrado."
+        log("UI Scanner: " .. tostring(#found) .. " botões visíveis.", THEME.cyan)
+    end)
+    addAction(page, "Copy UI scan", "Copia o último resultado do UI Scanner.", "COPY", function()
+        safeClipboard(debugBox.Text)
+    end)
+    local scanHolder = row(page, 176)
+    textLabel(scanHolder, "VISIBLE UI CONTROLS", 10, THEME.muted, true, 18)
+    debugBox = create("TextBox", {
+        Position = UDim2.new(0, 0, 0, 24),
+        Size = UDim2.new(1, 0, 1, -28),
+        BackgroundColor3 = THEME.panel3,
+        Text = "Clique em SCAN UI para listar controles do jogo.",
+        TextColor3 = THEME.text,
+        TextSize = 10,
+        Font = Enum.Font.Code,
+        TextWrapped = false,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextYAlignment = Enum.TextYAlignment.Top,
+        ClearTextOnFocus = false,
+        MultiLine = true,
+        BorderSizePixel = 0,
+    }, scanHolder)
+    round(debugBox, 7)
+end
+
+local function buildSettings()
+    section(page, "Settings", "Preferências, salvamento de configuração e diagnóstico.")
+    addAction(page, "Save settings", "Salva toggles e campos em yno_hub/config.json, se writefile estiver disponível.", "SAVE CONFIG", function()
+        log(saveConfig() and "Configuração salva." or "Salvamento não está disponível.", THEME.cyan)
+    end)
+    addSelect(page, "uiScale", "Interface scale", {"0.80", "0.90", "1.00", "1.10", "1.20"}, "A escala é aplicada ao painel inteiro.")
+    addAction(page, "Apply interface scale", "Aplica o valor selecionado.", "APPLY", function()
+        local n = tonumber(state.values.uiScale) or 1
+        uiScale.Scale = math.clamp(n, 0.7, 1.25)
+    end)
+    addAction(page, "Restore visual settings", "Restaura efeitos visuais que o yno hub desativou.", "RESTORE", function()
+        applyLowQuality(false)
+        applyHideEffects(false)
+        state.toggles.lowQuality = false
+        state.toggles.hideEffects = false
+        state.toggles.lowPerformance = false
+        log("Configurações visuais restauradas.", THEME.green)
+    end)
+    addAction(page, "Stop all automation", "Desativa todos os ciclos automáticos de UI, summon, reroll e shop.", "STOP ALL", function()
+        for key, value in pairs(state.toggles) do
+            if type(value) == "boolean" then state.toggles[key] = false end
+        end
+        stopPlayback()
+        stopRecording()
+        log("Todas as automações foram interrompidas.", THEME.yellow)
+        originalShowPage("Settings")
+    end)
+    addAction(page, "Unload yno hub", "Fecha a interface, para loops e desconecta eventos.", "UNLOAD", function()
+        if ENV[HUB_KEY] and ENV[HUB_KEY].Unload then ENV[HUB_KEY].Unload() end
+    end)
+    addInfo(page, "Build information", "yno hub · Anime Crusaders X · 2.0.0 · baseado nos recursos públicos consultados em 17/11/2026.", "BUILD", THEME.cyan, 76)
+    addInfo(page, "Limits", "As ações automáticas dependem de botões visíveis. O jogo pode mudar nomes e layouts; o UI Scanner ajuda a identificar essas alterações. O hub não usa remotes privados ou funções internas adivinhadas.", "HONEST", THEME.green, 86)
+end
+
+local builders = {
+    ["Overview"] = buildOverview,
+    ["Joiner"] = buildJoiner,
+    ["Game"] = buildGame,
+    ["Performance"] = buildPerformance,
+    ["Summon"] = buildSummon,
+    ["Macro"] = buildMacro,
+    ["Auto Reroll"] = buildReroll,
+    ["Shop"] = buildShop,
+    ["Webhook"] = buildWebhook,
+    ["Minigames"] = buildMinigames,
+    ["Misc"] = buildMisc,
+    ["Settings"] = buildSettings,
+}
+
+local function showPage(name)
+    if not builders[name] then return end
+    state.page = name
+    clearPage()
+    titleLabel.Text = name
+    builders[name]()
+    for pageName, button in pairs(navButtons) do
+        local active = pageName == name
+        button.BackgroundColor3 = active and Color3.fromRGB(42, 33, 73) or THEME.sidebar
+        button.TextColor3 = active and THEME.text or THEME.muted
+        local bar = button:FindFirstChild("active_bar")
+        if bar then bar.Visible = active end
+    end
+end
+originalShowPage = showPage
+
+local function isGameScreen()
+    local text = allGuiText()
+    return string.find(text, "wave", 1, true) ~= nil
+        or string.find(text, "match time", 1, true) ~= nil
+        or string.find(text, "stage info", 1, true) ~= nil
+end
+
+local function processAutomation()
+    while state.running do
+        if state.toggles.autoJoin and not isGameScreen() then
+            local delayTime = safeNumber(state.values.joinDelay, 8, 3, 90)
+            local mode = state.values.joinMode or "Story"
+            clickWhenVisible("auto-join:" .. mode, {mode}, delayTime, false)
+        end
+        if state.toggles.autoStart then
+            clickWhenVisible("auto-start", {"vote start", "start match"}, 1.5, false)
+        end
+        if state.toggles.autoSkip then
+            clickWhenVisible("auto-skip", {"vote skip", "skip wave"}, 1.5, false)
+        end
+        if state.toggles.autoReplay then
+            clickWhenVisible("auto-replay", {"replay", "retry"}, 2.0, false)
+        end
+        if state.toggles.autoNext then
+            clickWhenVisible("auto-next", {"next stage", "next"}, 2.0, false)
+        end
+        if state.toggles.autoAbilities then
+            clickWhenVisible("auto-ability", {"use ability", "ability ready"}, 1.1, false)
+        end
+        if state.toggles.autoClaim then
+            clickWhenVisible("auto-claim", {"claim all", "claim reward"}, 1.8, false)
+        end
+        if state.toggles.autoJoin then
+            -- The join mode selection is intentionally rate-limited by its action key.
+        end
+        if state.toggles.autoSummon then
+            local found, name = targetFound(state.values.summonTarget)
+            local limit = safeNumber(state.values.summonLimit, 10, 1, 500)
+            if found then
+                state.toggles.autoSummon = false
+                log("Alvo encontrado: " .. tostring(name) .. ". Summon interrompido.", THEME.green)
+            elseif state.summonCount >= limit then
+                state.toggles.autoSummon = false
+                log("Limite de summon atingido: " .. tostring(limit), THEME.yellow)
+            else
+                local amount = tostring(state.values.summonAmount or "10")
+                local button = findButton({"summon " .. amount, "summon x" .. amount, "summon"}, false)
+                if button and activate(button, "summon-cycle", 2.1) then
+                    state.summonCount = state.summonCount + 1
+                    log("Summon " .. tostring(state.summonCount) .. "/" .. tostring(limit), THEME.cyan)
+                end
+            end
+        end
+        if state.toggles.autoReroll then
+            local found, name = targetFound(state.values.rerollTarget)
+            local limit = safeNumber(state.values.rerollLimit, 10, 1, 500)
+            if found then
+                state.toggles.autoReroll = false
+                log("Resultado encontrado: " .. tostring(name) .. ". Reroll interrompido.", THEME.green)
+            elseif state.rerollCount >= limit then
+                state.toggles.autoReroll = false
+                log("Limite de reroll atingido: " .. tostring(limit), THEME.yellow)
+            else
+                local button = findButton({"reroll"}, false, state.values.rerollKind)
+                if not button then button = findButton({"reroll"}, false) end
+                if button and activate(button, "reroll-cycle", 2.0) then
+                    state.rerollCount = state.rerollCount + 1
+                    log("Reroll " .. tostring(state.rerollCount) .. "/" .. tostring(limit), THEME.cyan)
+                end
+            end
+        end
+        if state.toggles.autoBuy then
+            local limit = safeNumber(state.values.shopLimit, 1, 1, 100)
+            if state.shopCount >= limit then
+                state.toggles.autoBuy = false
+                log("Limite de compras atingido.", THEME.yellow)
+            else
+                local button = findTargetButtonForItem(state.values.shopItem)
+                if button and activate(button, "shop-buy-cycle", 2.0) then
+                    state.shopCount = state.shopCount + 1
+                    log("Compra " .. tostring(state.shopCount) .. "/" .. tostring(limit), THEME.cyan)
+                end
+            end
+        end
+        if state.toggles.autoTrain then
+            clickWhenVisible("auto-train", {"start training", "train selected", "train"}, 2.0, false)
+        end
+        if state.toggles.autoMinigame then
+            clickWhenVisible("auto-minigame", {"play again", "play", "start"}, 3.0, false)
+        end
+        if state.toggles.webhookStage then
+            local text = allGuiText()
+            local finished = string.find(text, "victory", 1, true) or string.find(text, "defeat", 1, true)
+                or string.find(text, "stage cleared", 1, true)
+            if finished and not state.stageWebhookSent then
+                state.stageWebhookSent = true
+                local mention = ""
+                if state.toggles.webhookPing and state.values.webhookId and state.values.webhookId ~= "" then
+                    mention = "<@" .. state.values.webhookId .. "> "
+                end
+                sendWebhook(mention .. "yno hub: partida finalizada.")
+            elseif not finished then
+                state.stageWebhookSent = false
+            end
+        end
+        task.wait(0.45)
+    end
+end
+
+local function setupAntiAfk()
+    local ok, connection = pcall(function()
+        return player.Idled:Connect(function()
+            if state.toggles.antiAfk then
+                pcall(function()
+                    VirtualUser:CaptureController()
+                    VirtualUser:ClickButton2(Vector2.new(0, 0))
+                end)
+            end
+        end)
+    end)
+    if ok and connection then table.insert(state.connections, connection) end
+end
+
+local function unload()
+    if not state.running then return end
+    state.running = false
+    state.stopMacro = true
+    state.macroRecording = false
+    state.macroPlaying = false
+    applyLowQuality(false)
+    applyHideEffects(false)
+    for _, connection in ipairs(state.connections) do
+        pcall(function() connection:Disconnect() end)
+    end
+    for _, connection in ipairs({}) do pcall(function() connection:Disconnect() end) end
+    if gui and gui.Parent then pcall(function() gui:Destroy() end) end
+    if ENV[HUB_KEY] then ENV[HUB_KEY] = nil end
+end
+
+loadConfig()
+
+gui = create("ScreenGui", {
     Name = "yno_hub",
     ResetOnSpawn = false,
     IgnoreGuiInset = true,
     ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-}, (function()
-    local ok, holder = pcall(function()
-        if type(gethui) == "function" then return gethui() end
-        return CoreGui
-    end)
-    if ok and holder then return holder end
-    return playerGui
-end)())
+}, uiParent)
 
-local viewport = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1280, 720)
-uiScale = make("UIScale", {Scale = math.clamp(math.min(viewport.X / 1280, viewport.Y / 820), 0.72, 1)}, gui)
+local viewport = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1280, 800)
+local initialScale = math.clamp(math.min(viewport.X / 1280, viewport.Y / 820), 0.72, 1)
+local uiScale = create("UIScale", {Scale = initialScale}, gui)
 
-main = make("Frame", {
+main = create("Frame", {
     AnchorPoint = Vector2.new(0.5, 0.5),
     Position = UDim2.fromScale(0.5, 0.5),
-    Size = UDim2.fromOffset(1000, 660),
-    BackgroundColor3 = theme.bg,
+    Size = UDim2.fromOffset(940, 620),
+    BackgroundColor3 = THEME.bg,
     BorderSizePixel = 0,
 }, gui)
-corner(main, 18)
-stroke(main, theme.line, 0.05, 1)
-make("UIGradient", {
-    Color = ColorSequence.new(Color3.fromRGB(14, 17, 31), Color3.fromRGB(8, 10, 18)),
-    Rotation = 90,
-}, main)
+round(main, 17)
+outline(main, THEME.line, 0.08, 1)
+gradient(main, Color3.fromRGB(17, 19, 34), Color3.fromRGB(8, 10, 17), 90)
 
-local sidebar = make("Frame", {
-    BackgroundColor3 = theme.panel,
-    Size = UDim2.new(0, 204, 1, 0),
+local sidebar = create("Frame", {
+    BackgroundColor3 = THEME.sidebar,
+    Size = UDim2.new(0, 188, 1, 0),
     BorderSizePixel = 0,
 }, main)
-corner(sidebar, 18)
-make("Frame", {
-    BackgroundColor3 = theme.panel,
-    Position = UDim2.new(1, -18, 0, 0),
-    Size = UDim2.new(0, 18, 1, 0),
+round(sidebar, 17)
+create("Frame", {
+    BackgroundColor3 = THEME.sidebar,
+    Position = UDim2.new(1, -15, 0, 0),
+    Size = UDim2.new(0, 15, 1, 0),
     BorderSizePixel = 0,
 }, sidebar)
 
-local brand = make("Frame", {BackgroundTransparency = 1, Position = UDim2.new(0, 18, 0, 20), Size = UDim2.new(1, -36, 0, 56)}, sidebar)
-local logo = make("Frame", {BackgroundColor3 = theme.purple, Size = UDim2.new(0, 42, 0, 42), BorderSizePixel = 0}, brand)
-corner(logo, 12)
-make("UIGradient", {Color = ColorSequence.new(theme.purple, theme.cyan), Rotation = 35}, logo)
-local logoText = label(logo, "y", 27, Color3.new(1, 1, 1), true, 40)
-logoText.TextXAlignment = Enum.TextXAlignment.Center
-local brandName = label(brand, "yno hub", 19, theme.text, true, 25)
-brandName.Position = UDim2.new(0, 53, 0, 1)
-local brandSub = label(brand, "ACX COMPANION", 9, theme.muted, true, 17)
-brandSub.Position = UDim2.new(0, 54, 0, 27)
-
-label(sidebar, "WORKSPACE", 9, theme.muted, true, 18).Position = UDim2.new(0, 20, 0, 96)
-navHolder = make("Frame", {
+local brand = create("Frame", {
     BackgroundTransparency = 1,
-    Position = UDim2.new(0, 14, 0, 120),
-    Size = UDim2.new(1, -28, 0, 350),
+    Position = UDim2.new(0, 15, 0, 17),
+    Size = UDim2.new(1, -30, 0, 54),
 }, sidebar)
-make("UIListLayout", {Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder}, navHolder)
-_G.__yno_nav_buttons = {}
+local icon = create("Frame", {
+    BackgroundColor3 = THEME.purple,
+    Size = UDim2.new(0, 40, 0, 40),
+    BorderSizePixel = 0,
+}, brand)
+round(icon, 12)
+gradient(icon, THEME.purple, THEME.cyan, 35)
+local iconText = textLabel(icon, "y", 26, Color3.new(1, 1, 1), true, 40)
+iconText.TextXAlignment = Enum.TextXAlignment.Center
+local brandTitle = textLabel(brand, "yno hub", 18, THEME.text, true, 23)
+brandTitle.Position = UDim2.new(0, 49, 0, 1)
+local brandSubtitle = textLabel(brand, "ANIME CRUSADERS X", 8, THEME.muted, true, 18)
+brandSubtitle.Position = UDim2.new(0, 50, 0, 25)
+
+textLabel(sidebar, "MAIN MENU", 9, THEME.muted, true, 18).Position = UDim2.new(0, 18, 0, 87)
+nav = create("ScrollingFrame", {
+    BackgroundTransparency = 1,
+    Position = UDim2.new(0, 11, 0, 110),
+    Size = UDim2.new(1, -22, 1, -184),
+    BorderSizePixel = 0,
+    ScrollBarThickness = 2,
+    ScrollBarImageColor3 = THEME.purple,
+    CanvasSize = UDim2.new(0, 0, 0, 0),
+}, sidebar)
+local navLayout = create("UIListLayout", {Padding = UDim.new(0, 5), SortOrder = Enum.SortOrder.LayoutOrder}, nav)
+navLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    nav.CanvasSize = UDim2.new(0, 0, 0, navLayout.AbsoluteContentSize.Y + 8)
+end)
+
 local navData = {
     {"Overview", "◈"},
-    {"Farm Planner", "⌁"},
-    {"Smart Macro", "▦"},
-    {"Team Builder", "♧"},
-    {"Codes", "✳"},
-    {"Patch Notes", "↻"},
+    {"Joiner", "⌁"},
+    {"Game", "⚔"},
+    {"Performance", "◉"},
+    {"Summon", "✦"},
+    {"Macro", "▣"},
+    {"Auto Reroll", "⟳"},
+    {"Shop", "◇"},
+    {"Webhook", "↗"},
+    {"Minigames", "▤"},
+    {"Misc", "⋯"},
     {"Settings", "⚙"},
 }
-for _, entry in ipairs(navData) do
-    _G.__yno_nav_buttons[entry[1]] = createNavButton(entry[1], entry[2])
-end
+for _, entry in ipairs(navData) do makeTab(nav, entry[1], entry[2]) end
 
-local sidebarFoot = make("Frame", {
-    BackgroundColor3 = theme.panel2,
-    Position = UDim2.new(0, 14, 1, -66),
-    Size = UDim2.new(1, -28, 0, 48),
+local footer = create("Frame", {
+    BackgroundColor3 = THEME.panel,
+    Position = UDim2.new(0, 11, 1, -62),
+    Size = UDim2.new(1, -22, 0, 47),
     BorderSizePixel = 0,
 }, sidebar)
-corner(sidebarFoot, 10)
-local statusDot = make("Frame", {BackgroundColor3 = theme.green, Position = UDim2.new(0, 12, 0, 18), Size = UDim2.new(0, 8, 0, 8), BorderSizePixel = 0}, sidebarFoot)
-corner(statusDot, 8)
-label(sidebarFoot, "CLIENT READY", 10, theme.green, true, 18).Position = UDim2.new(0, 28, 0, 8)
-label(sidebarFoot, "No external libraries", 9, theme.muted, false, 16).Position = UDim2.new(0, 28, 0, 24)
+round(footer, 9)
+local dot = create("Frame", {
+    BackgroundColor3 = THEME.green,
+    Position = UDim2.new(0, 11, 0, 17),
+    Size = UDim2.new(0, 8, 0, 8),
+    BorderSizePixel = 0,
+}, footer)
+round(dot, 5)
+textLabel(footer, "CLIENT READY", 9, THEME.green, true, 16).Position = UDim2.new(0, 25, 0, 7)
+textLabel(footer, "UI automation", 8, THEME.muted, false, 14).Position = UDim2.new(0, 25, 0, 23)
 
-local content = make("Frame", {
+local content = create("Frame", {
     BackgroundTransparency = 1,
-    Position = UDim2.new(0, 224, 0, 0),
-    Size = UDim2.new(1, -242, 1, 0),
+    Position = UDim2.new(0, 208, 0, 0),
+    Size = UDim2.new(1, -226, 1, 0),
 }, main)
 
-local topbar = make("Frame", {
+local topbar = create("Frame", {
     BackgroundTransparency = 1,
-    Size = UDim2.new(1, 0, 0, 62),
+    Size = UDim2.new(1, 0, 0, 64),
 }, content)
-label(topbar, "COMMAND CENTER", 10, theme.muted, true, 18).Position = UDim2.new(0, 0, 0, 8)
-local topTitle = label(topbar, "Overview", 20, theme.text, true, 28)
-topTitle.Position = UDim2.new(0, 0, 0, 27)
-local ready = make("TextLabel", {
+textLabel(topbar, "COMMAND CENTER", 8, THEME.muted, true, 16).Position = UDim2.new(0, 0, 0, 7)
+titleLabel = textLabel(topbar, "Overview", 19, THEME.text, true, 28)
+titleLabel.Position = UDim2.new(0, 0, 0, 27)
+
+local statusPill = create("TextLabel", {
     AnchorPoint = Vector2.new(1, 0),
-    Position = UDim2.new(1, -82, 0, 18),
-    Size = UDim2.new(0, 105, 0, 26),
-    BackgroundColor3 = Color3.fromRGB(20, 48, 44),
-    Font = Enum.Font.GothamBold,
+    Position = UDim2.new(1, -42, 0, 16),
+    Size = UDim2.new(0, 92, 0, 25),
+    BackgroundColor3 = Color3.fromRGB(19, 48, 42),
     Text = "●  READY",
-    TextColor3 = theme.green,
-    TextSize = 10,
+    TextColor3 = THEME.green,
+    TextSize = 9,
+    Font = Enum.Font.GothamBold,
     BorderSizePixel = 0,
 }, topbar)
-corner(ready, 8)
-local version = make("TextLabel", {
+round(statusPill, 7)
+local close = create("TextButton", {
     AnchorPoint = Vector2.new(1, 0),
-    Position = UDim2.new(1, -122, 0, 18),
-    Size = UDim2.new(0, 62, 0, 26),
-    BackgroundColor3 = theme.panel3,
-    Font = Enum.Font.GothamBold,
-    Text = "v1.0.0",
-    TextColor3 = theme.muted,
-    TextSize = 10,
-    BorderSizePixel = 0,
-}, topbar)
-corner(version, 8)
-
-local closeButton = make("TextButton", {
-    AnchorPoint = Vector2.new(1, 0),
-    Position = UDim2.new(1, 0, 0, 18),
-    Size = UDim2.new(0, 30, 0, 26),
-    BackgroundColor3 = Color3.fromRGB(62, 30, 43),
-    Font = Enum.Font.GothamBold,
+    Position = UDim2.new(1, 0, 0, 16),
+    Size = UDim2.new(0, 28, 0, 25),
+    BackgroundColor3 = Color3.fromRGB(61, 30, 43),
     Text = "×",
-    TextColor3 = theme.red,
-    TextSize = 18,
+    TextColor3 = THEME.red,
+    TextSize = 17,
+    Font = Enum.Font.GothamBold,
     BorderSizePixel = 0,
 }, topbar)
-corner(closeButton, 8)
-closeButton.MouseButton1Click:Connect(function() gui:Destroy() end)
+round(close, 7)
+close.MouseButton1Click:Connect(unload)
 
-pageScroll = make("ScrollingFrame", {
+page = create("ScrollingFrame", {
     BackgroundTransparency = 1,
-    Position = UDim2.new(0, 0, 0, 70),
-    Size = UDim2.new(1, 0, 1, -84),
+    Position = UDim2.new(0, 0, 0, 69),
+    Size = UDim2.new(1, 0, 1, -116),
     BorderSizePixel = 0,
     ScrollBarThickness = 4,
-    ScrollBarImageColor3 = theme.purple,
+    ScrollBarImageColor3 = THEME.purple,
     CanvasSize = UDim2.new(0, 0, 0, 0),
 }, content)
 
-toast = make("TextLabel", {
+local bottomBar = create("Frame", {
+    BackgroundColor3 = THEME.panel,
+    Position = UDim2.new(0, 0, 1, -39),
+    Size = UDim2.new(1, 0, 0, 31),
+    BorderSizePixel = 0,
+}, content)
+round(bottomBar, 8)
+statusLabel = textLabel(bottomBar, "Pronto. RightShift mostra/oculta o painel.", 9, THEME.muted, false, 22)
+statusLabel.Position = UDim2.new(0, 10, 0, 4)
+local versionLabel = textLabel(bottomBar, "2.0.0", 9, THEME.purple, true, 22)
+versionLabel.TextXAlignment = Enum.TextXAlignment.Right
+versionLabel.Position = UDim2.new(1, -52, 0, 4)
+versionLabel.Size = UDim2.new(0, 42, 0, 22)
+
+toast = create("TextLabel", {
     AnchorPoint = Vector2.new(1, 1),
-    Position = UDim2.new(1, 340, 1, -62),
-    Size = UDim2.new(0, 300, 0, 40),
-    BackgroundColor3 = theme.panel3,
+    Position = UDim2.new(1, 340, 1, -55),
+    Size = UDim2.new(0, 310, 0, 38),
+    BackgroundColor3 = THEME.panel3,
     BackgroundTransparency = 1,
-    Font = Enum.Font.GothamSemibold,
     Text = "",
-    TextColor3 = theme.text,
-    TextSize = 12,
+    TextColor3 = THEME.text,
+    TextSize = 11,
+    Font = Enum.Font.GothamSemibold,
     Visible = false,
     BorderSizePixel = 0,
-    ZIndex = 20,
+    ZIndex = 30,
 }, gui)
-corner(toast, 10)
-stroke(toast, theme.line, 0.15, 1)
+round(toast, 9)
+outline(toast, THEME.line, 0.1, 1)
 
--- Drag the window from the top area.
+-- Drag the window from the top bar.
 local dragging = false
 local dragStart
 local startPosition
@@ -595,28 +1568,37 @@ topbar.InputEnded:Connect(function(input)
         dragging = false
     end
 end)
-UserInputService.InputChanged:Connect(function(input)
+UIS.InputChanged:Connect(function(input)
     if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
         local delta = input.Position - dragStart
-        main.Position = UDim2.new(startPosition.X.Scale, startPosition.X.Offset + delta.X, startPosition.Y.Scale, startPosition.Y.Offset + delta.Y)
+        main.Position = UDim2.new(startPosition.X.Scale, startPosition.X.Offset + delta.X,
+            startPosition.Y.Scale, startPosition.Y.Offset + delta.Y)
     end
 end)
 
-UserInputService.InputBegan:Connect(function(input, processed)
-    if not processed and input.KeyCode == Enum.KeyCode.RightShift and gui and gui.Parent then
-        main.Visible = not main.Visible
+local inputConnection = UIS.InputBegan:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.RightShift then
+        if gui and gui.Parent then main.Visible = not main.Visible end
     end
+    if input.KeyCode == Enum.KeyCode.F6 then startRecording() end
+    if input.KeyCode == Enum.KeyCode.F7 then stopRecording() end
+    if input.KeyCode == Enum.KeyCode.F8 then playMacro() end
+    if input.KeyCode == Enum.KeyCode.F9 then stopPlayback() end
+    recordInput(input)
 end)
+table.insert(state.connections, inputConnection)
 
-local function updateTitle()
-    if topTitle then topTitle.Text = currentPage end
-end
+setupAntiAfk()
 
-local originalShowPage = showPage
-showPage = function(name)
-    originalShowPage(name)
-    updateTitle()
-end
+ENV[HUB_KEY] = {Unload = unload, Version = "2.0.0"}
 
 showPage("Overview")
-notify("yno hub carregado · pressione RightShift para ocultar", theme.green)
+task.spawn(processAutomation)
+
+if game.CreatorId ~= 35139043 then
+    log("Aviso: este não parece ser o CreatorId do Anime Crusaders X.", THEME.yellow)
+else
+    log("yno hub 2.0 carregado. RightShift oculta/mostra.", THEME.green)
+end
+
+saveConfig()
