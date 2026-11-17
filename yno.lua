@@ -83,6 +83,8 @@ local state = {
     threads = {},
     storyFlow = false,
     huntLastScan = 0,
+    huntLastPromptScan = 0,
+    cachedCapturePrompt = nil,
     huntLastMove = 0,
     huntLastHit = 0,
     lastClaim = 0,
@@ -1133,6 +1135,19 @@ local function findCapturePrompt()
     local character = player.Character
     local root = character and character:FindFirstChild("HumanoidRootPart")
     if not root then return nil end
+
+    local now = os.clock()
+    local cached = state.cachedCapturePrompt
+    if cached and cached.prompt and cached.prompt.Parent and cached.prompt.Enabled
+        and cached.part and cached.part.Parent and now - state.huntLastPromptScan < 1.2 then
+        cached.distance = (root.Position - cached.part.Position).Magnitude
+        return cached
+    end
+    if now - state.huntLastPromptScan < 1.2 then
+        return nil
+    end
+    state.huntLastPromptScan = now
+
     local nearest, nearestDistance = nil, math.huge
     for _, object in ipairs(workspace:GetDescendants()) do
         if object:IsA("ProximityPrompt") and object.Enabled then
@@ -1153,6 +1168,7 @@ local function findCapturePrompt()
             end
         end
     end
+    state.cachedCapturePrompt = nearest
     return nearest
 end
 
