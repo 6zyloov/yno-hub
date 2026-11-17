@@ -1,4 +1,4 @@
-# Uso do yno hub 3.0.0
+# Uso do yno hub 3.0.1
 
 ## Instalação no Solara
 
