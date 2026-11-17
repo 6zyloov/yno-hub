@@ -1,6 +1,18 @@
 # Changelog
 
-## 3.0.1 — 17 de novembro de 2026
+## 3.2.0 — 17 de novembro de 2026
+
+- Refeito o layout de Game em duas colunas reais: Game / Wave Actions, com linhas compactas inspiradas na referência LixHub.
+- Adotada paleta azul-aço escura, sem degradês roxos/cianos, e a foto anime solicitada como fundo.
+- O scanner de botões ranqueia correspondência exata, contexto, dimensão e hierarquia; o contexto deixou de ser um filtro absoluto.
+- O envio do clique usa mousemoveabs + mouse1press + mouse1release do Solara; o cooldown só é iniciado após o input ser enviado.
+- Ações passam a informar quando um botão não foi localizado ou quando a execução retornou falha.
+- Settings ganhou Copy Game UI report para copiar nomes, textos e hierarquia de até 180 controles visíveis.
+- O helper das opções nativas procura o toggle pelo rótulo e proximidade, em vez de depender somente do nome interno.
+
+
+
+## 3.2.0 — 17 de novembro de 2026
 
 Revisão estática adicional do código principal.
 
