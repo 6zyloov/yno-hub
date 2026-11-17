@@ -882,6 +882,8 @@ local function stopPlayback()
     releasePlaybackKeys()
 end
 
+local appendKeyUps
+
 local function playMacro()
     if state.macroPlaying then
         log("Macro já está em execução.", THEME.yellow)
@@ -948,7 +950,7 @@ local function playMacro()
     end)
 end
 
-local function appendKeyUps()
+appendKeyUps = function()
     local t = os.clock() - (state.recordStart or os.clock())
     for keyName in pairs(state.heldKeys) do
         table.insert(state.macro, {t = t, kind = "key_up", key = keyName})
