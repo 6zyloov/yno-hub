@@ -68,6 +68,7 @@ local state = {
     playingKeys = {},
     renderConnection = nil,
     effectConnection = nil,
+    originalFpsCap = nil,
     summonCount = 0,
     rerollCount = 0,
     shopCount = 0,
@@ -382,24 +383,42 @@ local function toggleFromLabel(needle)
     local target = normalize(needle)
     for _, root in ipairs(playerGui:GetChildren()) do
         for _, label in ipairs(root:GetDescendants()) do
-            if label:IsA("TextLabel") and visible(label) then
-                local value = normalize(label.Text)
-                if value == target then
-                    local parent = label.Parent
-                    if parent then
-                        for _, item in ipairs(parent:GetChildren()) do
-                            if item:IsA("GuiButton") and visible(item) and item.Active then
-                                local buttonText = getTextForButton(item)
-                                local looksLikeToggle = string.find(buttonText, "on", 1, true)
-                                    or string.find(buttonText, "off", 1, true)
-                                    or string.find(normalize(item.Name), "toggle", 1, true)
-                                    or string.find(normalize(item.Name), "switch", 1, true)
-                                if looksLikeToggle then
-                                    return activate(item, "settings:" .. target, 1.5)
+            if label:IsA("TextLabel") and visible(label) and normalize(label.Text) == target then
+                local parent = label.Parent
+                for depth = 1, 2 do
+                    if not parent then break end
+                    for _, item in ipairs(parent:GetChildren()) do
+                        if item:IsA("GuiButton") and visible(item) and item.Active then
+                            local buttonName = normalize(item.Name)
+                            local buttonText = item:IsA("TextButton") and normalize(item.Text) or ""
+                            local toggleLabel = false
+                            if buttonText == "on" or buttonText == "off" or buttonText == "enabled"
+                                or buttonText == "disabled" or buttonText == "yes" or buttonText == "no" then
+                                toggleLabel = true
+                            end
+                            if string.find(buttonName, "toggle", 1, true)
+                                or string.find(buttonName, "switch", 1, true)
+                                or string.find(buttonName, "checkbox", 1, true) then
+                                toggleLabel = true
+                            end
+                            if not toggleLabel then
+                                for _, child in ipairs(item:GetDescendants()) do
+                                    if child:IsA("TextLabel") then
+                                        local childText = normalize(child.Text)
+                                        if childText == "on" or childText == "off"
+                                            or childText == "enabled" or childText == "disabled" then
+                                            toggleLabel = true
+                                            break
+                                        end
+                                    end
                                 end
+                            end
+                            if toggleLabel then
+                                return activate(item, "settings:" .. target, 1.5)
                             end
                         end
                     end
+                    parent = parent.Parent
                 end
             end
         end
@@ -1329,10 +1348,21 @@ end
 local function applyFpsCap(value)
     local cap = safeNumber(value, 60, 15, 240)
     if type(setfpscap) == "function" then
+        if state.originalFpsCap == nil and type(getfpscap) == "function" then
+            local getOk, original = pcall(getfpscap)
+            if getOk then state.originalFpsCap = original end
+        end
         local ok = pcall(setfpscap, cap)
         log(ok and ("FPS cap: " .. cap) or "Não foi possível alterar o FPS cap.", ok and THEME.green or THEME.yellow)
     else
         log("setfpscap não está disponível neste executor.", THEME.yellow)
+    end
+end
+
+local function restoreFpsCap()
+    if state.originalFpsCap ~= nil and type(setfpscap) == "function" then
+        pcall(setfpscap, state.originalFpsCap)
+        state.originalFpsCap = nil
     end
 end
 
@@ -1343,6 +1373,10 @@ local function buildPerformance()
     addInput(page, "fpsCap", "FPS limit", "60", "60")
     addAction(page, "Apply FPS limit", "Aplica o limite usando setfpscap, se o executor oferecer essa função.", "APPLY", function()
         applyFpsCap(state.values.fpsCap)
+    end)
+    addAction(page, "Restore FPS limit", "Restaura o limite que estava ativo antes do yno hub alterar o FPS.", "RESTORE", function()
+        restoreFpsCap()
+        log("FPS cap original restaurado.", THEME.green)
     end)
     addAction(page, "Low Performance Mode", "Desativa sombras, pós-processamento e efeitos de partículas locais. Restaure quando terminar.", "ENABLE", function()
         state.toggles.lowQuality = true
@@ -1703,8 +1737,8 @@ local function processAutomation()
                 log("Limite de summon atingido: " .. tostring(limit), THEME.yellow)
             else
                 local amount = safeNumber(state.values.summonAmount, 10, 1, 10)
-                local button = findButton({"summon x" .. amount, "summon " .. amount}, false)
-                if not button then button = findButton({"summon"}, false) end
+                local button = findButton({"summon x" .. amount, "summon " .. amount}, true)
+                if not button then button = findButton({"summon"}, true) end
                 if button and state.summonCount + amount <= limit and activate(button, "summon-cycle", 2.1) then
                     state.summonCount = state.summonCount + amount
                     log("Summon " .. tostring(state.summonCount) .. "/" .. tostring(limit), THEME.cyan)
@@ -1797,6 +1831,7 @@ local function unload()
     releasePlaybackKeys()
     applyLowQuality(false)
     applyHideEffects(false)
+    restoreFpsCap()
     for _, connection in ipairs(state.connections) do
         pcall(function() connection:Disconnect() end)
     end
