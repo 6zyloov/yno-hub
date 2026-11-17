@@ -624,7 +624,7 @@ local function clickButton(button, actionKey, cooldown)
         return false
     end
     local now = os.clock()
-    local key = actionKey or tostring(button)
+    local key = actionKey or button:GetFullName()
     if state.lastAction[key] and now - state.lastAction[key] < (cooldown or 0.9) then
         return false
     end
@@ -1557,7 +1557,7 @@ local function claimHesiaRewards()
         if not string.find(allGuiText(), "free rewards", 1, true) then
             openHesiaRewards()
         end
-        local claim = waitForButton({"Claim Rewards"}, false, 10, "free rewards", true)
+        local claim = waitForButton({"Claim Rewards"}, false, 25, "free rewards", true)
         if claim then
             clickButton(claim, "hesia-claim-rewards", 1.8)
         else
@@ -1584,6 +1584,13 @@ local function redeemYoutubeReward()
         return false
     end
     local box = findTextBox({"channel name", "youtube channel", "channel"})
+    if not box then
+        local deadline = os.clock() + 6
+        while state.running and os.clock() < deadline and not box do
+            task.wait(0.2)
+            box = findTextBox({"channel name", "youtube channel", "channel"})
+        end
+    end
     if not box then
         log("Campo de canal não encontrado no painel YouTube Reward; preencha-o manualmente.", THEME.warning)
         return false
@@ -2284,7 +2291,7 @@ local function gameAutomationLoop()
                 for _, button in ipairs(buttons) do
                     local text = buttonText(button)
                     if string.find(text, "use ability", 1, true) or string.find(text, "ability ready", 1, true) then
-                        clickButton(button, "auto-ability:" .. tostring(button), 1.3)
+                        clickButton(button, "auto-ability:" .. button:GetFullName(), 1.3)
                     end
                 end
             end
