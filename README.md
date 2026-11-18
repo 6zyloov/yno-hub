@@ -1,6 +1,6 @@
 # yno hub — Anime Crusaders X
 
-**Release 4.0.2 · 17 November 2026**
+**Release 4.0.3 · 17 November 2026**
 
 Standalone Lua hub for Anime Crusaders X, with a compact dark-blue interface and game-specific workflows. The visual direction takes inspiration from LixHub's compact control layout without copying its protected backend or artwork.
 
