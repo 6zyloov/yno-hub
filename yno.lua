@@ -1,5 +1,5 @@
 -- yno hub | anime crusaders x
--- v4.0.1 | 2026-11-17
+-- v4.0.2 | 2026-11-17
 -- Rebuilt around explicit game workflows, documented Solara input APIs,
 -- ranked visible-UI matching, cancellable tasks, and a compact LixHub-inspired UI.
 -- Uses visible UI, ordinary key input, ProximityPrompts and the game's native Macro.
@@ -1781,6 +1781,16 @@ local function buildGame()
     addToggle("Auto Next", "Clica Next depois de detectar uma tela de vitória.", "autoNext", nil, left)
     addToggle("Auto Replay", "Clica Replay / Retry depois de detectar derrota.", "autoReplay", nil, left)
     addButton("Open Macro → Units", "Abre a configuração nativa de slots, Auto upgrade e Auto abilities.", "OPEN", openMacroUnits, left)
+    addButton("Open Macro → Run", "Abre as opções de execução This Stage, Loop e Routine.", "RUN", function()
+        local already = findGameButton({"Run"}, "macro", false, true)
+        if already then return sendMouseClick(already) end
+        local ok, reason = openMacroPanel()
+        if not ok then return false, reason end
+        task.wait(0.25)
+        local run = findGameButton({"Run"}, "macro", false, true)
+        if not run then return false, "Não encontrei a aba Run do Macro." end
+        return sendMouseClick(run)
+    end, left)
 
     addButton("Toggle Auto Upgrade", "Alterna a opção nativa quando Macro → Units estiver aberto.", "TOGGLE", function()
         return toggleNativeOption("Auto upgrade")
@@ -1793,6 +1803,15 @@ local function buildGame()
     end, right)
     addButton("Toggle Smart Placement", "Alterna o posicionamento inteligente em mapas novos.", "TOGGLE", function()
         return toggleNativeOption("Smart placement on new maps")
+    end, right)
+    addButton("Toggle Native Auto Start", "Alterna Auto Start dentro das opções do Smart Macro.", "TOGGLE", function()
+        return toggleNativeOption("Auto Start")
+    end, right)
+    addButton("Toggle Native Auto Replay", "Alterna Auto Replay dentro das opções do Smart Macro.", "TOGGLE", function()
+        return toggleNativeOption("Auto Replay")
+    end, right)
+    addButton("Toggle Native Auto Next", "Alterna Auto Next dentro das opções do Smart Macro.", "TOGGLE", function()
+        return toggleNativeOption("Auto Next")
     end, right)
     addButton("Stop / Pause Macro", "Usa o controle Pause ou Stop do painel flutuante nativo.", "STOP", stopNativeMacro, right)
 
@@ -1859,6 +1878,15 @@ local function buildMacro()
     end, right)
     addButton("Toggle Smart Placement", "Smart placement on new maps.", "TOGGLE", function()
         return toggleNativeOption("Smart placement on new maps")
+    end, right)
+    addButton("Toggle Auto Start", "Native Smart Macro option.", "TOGGLE", function()
+        return toggleNativeOption("Auto Start")
+    end, right)
+    addButton("Toggle Auto Replay", "Native Smart Macro option.", "TOGGLE", function()
+        return toggleNativeOption("Auto Replay")
+    end, right)
+    addButton("Toggle Auto Next", "Native Smart Macro option.", "TOGGLE", function()
+        return toggleNativeOption("Auto Next")
     end, right)
     addButton("Open Macro Routine", "Configure uma fila de tarefas antes de iniciar Routine.", "ROUTINE", function()
         local ok, reason = openMacroPanel()
@@ -2201,7 +2229,7 @@ end
 loadConfig()
 uiScale.Scale = math.clamp(tonumber(state.values.uiScale) or uiScale.Scale, 0.64, 1.1)
 showPage("Overview")
-ENV[RUNTIME_KEY] = {Unload = unload, Version = "4.0.1", Open = function() main.Visible = true end}
+ENV[RUNTIME_KEY] = {Unload = unload, Version = "4.0.2", Open = function() main.Visible = true end}
 
 spawnTracked(automationLoop)
-log("yno hub 4.0.1 carregado. RightShift mostra/oculta.", "success")
+log("yno hub 4.0.2 carregado. RightShift mostra/oculta.", "success")
