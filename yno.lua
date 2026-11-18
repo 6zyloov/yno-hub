@@ -1448,11 +1448,20 @@ local function addColumns(leftTitle, rightTitle)
     local leftBody, leftColumn, resizeLeft = createColumn(group, leftTitle)
     local rightBody, rightColumn, resizeRight = createColumn(group, rightTitle)
     rightColumn.Position = UDim2.new(0.5, 5, 0, 0)
+    local function updateGroupHeight()
+        if group.Parent then
+            group.Size = UDim2.new(1, 0, 0, math.max(leftColumn.AbsoluteSize.Y, rightColumn.AbsoluteSize.Y))
+        end
+    end
+
     local function resizeGroup()
         resizeLeft()
         resizeRight()
-        group.Size = UDim2.new(1, 0, 0, math.max(leftColumn.AbsoluteSize.Y, rightColumn.AbsoluteSize.Y))
+        updateGroupHeight()
     end
+
+    leftColumn:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateGroupHeight)
+    rightColumn:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateGroupHeight)
     task.defer(resizeGroup)
     currentColumn = {left = leftBody, right = rightBody, resize = resizeGroup}
     return leftBody, rightBody
