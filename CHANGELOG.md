@@ -1,6 +1,16 @@
 # Changelog — yno hub
 
-## 4.0.2 — 17 November 2026
+## 4.0.3 — 17 November 2026
+
+- Corrige o dimensionamento dinâmico dos contêineres de duas colunas.
+- Claim Bounties agora exige contexto do painel de Bounties.
+- Macro → Run → Routine abre a aba Run antes de selecionar Routine.
+- PERFECT Assist envia um Space por entrada do marcador na zona-alvo, em vez de repetir input enquanto permanece nela.
+- Testes estáticos adicionais para Routine, Bounty e captura.
+
+
+
+## 4.0.3 — 17 November 2026
 
 - Reconstrução completa do script com nove módulos e layout compacto próprio inspirado na organização LixHub.
 - Game e Wave Actions em duas colunas.
