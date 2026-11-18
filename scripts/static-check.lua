@@ -9,7 +9,7 @@ local source = file:read("*a")
 file:close()
 
 local required = {
-    {"release header", "-- v4.0.2"},
+    {"release header", "-- v4.0.3"},
     {"Solara mouse input", "mousemoveabs"},
     {"Solara mouse press", "mouse1press"},
     {"Solara mouse release", "mouse1release"},
