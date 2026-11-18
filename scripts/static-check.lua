@@ -9,7 +9,7 @@ local source = file:read("*a")
 file:close()
 
 local required = {
-    {"release header", "-- v4.0.1"},
+    {"release header", "-- v4.0.2"},
     {"Solara mouse input", "mousemoveabs"},
     {"Solara mouse press", "mouse1press"},
     {"Solara mouse release", "mouse1release"},
@@ -19,6 +19,8 @@ local required = {
     {"cancellable Story runner", "local function startStory"},
     {"quest claim action", "local function claimAllQuests"},
     {"native Smart Macro", "local function startNativeMacro"},
+    {"native Macro toggles", "local function toggleNativeOption"},
+    {"native Macro lifecycle", "Toggle Native Auto Start"},
     {"Unit Hunt capture flow", "local function processUnitHunt"},
     {"runtime UI report", "local function copyUiReport"},
     {"runtime self test", "local function selfTest"},
@@ -27,6 +29,7 @@ local required = {
     {"requested wallpaper asset", "assets/yno-background.jpg"},
     {"compact two-column Game layout", "beginColumnPage(\"GAME\", \"WAVE ACTIONS\""},
     {"right-column button support", "callback, column)"},
+    {"strict panel scoping", "strictContext == true"},
     {"cancellable Macro sequence", "runAsync(\"macroStarting\", function(generation)"},
     {"safe login track reopening", "findGameButton({\"Login Rewards\", \"Rewards\"}"},
 }
