@@ -87,6 +87,8 @@ local state = {
     gameButtons = {},
     gameButtonsAt = 0,
     lastGameScan = 0,
+    lastScreenText = "",
+    lastScreenTextAt = 0,
     lastQuestClaim = 0,
     lastAutoStart = 0,
     lastAutoSkip = 0,
@@ -727,7 +729,11 @@ local function sendKey(keyCode)
     return false, "keyclick não está disponível no Solara."
 end
 
-local function screenText()
+local function screenText(forceRefresh)
+    local now = os.clock()
+    if not forceRefresh and now - state.lastScreenTextAt < 0.35 then
+        return state.lastScreenText
+    end
     local parts = {}
     for _, root in ipairs(playerGui:GetChildren()) do
         for _, item in ipairs(root:GetDescendants()) do
@@ -738,7 +744,9 @@ local function screenText()
             end
         end
     end
-    return table.concat(parts, " | ")
+    state.lastScreenText = table.concat(parts, " | ")
+    state.lastScreenTextAt = now
+    return state.lastScreenText
 end
 
 local function hasScreenText(phrases)
@@ -886,14 +894,16 @@ local function startStory()
 end
 
 local function openQuests(category)
-    local ok, reason = clickVisible({"Quests"}, nil, "open-quests", 1.2, true)
-    if not ok then return false, reason end
-    task.wait(0.3)
     local tab = findGameButton({category}, "quest", false, true)
+        or findGameButton({category}, nil, false, true)
     if not tab then
-        tab = findGameButton({category}, nil, false, true)
+        local opened, reason = clickVisible({"Quests"}, nil, "open-quests", 1.2, true)
+        if not opened then return false, reason end
+        task.wait(0.35)
+        tab = findGameButton({category}, "quest", false, true)
+            or findGameButton({category}, nil, false, true)
     end
-    if not tab then return false, "Quests abriu, mas não encontrei a aba " .. category .. "." end
+    if not tab then return false, "Não encontrei a aba " .. category .. " na janela Quests." end
     return sendMouseClick(tab)
 end
 
@@ -1075,36 +1085,43 @@ local function startUnitHunt()
 end
 
 local function openUnitHuntBook()
-    if not hasScreenText({"Unit Hunt", "Hunting Isles"}) then
-        local events = clickVisible({"Events"}, nil, "open-events-book", 1.2, false)
-        if not events then return false, "Abra Events no menu do jogo." end
-        task.wait(0.25)
+    local book = findGameButton({"Book", "Collection Book"}, "unit hunt", false, true)
+        or findGameButton({"Book", "Collection Book"}, nil, false, true)
+    if not book then
         local unit = findGameButton({"Unit Hunt"}, "events", false, true)
+        if not unit then
+            local events = clickVisible({"Events"}, nil, "open-events-book", 1.2, false)
+            if not events then return false, "Abra Events no menu do jogo." end
+            task.wait(0.3)
+            unit = findGameButton({"Unit Hunt"}, "events", false, true)
+        end
         if not unit then return false, "Não encontrei Unit Hunt na lista de eventos." end
         local ok, err = sendMouseClick(unit)
         if not ok then return false, err end
         task.wait(0.3)
+        book = findGameButton({"Book", "Collection Book"}, "unit hunt", false, true)
+            or findGameButton({"Book", "Collection Book"}, nil, false, true)
     end
-
-    local book = findGameButton({"Book", "Collection Book"}, "unit hunt", false, true)
-    if not book then book = findGameButton({"Book", "Collection Book"}, nil, false, true) end
-    if not book then return false, "Unit Hunt está aberto, mas o botão Book não apareceu." end
+    if not book then return false, "Unit Hunt abriu, mas não apareceu o botão Book." end
     return sendMouseClick(book)
 end
 
 local function openEventQuests()
-    local events = findGameButton({"Events"}, nil, false, true)
-    if events then
-        local ok, err = sendMouseClick(events)
-        if not ok then return false, err end
-        task.wait(0.25)
-    end
+    local quest = findGameButton({"Event Quests"}, "unit hunt", false, true)
+    if quest then return sendMouseClick(quest) end
+
     local hunt = findGameButton({"Unit Hunt"}, "events", false, true)
+    if not hunt then
+        local events = clickVisible({"Events"}, nil, "open-events-quests", 1.2, false)
+        if not events then return false, "Abra Events no menu do jogo." end
+        task.wait(0.25)
+        hunt = findGameButton({"Unit Hunt"}, "events", false, true)
+    end
     if not hunt then return false, "Selecione Unit Hunt em Events." end
     local ok, err = sendMouseClick(hunt)
     if not ok then return false, err end
     task.wait(0.3)
-    local quest = findGameButton({"Event Quests"}, "unit hunt", false, true)
+    quest = findGameButton({"Event Quests"}, "unit hunt", false, true)
     if not quest then return false, "Não encontrei Event Quests na página Unit Hunt." end
     return sendMouseClick(quest)
 end
@@ -1156,25 +1173,26 @@ local function processUnitHunt()
 end
 
 local function claimLoginRewards()
-    local open = findGameButton({"Login Rewards"}, nil, true, true)
-    if open then
-        local ok, err = sendMouseClick(open)
-        if not ok then return false, err end
-        task.wait(0.3)
+    local dailyTab = findGameButton({"Daily"}, "login", false, true)
+    local anniversaryTab = findGameButton({"Anniversary"}, "login", false, true)
+    if not dailyTab or not anniversaryTab then
+        local open = findGameButton({"Login Rewards"}, nil, true, true)
+        if open then
+            local ok, err = sendMouseClick(open)
+            if not ok then return false, err end
+            task.wait(0.3)
+        end
     end
 
     local claimed = 0
     for _, tabName in ipairs({"Daily", "Anniversary"}) do
         local tab = findGameButton({tabName}, "login", false, true)
-        if tab then
-            local tabOk = sendMouseClick(tab)
-            if tabOk then
-                task.wait(0.2)
-                local claim = findGameButton({"Claim"}, "login", false, true)
-                if claim then
-                    local claimOk = sendMouseClick(claim)
-                    if claimOk then claimed = claimed + 1 end
-                end
+        if tab and sendMouseClick(tab) then
+            task.wait(0.2)
+            local claim = findGameButton({"Claim"}, "login", false, true)
+            if claim then
+                local claimOk = sendMouseClick(claim)
+                if claimOk then claimed = claimed + 1 end
             end
         end
     end
