@@ -1256,13 +1256,16 @@ local function claimKingsIndex()
 end
 
 local function claimBlankUnit()
-    local board = findGameButton({"Bounties"}, nil, false, true)
-    if board then
-        local ok, err = sendMouseClick(board)
-        if not ok then return false, err end
-        task.wait(0.25)
-    end
     local blank = findGameButton({"Blank Tokens"}, nil, false, true)
+    if not blank then
+        local board = findGameButton({"Bounties"}, nil, false, true)
+        if board then
+            local ok, err = sendMouseClick(board)
+            if not ok then return false, err end
+            task.wait(0.25)
+        end
+        blank = findGameButton({"Blank Tokens"}, nil, false, true)
+    end
     if not blank then return false, "Abra Bounty Board → Blank Tokens." end
     local ok, err = sendMouseClick(blank)
     if not ok then return false, err end
@@ -1926,15 +1929,16 @@ local function stopAll()
     for key in pairs(state.toggles) do
         state.toggles[key] = false
     end
-    for key, button in pairs(toggleControls) do
+    for _, button in pairs(toggleControls) do
         if button and button.Parent then
             button.Text = "OFF"
             button.BackgroundColor3 = THEME.surface3
         end
     end
+    restorePerformance()
     local macroStopped = stopNativeMacro()
-    log(macroStopped and "Automações do yno hub desligadas; Smart Macro pausado." or "Automações do yno hub desligadas. Pause o Smart Macro se ainda estiver rodando.", "warn")
-    return true
+    log(macroStopped and "Automações do yno hub desligadas; Smart Macro pausado e efeitos restaurados." or "Automações do yno hub desligadas; efeitos restaurados. Pause o Smart Macro se ainda estiver rodando.", "warn")
+    return true, "Stop All executado."
 end
 
 local function unload()
@@ -2007,6 +2011,8 @@ local function showPage(name)
     clearPage()
     local ok, err = pcall(pages[name])
     if not ok then
+        currentColumn = nil
+        currentSection = nil
         log("Erro na página " .. name .. ": " .. tostring(err), "error")
     end
     if currentColumn and currentColumn.resize then currentColumn.resize() end
@@ -2172,6 +2178,9 @@ local function automationLoop()
 
         if state.toggles.autoClaim and now - state.lastQuestClaim > 3 then
             local claim = findGameButton({"Claim All"}, "quest", false, true)
+                or findGameButton({"Claim All"}, "guide", false, true)
+                or findGameButton({"Claim All"}, "event", false, true)
+                or findGameButton({"Claim All"}, "bounty", false, true)
             if claim then
                 state.lastQuestClaim = now
                 sendMouseClick(claim)
@@ -2188,6 +2197,7 @@ local function automationLoop()
 end
 
 loadConfig()
+uiScale.Scale = math.clamp(tonumber(state.values.uiScale) or uiScale.Scale, 0.64, 1.1)
 showPage("Overview")
 ENV[RUNTIME_KEY] = {Unload = unload, Version = "4.0.1", Open = function() main.Visible = true end}
 
