@@ -1,38 +1,31 @@
-# yno hub — matriz de recursos 3.2.0
+# yno hub 4.0.2 — matriz de recursos
 
-| Área | Estado | O que realmente faz |
+| Área | Estado | Comportamento |
 |---|---|---|
-| Panel UI | Implementado | Layout próximo ao LixHub-inspired compact layout, requested anime wallpaper baseado na referência enviada, sidebar, search, janela arrastável, botão flutuante y, RightShift e Unload. |
-| Missions | UI automation | Abre All/Daily/Infinite/Story/Event/Guide, Claim All, Bounties, Story grind, Challenges e início de Auto Challenge Routine pré-configurada. |
-| Daily quests | Parcial | Coleta objetivos concluídos; Start Story quest grind ajuda em kills/stage clears com Auto Start/Skip/Next. Challenge/Summoning dependem do objetivo atual e do uso do jogo. |
-| Guidebook / Phoenix | Parcial | Abre Guide e reivindica recompensas visíveis; Phoenix exige as dez Guide Quests. |
-| Login Rewards / Twenty One | UI automation | Alterna Daily e Anniversary e tenta Claim em cada tab separadamente. Anniversary Day 1 entrega Twenty One. |
-| Hesia / YouTube / Index | UI automation | Abre Hesia Free Rewards e Claim Rewards; preenche o campo YouTube com o nome informado pelo usuário e pressiona Redeem; aproxima-se de King e tenta Index Claim All. Não completa tarefas sociais nem a inscrição externa. |
-| Bounties / Blank Units | Parcial | Aproxima-se de Navi, abre Bounties e reivindica cartões concluídos. Blank Unit claim é explícito e custa 30 Blank Tokens. |
-| Story Runner | UI automation | Play → Story → World → Act/World Skip → Difficulty → Matchmaking/Select Stage → Start com controles visíveis. |
-| Auto Next / Retry / Skip / Vote Start | UI automation | Aciona controles visíveis; Next só após vitória e Retry só após derrota. Não desbloqueia mundos/atos. |
-| Auto Farm | Native integration | Abre/inicia/para Smart Macro nativo. Posicionamento, upgrades, venda e estratégia dependem de slots/zonas configurados no jogo. |
-| Unit Hunt | Experimental client automation | Procura ProximityPrompts Capture, move o personagem, usa E, pressiona Q para scan e tenta Space ao detectar marker + gold/perfect zone por nome/geometria/cor. |
-| Anniversary Hunt / Golden Crusader | UI helper | Abre os painéis de evento e permite usar Crusader Token do inventário; não controla drops RNG. |
-| Unit Hunt Book / Event Quests | UI + guide | Abre Book/Event Quests e tenta coletar recompensas; Book não é roster de unidades TD. |
-| Free units | UI + guide | Twenty One via Anniversary Login, Phoenix via Guidebook; Shadow (Atomic)/Lao (Heart) custam 30 Blank Tokens cada. |
-| Performance | Client-side | Low Effects, Hide Attack Effects, FPS cap e restauração. |
+| Interface | Implementado no código | Sidebar, nove páginas, tema dark slate-blue, imagem de fundo, linhas compactas, Game/Wave Actions em duas colunas, search, drag, RightShift, minimize/floating y e Unload. |
+| UI scanner | Implementado no código | Varre botões ativos do PlayerGui; ranqueia texto, nome, contexto, área e ZIndex; permite contexto estrito para telas sensíveis; relatório copiável. |
+| Input Solara | Implementado no código | mousemoveabs + mouse1press/mouse1release, mouse1click fallback, GuiButton:Activate fallback; keyclick para teclas. |
+| Story | UI automation | Play → Story → World → Act/World Skip → Difficulty → Matchmaking/Select Stage → Start, se os controles estiverem presentes. |
+| Auto Vote Start / Skip | UI automation | Clica nos controles visíveis Vote Start/Start Match e Vote Skip/Skip Wave em intervalo limitado. |
+| Auto Next / Replay | Heurística de UI | Procura texto de vitória/derrota e clica Next/Replay; depende dos textos da tela atual. |
+| Quests | UI automation | Abre All/Daily/Infinite/Story/Event/Guide e procura Claim All; auto claim observa Quest/Guide/Event/Bounty. |
+| Smart Macro | Integração nativa | Abre Macro, Run, seleciona This Stage/Loop/Routine, inicia; pausa/stop e expõe toggles nativos quando a UI corresponde. |
+| Unit Hunt | Experimental | Q scan, captura por ProximityPrompt + E, aproximação local; PERFECT Assist heurístico. |
+| Login Rewards | UI helper | Tenta resgatar Daily e Anniversary separadamente, reabrindo a janela entre tracks. |
+| Hesia / YouTube / Index | UI helper | Claim em Hesia, campo e Redeem YouTube, King's Index Claim All; requisitos sociais/externos continuam manuais. |
+| Blank Units | UI helper | Abre Blank Tokens e seleciona Shadow (Atomic)/Lao (Heart); custo de 30 tokens cada. |
+| Performance | Client-side | Low Effects, Hide Attack Effects, FPS cap e restauração dos estados locais. |
+| Settings | Implementado no código | Self-check, relatório de UI, save preferences, Stop All, Unload. |
 
-## Validação e limites
+## Testes automáticos
 
-- GitHub Actions valida a sintaxe Lua 5.4.
-- API pública Solara consultada para getcustomasset, filesystem, input, GUI e FPS.
-- Wallpaper é baixado do repositório para o filesystem do executor e usado via getcustomasset; se não estiver disponível, o painel abre com fundo escuro.
-- **Não houve teste em sessão real Roblox/Solara neste ambiente.** Story Runner depende dos rótulos atuais de Play; Perfect Capture Assist depende da UI da barra de captura.
-- Nenhum código altera inventário/moedas do servidor, chama RemoteEvents privados ou tenta contornar anti-cheat.
+GitHub Actions executa:
+- luac5.4 -p yno.lua;
+- luac5.4 -p scripts/static-check.lua;
+- lua5.4 scripts/static-check.lua yno.lua.
 
+Os testes verificam sintaxe, módulos obrigatórios, nomes de função duplicados, versão, helper de toggle e ausência de invocação remota privada.
 
-## 3.2.0
+## O que ainda não está provado
 
-- Compact two-column Game / Wave Actions layout inspired by the supplied LixHub screenshot.
-- Dark slate-blue palette and the supplied anime photo as the panel background.
-- Game controls use two real columns instead of the previous generic card dashboard.
-- Button discovery ranks exact text, ancestor context, size and hierarchy; context is a hint rather than an absolute filter.
-- Solara click dispatch uses documented mousemoveabs, mouse1press and mouse1release functions.
-- Failed lookups now report the missing game control; Settings can copy a live UI hierarchy report.
-- Static syntax workflow still does not replace a live in-game test.
+**Nenhuma partida Roblox/Solara foi executada dentro deste ambiente de desenvolvimento.** A automação visual depende do texto e da hierarquia reais do PlayerGui no seu cliente. Auto Next/Replay dependem dos indicadores de resultado. O PERFECT Assist é experimental. A matriz não chama esses pontos de runtime-certified.
