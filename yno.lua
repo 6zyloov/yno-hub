@@ -765,6 +765,7 @@ local function openMacroPanel()
     local alreadyOpen = findGameButton({"Run"}, "macro", false, true)
         or findGameButton({"Units"}, "macro", false, true)
         or findGameButton({"Placement"}, "macro", false, true)
+        or (hasScreenText({"Auto upgrade", "Auto abilities", "Show the circles while playing"}) and findGameButton({"Macro"}, nil, false, true))
     if alreadyOpen then return true, "Macro já está aberto." end
 
     local button = findGameButton({"Macro"}, nil, false, true)
@@ -796,14 +797,16 @@ local function toggleNativeOption(labelText)
 
     for _, root in ipairs(playerGui:GetChildren()) do
         for _, labelObject in ipairs(root:GetDescendants()) do
-            if labelObject:IsA("TextLabel") and isVisible(labelObject) and norm(labelObject.Text) == target then
+            if not labelObject:IsDescendantOf(gui) and labelObject:IsA("TextLabel")
+                and isVisible(labelObject) and norm(labelObject.Text) == target then
                 local center = labelObject.AbsolutePosition + (labelObject.AbsoluteSize / 2)
                 local parent = labelObject.Parent
 
                 for depth = 1, 4 do
                     if not parent then break end
                     for _, candidate in ipairs(parent:GetDescendants()) do
-                        if candidate:IsA("GuiButton") and candidate.Parent and isVisible(candidate) then
+                        if not candidate:IsDescendantOf(gui) and candidate:IsA("GuiButton")
+                            and candidate.Parent and isVisible(candidate) then
                             local candidateCenter = candidate.AbsolutePosition + (candidate.AbsoluteSize / 2)
                             local distance = (candidateCenter - center).Magnitude
                             local width = candidate.AbsoluteSize.X
@@ -1162,32 +1165,40 @@ local function processUnitHunt()
 end
 
 local function claimLoginRewards()
-    local dailyTab = findGameButton({"Daily"}, "login", false, true)
-    local anniversaryTab = findGameButton({"Anniversary"}, "login", false, true)
-    if not dailyTab or not anniversaryTab then
-        local open = findGameButton({"Login Rewards"}, nil, true, true)
-        if open then
-            local ok, err = sendMouseClick(open)
-            if not ok then return false, err end
-            task.wait(0.3)
-        end
-    end
-
     local claimed = 0
     for _, tabName in ipairs({"Daily", "Anniversary"}) do
         local tab = findGameButton({tabName}, "login", false, true)
-        if tab and sendMouseClick(tab) then
-            task.wait(0.2)
+
+        -- Login Rewards closes after a successful claim. Reopen it before
+        -- attempting the second track rather than assuming both remain visible.
+        if not tab then
+            local open = findGameButton({"Login Rewards", "Rewards"}, nil, true, true)
+            if open then
+                local opened, openError = sendMouseClick(open)
+                if not opened then return false, openError end
+                task.wait(0.35)
+                tab = findGameButton({tabName}, "login", false, true)
+            end
+        end
+
+        if tab then
+            local tabOk, tabError = sendMouseClick(tab)
+            if not tabOk then return false, tabError end
+            task.wait(0.25)
+
             local claim = findGameButton({"Claim"}, "login", false, true)
             if claim then
                 local claimOk = sendMouseClick(claim)
-                if claimOk then claimed = claimed + 1 end
+                if claimOk then
+                    claimed = claimed + 1
+                    task.wait(0.45)
+                end
             end
         end
     end
 
     if claimed > 0 then return true, "Claims de Login Rewards enviados: " .. tostring(claimed) end
-    return false, "Não achei Claim disponível. Abra Login Rewards e tente novamente."
+    return false, "Não encontrei Claim disponível nas abas Daily ou Anniversary."
 end
 
 local function openHesiaRewards()
@@ -1215,7 +1226,7 @@ local function redeemYoutubeReward()
     local box
     for _, root in ipairs(playerGui:GetChildren()) do
         for _, item in ipairs(root:GetDescendants()) do
-            if item:IsA("TextBox") and isVisible(item) then
+            if not item:IsDescendantOf(gui) and item:IsA("TextBox") and isVisible(item) then
                 local context = norm(item.Name .. " " .. item.PlaceholderText .. " " .. getContextText(item))
                 if string.find(context, "channel", 1, true) then
                     box = item
