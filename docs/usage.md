@@ -1,95 +1,108 @@
-# Uso do yno hub 3.2.0
+# yno hub 4.0.2 — guia de uso
 
-## Instalação no Solara
+## Executar
+
+Abra Anime Crusaders X, conecte o Solara e execute:
 
 ~~~lua
 loadstring(game:HttpGet("https://raw.githubusercontent.com/6zyloov/yno-hub/main/yno.lua"))()
 ~~~
 
-O script baixa o wallpaper em [assets/yno-background.jpg](../assets/yno-background.jpg), grava no filesystem do executor e usa getcustomasset. Sem esse suporte, o painel abre com fundo escuro simples.
+O fundo usa assets/yno-background.jpg baixado do próprio repositório e getcustomasset. Se filesystem/custom asset não estiver disponível, o painel continua com fundo escuro.
 
-## Controles
+## Controles do painel
 
-- **RightShift** — mostrar/ocultar.
-- **—** — minimizar para o botão flutuante **y**.
-- Clique em **y** para reabrir.
-- Arraste pela barra superior.
-- **×** — Unload, encerra loops, desconecta eventos e restaura efeitos locais.
-- Search filtra os controles da página atual. Settings → Copy Game UI report copia o texto e a hierarquia dos botões visíveis do jogo para diagnosticar ações que não encontram seus controles.
+- **RightShift:** mostrar/ocultar.
+- **—:** minimizar para o botão flutuante **y**.
+- **y:** reabrir.
+- Arraste pela barra superior para mover.
+- **× / Unload:** fecha o painel, desconecta eventos e restaura efeitos locais.
+- Search filtra os controles da página atual.
 
-## Missions
+## Game
 
-1. Abra Missions.
-2. Selecione All, Daily, Infinite, Story, Event ou Guide.
-3. Pressione Open selected category e Claim All rewards.
-4. Auto claim pode ficar ligado enquanto a tela de Quest/Event Quest estiver aberta.
-5. Start Story quest grind liga Auto Start/Skip/Next e inicia o Story selecionado.
-6. Open Challenges abre Play → Challenges. Start Auto Challenge Routine inicia Macro → Routine depois de você configurar Macro → Dailies → Auto Challenge.
+A página Game separa **Game** de **Wave Actions**.
 
-O script coleta objetivos concluídos; o progresso vem das partidas e tarefas que o jogo atribuiu. Daily Quests Complete! exige cinco tarefas e dá 750 Gems + 10 Trait Remnants.
+- **Auto Vote Start:** procura Vote Start ou Start Match.
+- **Auto Skip Waves:** procura Vote Skip ou Skip Wave.
+- **Auto Next:** só tenta avançar quando encontra texto de vitória/conclusão.
+- **Auto Replay:** só tenta Replay/Retry quando encontra texto de derrota.
+- Os botões do lado direito abrem Macro → Units, ou alternam os controles nativos Auto Upgrade, Auto Abilities, Auto Skip Waves, Smart Placement, Auto Start, Auto Replay e Auto Next quando seus rótulos e toggles estão visíveis.
 
-### Guidebook / Phoenix
-
-Abra Guidebook → complete as 10 Guide Quests → Claim All / Guide Quests Complete!. A recompensa é Phoenix. Algumas tarefas exigem consumir XP Food, unidades, Trait Remnants ou Stat Cubes.
-
-### Bounties
-
-Fale com Navi/Missions no Request Board. Abra Bounties, conclua os três objetivos do cartão e reivindique 5 Event Tokens + 1 Blank Token. Reroll custa 10.000 Gold e apaga o progresso atual do cartão.
+Os toggles de votação e os toggles nativos de Macro são independentes.
 
 ## Story Runner
 
-1. Abra Story.
-2. Escolha mundo, Act 1–6, Normal/Hard, Individual Act/World Skip e Matchmaking/Select Stage.
-3. Pressione Start Story.
-4. Ligue Auto Start, Auto Skip, Auto Next e, se quiser, Auto Retry.
-5. Auto Next só avança quando a UI indica vitória/conclusão; Auto Retry só age depois de derrota.
+1. Abra **Story**.
+2. Selecione um dos 11 mundos, Act 1–6, Normal/Hard, Individual Act/World Skip e Matchmaking/Select Stage.
+3. Pressione **Start selected Story**.
+4. O runner navega pelos botões que encontra no PlayerGui.
+5. Matchmaking termina depois de selecionar Matchmaking; Select Stage procura o botão Start.
 
-World Skip é Normal-only, +900% HP, mundos 1–10; Sword Arena não oferece World Skip. Auto Next segue o próximo estágio que o jogo disponibilizar e não desbloqueia mundos/atos.
+World Skip existe nos mundos 1–10 e não em Sword Arena. O modo depende do desbloqueio da sua conta e da tela atual; o script não libera mundos/atos bloqueados.
+
+## Quests
+
+1. Escolha All, Daily, Infinite, Story, Event ou Guide.
+2. Pressione **Open selected category**.
+3. Use **Claim All** quando a recompensa estiver concluída.
+4. Auto Claim observa Claim All nas telas de Quest/Guide/Event/Bounty visíveis.
+
+O jogo é quem registra o progresso. Cinco Daily Quests concluídas liberam Daily Quests Complete! (750 Gems + 10 Trait Remnants). As dez Guide Quests e o claim final liberam Phoenix. Algumas Guide Quests consomem itens/unidades ou exigem ações em partidas; revise antes de gastar recursos.
+
+Bounties exigem três objetivos por cartão; um cartão completo recompensa 5 Event Tokens + 1 Blank Token. Reroll custa 10.000 Gold e apaga o progresso do cartão.
+
+## Smart Macro — farming nativo
+
+1. Entre na fase que deseja farmar.
+2. Abra **Macro → Units → Slots** e configure os seis slots + Hero, targeting, Auto upgrade e Auto abilities.
+3. Abra **Macro → Units → Placement** e configure Zones, Recording ou Shared area.
+4. Em **Macro → Run**, escolha This Stage, Loop ou Routine.
+5. Para Routine, crie a fila de tarefas primeiro.
+6. No yno hub, use **Start Smart Macro** ou **Pause / Stop Macro**.
+
+O Smart Macro do próprio jogo faz colocação, upgrade, venda e estratégia. O yno hub somente abre/seleciona as opções visíveis e inicia a rotina configurada. Os botões de toggle podem não localizar a opção caso o jogo mude seu texto, layout ou hierarquia.
 
 ## Unit Hunt
 
-1. Requer Player Level 5.
-2. Abra Events → Unit Hunt → Start Hunt.
-3. Ative Auto Hunt: procura ProximityPrompts Capture, aproxima o personagem e usa E.
-4. Q faz scan periódico para localizar raros.
-5. A assistência de captura tenta identificar marker/needle e gold/perfect zone por nome, geometria e cor. Se não reconhecer, acerte manualmente o centro dourado com clique, Space ou E.
+Requer Player Level 5. Entre por Events → Unit Hunt → Start Hunt.
 
-Book tem 39 entradas; Shinies tem 35 entradas separadas. As capturas não viram unidades equipáveis de Tower Defense. São quatro regiões, com desbloqueios em Hunt Wave 3, 6 e 9, e No.039 exige 38 entradas + Hunt Wave 10 + Sky Altar.
+- **Q:** scan de criaturas raras.
+- **E:** começa captura quando o prompt E Capture aparece.
+- Na barra, clique, Space ou E quando o marcador entrar na zona; o centro dourado produz PERFECT e dano dobrado.
 
-## Free Units & Rewards
+Auto Hunt procura ProximityPrompts com texto Capture, aproxima o personagem por Humanoid:MoveTo e envia E com intervalo de segurança. O PERFECT Assist tenta reconhecer marker/needle e zona gold/perfect por nomes, geometria e cor. Como a hierarquia da barra pode mudar, deixe Auto PERFECT desligado caso os inputs não coincidam com a barra real.
 
-- **Twenty One:** claim no Anniversary Login, Day 1. Use Claim Login Rewards para verificar Daily e Anniversary separadamente.
-- **Phoenix:** 10 Guide Quests + Claim Guide Quests Complete!.
-- **Hesia:** o painel tem Join Group, Like + Favorite, Enable Notifications e Follow Event. Conclua as quatro tarefas e use Claim Hesia Rewards.
-- **YouTube Reward:** subscreva @32xGames, ative notificações, digite seu próprio nome de canal no campo YouTube channel name e pressione Redeem YouTube Reward. A verificação continua sendo feita pelo jogo.
-- **King's Index:** Claim All recolhe recompensas de unidades Normal/Shiny registradas.
-- **Shadow (Atomic)/Lao (Heart):** 30 Blank Tokens cada. Use Claim Selected Blank Unit somente depois de conferir saldo.
+O Collection Book principal tem 39 entradas; a aba Shinies é separada com 35. As capturas não entram automaticamente no time de Tower Defense. As regiões seguintes abrem em Hunt Wave 3, 6 e 9; No.039 precisa das outras 38 entradas e Hunt Wave 10.
 
-## Golden Crusader / Anniversary Hunt
+## Rewards
 
-Golden Crusader é um inimigo permanente, com chance base de 1 em 5.000.000 por inimigo normal fora do Testing Zone; Weekend Frenzy melhora a chance para 1 em 3.333.333. Derrote-o para receber um token de uso único. Abra Items → Crusader Token → Use; o token concede 250.000 Gems e Trait Remnants. Anniversary Hunt é outro evento de drops enquanto estiver ativo.
+- **Login Rewards:** Daily e Anniversary são resgatadas separadamente. Anniversary Day 1 dá Twenty One + um Anniversary Ticket.
+- **Hesia:** fale com Hesia, abra Free Rewards e conclua Join Group, Like + Favorite, Notifications e Follow Event antes de Claim Rewards.
+- **YouTube Reward:** inscreva-se em @32xGames, habilite notificações, informe seu próprio nome de canal e use Redeem. A validação é feita pelo jogo.
+- **King's Index:** fale com King, abra Open Index e use Claim All nas páginas Normal/Shiny.
+- **Blank Units:** Shadow (Atomic) e Lao (Heart) custam 30 Blank Tokens cada.
 
-## Smart Macro
-
-1. Macro → Units → Fill My Team.
-2. Configure seis slots + Hero, targeting, Auto upgrade, Auto abilities, Placement limit e waves.
-3. Macro → Placement → Zones ou Recording.
-4. Macro → Run → Loop, This Stage ou Routine.
-5. Em Routine, crie a fila de tarefas antes de iniciar.
-6. Na aba Macro do yno hub, pressione Start Smart Macro.
-
-O Macro nativo faz posicionamento, upgrades, habilidades e venda conforme slots e zonas. O yno hub abre/seleciona controles visíveis e inicia/para o sistema configurado.
-
-## Diagnóstico de cliques
-
-Os comandos procuram controles ativos no PlayerGui e priorizam correspondência exata, contexto do menu, tamanho e hierarquia. O contexto não é filtro absoluto, porque atualizações podem reparentar os mesmos controles. Se uma ação ainda não encontrar um botão, use Settings → Copy Game UI report; o relatório não executa ações, apenas copia os controles que o jogo está exibindo.
-
-O Solara envia o clique com mousemoveabs + mouse1press/mouse1release. A confirmação visual da ação depende do jogo e não é presumida pelo script.
+O hub não faz ações externas de grupo/favorito/seguir/inscrição no seu lugar; ele só auxilia na interface do jogo.
 
 ## Performance
 
-Low Effects desativa sombras e pós-processamento local. Hide Attack Effects desativa ParticleEmitter, Trail, Beam e Highlight locais. Restore performance/Unload restaura os valores anteriores. FPS cap usa setfpscap e tenta restaurar o valor inicial.
+- Low Effects desliga sombras e pós-processamento locais.
+- Hide Attack Effects desliga ParticleEmitter, Trail, Beam e Highlight locais.
+- FPS cap aplica setfpscap.
+- Restore performance repõe os estados guardados.
+
+São ajustes de renderização do cliente; não alteram drops nem processamento do servidor.
 
 ## Diagnóstico
 
-A automação só age em controles visíveis e ativos. Patches podem alterar nomes/hierarquia. O Story Runner pausa com aviso se não encontrar um controle; o Unit Hunt pode depender do timing manual se a barra deixar de ser reconhecida.
+Em **Settings**:
+- **Copy Game UI report:** copia nomes, textos e hierarquia de até 160 controles visíveis do jogo.
+- **Run Solara self-check:** lista as APIs de Solara detectadas e ausentes.
+- **Save preferences:** guarda escolhas do painel, mas não guarda automações ligadas.
+- **Stop All:** desliga toggles, cancela sequências e restaura efeitos.
+- **Unload:** encerra o hub.
+
+## Limite de validação
+
+O código passa por compilação Lua 5.4 e testes estáticos de release/wiring. Não foi possível abrir uma sessão ao vivo de Roblox/Solara neste ambiente. Portanto, o teste estático não comprova que todos os nomes/menus atuais serão reconhecidos nem que o PERFECT Assist acerta toda variante da barra.
