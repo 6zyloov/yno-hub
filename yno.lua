@@ -1,5 +1,5 @@
 -- yno hub | anime crusaders x
--- v4.0.0 | 2026-11-17
+-- v4.0.1 | 2026-11-17
 -- Rebuilt around explicit game workflows, documented Solara input APIs,
 -- ranked visible-UI matching, cancellable tasks, and a compact LixHub-inspired UI.
 -- Uses visible UI, ordinary key input, ProximityPrompts and the game's native Macro.
@@ -790,9 +790,9 @@ local function openMacroUnits()
     return false, "Abra Macro → Units manualmente e tente novamente."
 end
 
-local function setNativeToggle(labelText, wanted)
+local function toggleNativeOption(labelText)
     local target = norm(labelText)
-    local bestButton, bestDistance, currentValue = nil, math.huge, nil
+    local bestButton, bestDistance = nil, math.huge
 
     for _, root in ipairs(playerGui:GetChildren()) do
         for _, labelObject in ipairs(root:GetDescendants()) do
@@ -811,14 +811,6 @@ local function setNativeToggle(labelText, wanted)
                             if distance < 145 and width <= 150 and height <= 80 and distance < bestDistance then
                                 bestButton = candidate
                                 bestDistance = distance
-                                local stateText = candidate:IsA("TextButton") and norm(candidate.Text) or norm(candidate.Name)
-                                if stateText == "on" or stateText == "enabled" or stateText == "true" then
-                                    currentValue = true
-                                elseif stateText == "off" or stateText == "disabled" or stateText == "false" then
-                                    currentValue = false
-                                else
-                                    currentValue = nil
-                                end
                             end
                         end
                     end
@@ -831,12 +823,9 @@ local function setNativeToggle(labelText, wanted)
     if not bestButton then
         return false, "Não encontrei o toggle ao lado de " .. labelText .. ". Abra Macro → Units e deixe a opção visível."
     end
-    if currentValue ~= nil and currentValue == wanted then
-        return true, labelText .. " já está " .. (wanted and "ON." or "OFF.")
-    end
     local ok, err = sendMouseClick(bestButton)
     if not ok then return false, err end
-    return true, "Input enviado para " .. labelText .. ". Confira o estado no jogo."
+    return true, "Toggle enviado para " .. labelText .. ". Confira o estado no jogo."
 end
 
 local function runAsync(name, callback)
@@ -928,7 +917,7 @@ local function openBounties()
 end
 
 local function startNativeMacro()
-    return runAsync("macroStarting", function()
+    return runAsync("macroStarting", function(generation)
         local opened, openReason = openMacroPanel()
         if not opened then
             error(openReason or "Entre em uma partida antes de iniciar o Smart Macro.")
@@ -1777,17 +1766,17 @@ local function buildGame()
     addToggle("Auto Replay", "Clica Replay / Retry depois de detectar derrota.", "autoReplay", nil, left)
     addButton("Open Macro → Units", "Abre a configuração nativa de slots, Auto upgrade e Auto abilities.", "OPEN", openMacroUnits, left)
 
-    addButton("Set Auto Upgrade ON", "Ative quando Macro → Units estiver aberto.", "ENABLE", function()
-        return setNativeToggle("Auto upgrade", true)
+    addButton("Toggle Auto Upgrade", "Alterna a opção nativa quando Macro → Units estiver aberto.", "TOGGLE", function()
+        return toggleNativeOption("Auto upgrade")
     end, right)
-    addButton("Set Auto Abilities ON", "Ative quando Macro → Units estiver aberto.", "ENABLE", function()
-        return setNativeToggle("Auto abilities", true)
+    addButton("Toggle Auto Abilities", "Alterna a opção nativa quando Macro → Units estiver aberto.", "TOGGLE", function()
+        return toggleNativeOption("Auto abilities")
     end, right)
-    addButton("Set Auto Skip Waves ON", "Alterna a opção nativa do Smart Macro.", "ENABLE", function()
-        return setNativeToggle("Auto skip waves", true)
+    addButton("Toggle Auto Skip Waves", "Alterna a opção nativa do Smart Macro.", "TOGGLE", function()
+        return toggleNativeOption("Auto skip waves")
     end, right)
-    addButton("Set Smart Placement ON", "Alterna o posicionamento inteligente em mapas novos.", "ENABLE", function()
-        return setNativeToggle("Smart placement on new maps", true)
+    addButton("Toggle Smart Placement", "Alterna o posicionamento inteligente em mapas novos.", "TOGGLE", function()
+        return toggleNativeOption("Smart placement on new maps")
     end, right)
     addButton("Stop / Pause Macro", "Usa o controle Pause ou Stop do painel flutuante nativo.", "STOP", stopNativeMacro, right)
 
@@ -1843,17 +1832,17 @@ local function buildMacro()
     addButton("Open Units", "Abre slots, targeting, Auto upgrade e Auto abilities.", "UNITS", openMacroUnits, left)
     addButton("Start Smart Macro", "Macro → Run → modo selecionado → Start.", "START", startNativeMacro, left)
     addButton("Pause / Stop", "Usa Pause ou Stop no floating panel do jogo.", "PAUSE", stopNativeMacro, left)
-    addButton("Set Auto Upgrade ON", "Requer Macro → Units aberto.", "ENABLE", function()
-        return setNativeToggle("Auto upgrade", true)
+    addButton("Toggle Auto Upgrade", "Requer Macro → Units aberto.", "TOGGLE", function()
+        return toggleNativeOption("Auto upgrade")
     end, right)
-    addButton("Set Auto Abilities ON", "Requer Macro → Units aberto.", "ENABLE", function()
-        return setNativeToggle("Auto abilities", true)
+    addButton("Toggle Auto Abilities", "Requer Macro → Units aberto.", "TOGGLE", function()
+        return toggleNativeOption("Auto abilities")
     end, right)
-    addButton("Set Auto Skip Waves ON", "Requer o painel Macro nativo visível.", "ENABLE", function()
-        return setNativeToggle("Auto skip waves", true)
+    addButton("Toggle Auto Skip Waves", "Requer o painel Macro nativo visível.", "TOGGLE", function()
+        return toggleNativeOption("Auto skip waves")
     end, right)
-    addButton("Set Smart Placement ON", "Smart placement on new maps.", "ENABLE", function()
-        return setNativeToggle("Smart placement on new maps", true)
+    addButton("Toggle Smart Placement", "Smart placement on new maps.", "TOGGLE", function()
+        return toggleNativeOption("Smart placement on new maps")
     end, right)
     addButton("Open Macro Routine", "Configure uma fila de tarefas antes de iniciar Routine.", "ROUTINE", function()
         local ok, reason = openMacroPanel()
@@ -2189,7 +2178,7 @@ end
 
 loadConfig()
 showPage("Overview")
-ENV[RUNTIME_KEY] = {Unload = unload, Version = "4.0.0", Open = function() main.Visible = true end}
+ENV[RUNTIME_KEY] = {Unload = unload, Version = "4.0.1", Open = function() main.Visible = true end}
 
 spawnTracked(automationLoop)
-log("yno hub 4.0.0 carregado. RightShift mostra/oculta.", "success")
+log("yno hub 4.0.1 carregado. RightShift mostra/oculta.", "success")
