@@ -1,71 +1,69 @@
 # yno hub — Anime Crusaders X
 
-**Versão 3.2.0** · Hub Lua reconstruído para Solara, com organização de abas próxima ao fluxo do LixHub, fundo cinematográfico baseado na referência visual enviada e automações específicas de Anime Crusaders X.
+**Release 4.0.2 · 17 November 2026**
+
+Standalone Lua hub for Anime Crusaders X, with a compact dark-blue interface and game-specific workflows. The visual direction takes inspiration from LixHub's compact control layout without copying its protected backend or artwork.
 
 ## Loader
 
-Dentro do Anime Crusaders X, execute no Solara:
+Execute in Solara while Anime Crusaders X is open:
 
 ~~~lua
 loadstring(game:HttpGet("https://raw.githubusercontent.com/6zyloov/yno-hub/main/yno.lua"))()
 ~~~
 
-Loader de uma linha: [loadstring.txt](loadstring.txt) · Código principal: [yno.lua](yno.lua).
+- [Raw Lua source](https://raw.githubusercontent.com/6zyloov/yno-hub/main/yno.lua)
+- [Repository](https://github.com/6zyloov/yno-hub)
+- [Usage guide](docs/usage.md)
+- [Feature/validation matrix](docs/feature-matrix.md)
+- [Changelog](CHANGELOG.md)
 
-## Painel 3.2.0
+## Interface
 
-- **Overview** — iniciar Story, coletar recompensas, entrar em Unit Hunt e iniciar Smart Macro.
-- **Missions** — categorias All, Daily, Infinite, Story, Event e Guide; Claim All; Guidebook; Bounties; Story Quest Grind e entrada em Challenges/Auto Challenge.
-- **Story** — seleciona um dos 11 mundos, ato, dificuldade, World Skip ou Individual Act e Matchmaking/Select Stage; Auto Start, Skip, Next e Retry.
-- **Unit Hunt** — Hunting Isles, scan Q, aproximação de ProximityPrompt Capture, interação E e tentativa de assistência PERFECT quando marcador e zona dourada são reconhecidos.
-- **Free Units** — Anniversary Login, Phoenix/Guidebook, Hesia Free Rewards, YouTube Reward, King's Index e Blank Units.
-- **Game** — Auto Vote Start, Skip Wave, Next, Retry, Auto Abilities, Auto Sell helpers e abertura de Settings.
-- **Macro** — inicia/para Smart Macro nativo com Loop, This Stage ou Routine.
-- **Performance** — Low Effects, Hide Attack Effects, FPS cap e restauração.
-- **Settings** — escala, salvar preferências, Stop All (inclui cancelar navegação Story/Unit Hunt ativa) e Unload.
-- Game foi reorganizado em duas colunas Game / Wave Actions, com toggles compactos e controles nativos.
-- As buscas de botões agora ranqueiam texto direto, contexto, tamanho e hierarquia, sem rejeitar menus apenas por rótulos duplicados.
-- Clique usa mousemoveabs + mouse1press/mouse1release documentados no Solara; o cooldown só começa após o envio do input.
-- Settings inclui Copy Game UI report para copiar até 180 controles visíveis com nomes e hierarquia.
-- Janela arrastável, wallpaper local, pesquisa, RightShift, minimizar para botão flutuante y e fechar em ×.
+Sidebar: **Overview, Game, Story, Quests, Macro, Unit Hunt, Rewards, Performance and Settings**. The Game page is arranged as two compact columns — Game and Wave Actions — with small switches and direct controls, rather than a large generic card dashboard.
 
-## Missões e farming
+The window supports drag, search, RightShift show/hide, minimize to a floating y button, and Unload. It uses the anime image at assets/yno-background.jpg when Solara filesystem/custom-asset functions are available.
 
-A aba Missions abre All/Daily/Infinite/Story/Event/Guide e recolhe recompensas concluídas. Auto claim só atua quando uma tela de Quest/Guide/Event Quest já está aberta. O bônus Daily Quests Complete! concede 750 Gems + 10 Trait Remnants após cinco tarefas diárias.
+## What the modules do
 
-O botão **Start Story quest grind** liga Auto Start, Auto Skip e Auto Next e inicia a rota Story selecionada. Isso ajuda em objetivos de kills e stage clears. Para desafios, o painel abre Play → Challenges e pode iniciar uma Routine do Smart Macro depois de configurar Macro → Dailies → Auto Challenge.
+| Module | Function |
+|---|---|
+| Game | Optional UI automation for Vote Start, Skip Wave, Next after detected victory, and Replay after detected defeat. |
+| Story | Runs the visible Play → Story selection flow for world, act/World Skip, difficulty and Matchmaking/Select Stage. |
+| Quests | Opens All, Daily, Infinite, Story, Event or Guide and clicks Claim All when the game exposes it. |
+| Macro | Opens the game's own Smart Macro, chooses This Stage/Loop/Routine, starts it, and exposes visible controls for native Macro options. |
+| Unit Hunt | Enters the event, scans with Q, approaches visible Capture prompts and uses E. PERFECT assist is experimental. |
+| Rewards | Login tracks, Hesia, YouTube Reward, King's Index and Blank Token shop helpers. |
+| Performance | Local Low Effects, Hide Attack Effects, FPS cap and restore. |
+| Settings | UI report, Solara self-check, preferences, Stop All and Unload. |
 
-O Guidebook tem 10 tarefas; ao completar todas e reivindicar Guide Quests Complete!, o jogo entrega Phoenix. Algumas tarefas consomem XP Food, unidades, Trait Remnants ou Stat Cubes e continuam exigindo uma escolha consciente do jogador.
+## Farming design
 
-Bounties: fale com Navi/Missions, abra Bounties, conclua três objetivos e reivindique 5 Event Tokens + 1 Blank Token. Reroll custa 10.000 Gold e apaga o progresso do cartão.
+The game's built-in Smart Macro is the actual farming engine. It handles unit placement, upgrades, abilities and selling using the slots and placement configuration saved in Anime Crusaders X. The yno hub is an interface controller for that system; it does not replace the native strategy engine.
 
-## Story
+Configure Macro → Units → Slots and Macro → Units → Placement first. Then select **This Stage**, **Loop** or a configured **Routine** under Macro → Run.
 
-A progressão tem 11 mundos: Planet Namak, Marine's Ford, Karakura Town, Shibuya, Demon District, Devil City, Soul Society, West City (Ruined), Culling Games, Doldrey e Sword Arena.
+Quest progress itself still comes from game activity. The hub can open categories and collect completed rewards; it does not fabricate kills, stages, currency or server inventory.
 
-O Story Runner navega por Play → Story → mundo → ato/World Skip → dificuldade → Matchmaking/Select Stage → Start. Auto Next só clica depois de detectar vitória/conclusão; Auto Retry só atua após derrota. World Skip existe nos mundos 1–10, é Normal-only e aplica +900% HP. Sword Arena exige atos individuais.
+## Rewards and event facts
 
-Para farming real com colocação, upgrades, habilidades e venda, configure Macro → Units e Macro → Placement, depois inicie Loop, This Stage ou uma Routine pré-configurada. O Smart Macro nativo é quem executa a estratégia de batalha.
+- **Twenty One:** Anniversary Login Day 1, while that track is available.
+- **Phoenix:** complete all ten Guide Quests and claim Guide Quests Complete!.
+- **Shadow (Atomic)** and **Lao (Heart):** 30 Blank Tokens each; these are not free.
+- **Unit Hunt:** a separate capture collection, not the Tower Defense roster.
 
-## Unit Hunt — evento de captura
+See the [usage guide](docs/usage.md) for exact steps and limitations.
 
-Unit Hunt exige Level 5 e abre em Events → Unit Hunt → Start Hunt. Tem 39 entradas no Collection Book, 35 entradas separadas na aba Shinies, quatro regiões e cinco Event Quests. Auto Hunt procura ProximityPrompts com ação Capture, aproxima o personagem, usa E e pressiona Q periodicamente para scan. A assistência tenta pressionar Space ao detectar o marcador dentro da zona dourada.
+## Runtime safety and compatibility
 
-A assistência depende da estrutura da barra que o cliente expõe; se o nome/elemento mudar, faça o timing manual. Acertar o centro dourado dá PERFECT e dano dobrado. As entradas do Book são colecionáveis do evento, não unidades automaticamente adicionadas ao roster de Tower Defense.
+The script interacts through visible PlayerGui controls, ordinary Solara mouse/key input, normal Humanoid movement and enabled ProximityPrompts. It does not call private RemoteEvents/RemoteFunctions, edit server inventory/currency, or attempt anti-cheat bypass.
 
-## Unidades e recompensas gratuitas
+Solara's public API documentation: https://solara.gg/docs/
 
-- **Twenty One:** Anniversary Login, Day 1. Daily e Anniversary são abas separadas; reivindique ambas.
-- **Phoenix:** recompensa das 10 Guide Quests, após claim da missão final.
-- **Hesia Free Rewards:** quatro tarefas sociais; Claim Rewards aparece depois de concluí-las.
-- **YouTube Reward:** exige subscrever @32xGames, ativar notificações e informar seu próprio canal para Redeem.
-- **King's Index:** Claim All para recompensas de unidades Normal/Shiny já registradas.
-- **Shadow (Atomic)** e **Lao (Heart):** cada um custa 30 Blank Tokens; não são gratuitos.
+## Validation status
 
-O evento Golden Crusader é permanente: derrotar o inimigo concede um Crusader Token por jogador elegível, uma vez na vida. O token pode ser usado em Items para receber Gems e Trait Remnants. Anniversary Hunt é outra atividade de drops enquanto o evento estiver ativo.
+The repository runs:
+1. Lua 5.4 syntax validation (luac5.4 -p);
+2. static release/wiring checks for required modules, duplicate local functions, stale helpers and prohibited remote invocation patterns.
 
-## Limites honestos
-
-O yno hub atua por botões visíveis, prompts normais, movimentação normal do personagem e funções documentadas de input/UI do Solara. Não chama RemoteEvents privados, não altera moedas/inventário no servidor e não tenta contornar anti-cheat.
-
-A sintaxe Lua é verificada pelo GitHub Actions. **Não houve teste em uma sessão real Roblox/Solara neste ambiente**; por isso, a navegação de menus e a detecção da barra de captura ainda precisam ser confirmadas no seu cliente. Os nomes/hierarquias de UI podem mudar após atualizações.
+**No live Roblox/Solara match was executed in this development environment.** Passing syntax/static CI does not prove every in-game button label, menu hierarchy, or capture-bar variant matches the current client. Story, rewards and Unit Hunt flows therefore report missing controls rather than claiming success when a target is not found. The PERFECT helper remains experimental.
