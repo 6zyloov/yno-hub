@@ -569,12 +569,14 @@ local function getGameButtons(forceRefresh)
     return found
 end
 
-local function scoreButton(button, labels, contextHint, partial)
+local function scoreButton(button, labels, contextHint, partial, strictContext)
     local ownText = button:IsA("TextButton") and norm(button.Text) or ""
     local ownName = norm(button.Name)
     local allText = getButtonText(button)
     local context = getContextText(button)
-    local contextScore = contextHint and string.find(context, norm(contextHint), 1, true) and 24 or 0
+    local contextMatches = contextHint and string.find(context, norm(contextHint), 1, true) ~= nil
+    if strictContext and contextHint and not contextMatches then return -1 end
+    local contextScore = contextMatches and 24 or 0
     local score = -1
 
     for _, phrase in ipairs(labels) do
@@ -618,12 +620,12 @@ local function scoreButton(button, labels, contextHint, partial)
     return score
 end
 
-local function findGameButton(labels, contextHint, partial, forceRefresh)
+local function findGameButton(labels, contextHint, partial, forceRefresh, strictContext)
     local best, bestScore = nil, -math.huge
     for _, button in ipairs(getGameButtons(forceRefresh)) do
         local size = button.AbsoluteSize
         if size.X > 2 and size.Y > 2 then
-            local score = scoreButton(button, labels, contextHint, partial == true)
+            local score = scoreButton(button, labels, contextHint, partial == true, strictContext == true)
             if score > bestScore then
                 best = button
                 bestScore = score
@@ -697,13 +699,13 @@ local function clickGameButton(labels, contextHint, partial, actionKey, cooldown
     return false, err
 end
 
-local function waitForGameButton(labels, contextHint, timeout, partial, generation)
+local function waitForGameButton(labels, contextHint, timeout, partial, generation, strictContext)
     local deadline = os.clock() + (timeout or 7)
     while state.running and os.clock() < deadline do
         if generation and generation ~= state.generation then
             return nil, "Ação cancelada."
         end
-        local button = findGameButton(labels, contextHint, partial, true)
+        local button = findGameButton(labels, contextHint, partial, true, strictContext)
         if button then return button end
         task.wait(0.2)
     end
@@ -928,7 +930,7 @@ local function startNativeMacro()
         task.wait(0.35)
         if generation ~= state.generation then error("Ação cancelada.") end
 
-        local runButton, reason = waitForGameButton({"Run"}, "macro", 6, false, generation)
+        local runButton, reason = waitForGameButton({"Run"}, "macro", 6, false, generation, true)
         if not runButton then error(reason) end
         local runOk, runErr = sendMouseClick(runButton)
         if not runOk then error(runErr) end
@@ -936,14 +938,14 @@ local function startNativeMacro()
         if generation ~= state.generation then error("Ação cancelada.") end
 
         local mode = state.values.macroMode
-        local modeButton, modeReason = waitForGameButton({mode}, "run", 6, false, generation)
+        local modeButton, modeReason = waitForGameButton({mode}, "run", 6, false, generation, true)
         if not modeButton then error("Não achei o modo " .. mode .. ": " .. tostring(modeReason)) end
         local modeOk, modeErr = sendMouseClick(modeButton)
         if not modeOk then error(modeErr) end
         task.wait(0.25)
         if generation ~= state.generation then error("Ação cancelada.") end
 
-        local startButton, startReason = waitForGameButton({"Start"}, "run", 6, false, generation)
+        local startButton, startReason = waitForGameButton({"Start"}, "run", 6, false, generation, true)
         if not startButton then error("Não achei Start no menu Run: " .. tostring(startReason)) end
         local startOk, startErr = sendMouseClick(startButton)
         if not startOk then error(startErr) end
@@ -951,9 +953,9 @@ local function startNativeMacro()
 end
 
 local function stopNativeMacro()
-    local pause = findGameButton({"Pause"}, "macro", false, true)
+    local pause = findGameButton({"Pause"}, "macro", false, true, true)
     if pause then return sendMouseClick(pause) end
-    local stop = findGameButton({"Stop"}, "macro", false, true)
+    local stop = findGameButton({"Stop"}, "macro", false, true, true)
     if stop then return sendMouseClick(stop) end
     return false, "Painel flutuante do Macro não está visível; use Open no painel nativo."
 end
@@ -1186,7 +1188,7 @@ local function claimLoginRewards()
             if not tabOk then return false, tabError end
             task.wait(0.25)
 
-            local claim = findGameButton({"Claim"}, "login", false, true)
+            local claim = findGameButton({"Claim"}, "login", false, true, true)
             if claim then
                 local claimOk = sendMouseClick(claim)
                 if claimOk then
@@ -1208,7 +1210,7 @@ local function openHesiaRewards()
 end
 
 local function claimHesiaRewards()
-    local button = findGameButton({"Claim Rewards"}, "free rewards", false, true)
+    local button = findGameButton({"Claim Rewards"}, "free rewards", false, true, true)
     if not button then return false, "Conclua as quatro tarefas sociais de Hesia antes do Claim Rewards." end
     return sendMouseClick(button)
 end
@@ -1238,7 +1240,7 @@ local function redeemYoutubeReward()
     end
     if not box then return false, "Campo de canal não encontrado. Abra YouTube Reward e preencha manualmente." end
     box.Text = channel
-    local redeem = findGameButton({"Redeem"}, "youtube", false, true)
+    local redeem = findGameButton({"Redeem"}, "youtube", false, true, true)
     if not redeem then return false, "Não encontrei Redeem na tela YouTube Reward." end
     return sendMouseClick(redeem)
 end
@@ -1275,7 +1277,7 @@ local function claimBlankUnit()
     local unitOk, unitErr = sendMouseClick(unit)
     if not unitOk then return false, unitErr end
     task.wait(0.25)
-    local claim = findGameButton({"Claim"}, "blank", false, true)
+    local claim = findGameButton({"Claim"}, "blank", false, true, true)
     if not claim then return false, "Confira seu saldo de 30 Blank Tokens e a janela de confirmação." end
     return sendMouseClick(claim)
 end
