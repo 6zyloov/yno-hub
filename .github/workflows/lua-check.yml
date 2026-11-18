@@ -18,4 +18,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y lua5.4
       - name: Check Lua syntax
-        run: luac5.4 -p yno.lua
+        run: |
+          luac5.4 -p yno.lua
+          luac5.4 -p scripts/static-check.lua
+      - name: Run static wiring checks
+        run: lua5.4 scripts/static-check.lua yno.lua
