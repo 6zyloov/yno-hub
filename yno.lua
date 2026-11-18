@@ -731,7 +731,8 @@ local function screenText()
     local parts = {}
     for _, root in ipairs(playerGui:GetChildren()) do
         for _, item in ipairs(root:GetDescendants()) do
-            if (item:IsA("TextLabel") or item:IsA("TextButton") or item:IsA("TextBox"))
+            if not item:IsDescendantOf(gui)
+                and (item:IsA("TextLabel") or item:IsA("TextButton") or item:IsA("TextBox"))
                 and item.Text and item.Text ~= "" and isVisible(item) then
                 table.insert(parts, norm(item.Text))
             end
@@ -753,7 +754,12 @@ local function clickVisible(labelSet, context, actionKey, cooldown, partial)
 end
 
 local function openMacroPanel()
-    local button, reason = findGameButton({"Macro"}, nil, false, true)
+    local alreadyOpen = findGameButton({"Run"}, "macro", false, true)
+        or findGameButton({"Units"}, "macro", false, true)
+        or findGameButton({"Placement"}, "macro", false, true)
+    if alreadyOpen then return true, "Macro já está aberto." end
+
+    local button = findGameButton({"Macro"}, nil, false, true)
     if not button then
         return false, "Entre em uma partida; o botão Macro fica no lado direito da tela."
     end
@@ -913,26 +919,29 @@ end
 
 local function startNativeMacro()
     return runAsync("macroStarting", function()
-        local opened = openMacroPanel()
+        local opened, openReason = openMacroPanel()
         if not opened then
-            error("Entre em uma partida antes de iniciar o Smart Macro.")
+            error(openReason or "Entre em uma partida antes de iniciar o Smart Macro.")
         end
         task.wait(0.35)
+        if generation ~= state.generation then error("Ação cancelada.") end
 
-        local runButton, reason = waitForGameButton({"Run"}, "macro", 6, false)
+        local runButton, reason = waitForGameButton({"Run"}, "macro", 6, false, generation)
         if not runButton then error(reason) end
         local runOk, runErr = sendMouseClick(runButton)
         if not runOk then error(runErr) end
         task.wait(0.25)
+        if generation ~= state.generation then error("Ação cancelada.") end
 
         local mode = state.values.macroMode
-        local modeButton, modeReason = waitForGameButton({mode}, "run", 6, false)
+        local modeButton, modeReason = waitForGameButton({mode}, "run", 6, false, generation)
         if not modeButton then error("Não achei o modo " .. mode .. ": " .. tostring(modeReason)) end
         local modeOk, modeErr = sendMouseClick(modeButton)
         if not modeOk then error(modeErr) end
         task.wait(0.25)
+        if generation ~= state.generation then error("Ação cancelada.") end
 
-        local startButton, startReason = waitForGameButton({"Start"}, "run", 6, false)
+        local startButton, startReason = waitForGameButton({"Start"}, "run", 6, false, generation)
         if not startButton then error("Não achei Start no menu Run: " .. tostring(startReason)) end
         local startOk, startErr = sendMouseClick(startButton)
         if not startOk then error(startErr) end
@@ -1014,6 +1023,12 @@ local function isSameTrack(marker, zone)
 end
 
 local function capturePerfectReady()
+    local now = os.clock()
+    if state.lastCaptureUiScan and now - state.lastCaptureUiScan < 0.25 then
+        return state.captureUiReady == true
+    end
+    state.lastCaptureUiScan = now
+
     local markers, zones = {}, {}
     for _, root in ipairs(playerGui:GetChildren()) do
         for _, object in ipairs(root:GetDescendants()) do
@@ -1041,11 +1056,13 @@ local function capturePerfectReady()
                 local right = left + zone.AbsoluteSize.X
                 local sameBand = math.abs(marker.AbsolutePosition.Y - zone.AbsolutePosition.Y) < 42
                 if sameBand and markerX >= left and markerX <= right then
+                    state.captureUiReady = true
                     return true
                 end
             end
         end
     end
+    state.captureUiReady = false
     return false
 end
 
@@ -1095,7 +1112,7 @@ end
 local function processUnitHunt()
     if not state.toggles.autoHunt then return end
     local now = os.clock()
-    if not hasScreenText({"Hunting Isles", "Hunt Wave", "Unit Hunt"}) then return end
+    if not hasScreenText({"Hunting Isles", "Hunt Wave"}) then return end
 
     if state.toggles.autoPerfect and capturePerfectReady() and now - state.lastHuntInteract > 0.16 then
         state.lastHuntInteract = now
@@ -1563,8 +1580,9 @@ local function addControlRow(parent, title, description, controlText, callback, 
     return row
 end
 
-local function addButton(title, description, caption, callback)
-    return addControlRow(currentColumn and currentColumn.left or currentSection, title, description, caption, callback, "button")
+local function addButton(title, description, caption, callback, column)
+    local parent = column or (currentColumn and currentColumn.left or currentSection)
+    return addControlRow(parent, title, description, caption, callback, "button")
 end
 
 local function addToggle(title, description, key, callback, column)
@@ -1617,7 +1635,6 @@ end
 local function beginColumnPage(leftTitle, rightTitle, description)
     addPageHeader(pageTitle.Text, description)
     local left, right = addColumns(leftTitle, rightTitle)
-    currentColumn = {left = left, right = right}
     currentSection = left
     return left, right
 end
