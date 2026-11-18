@@ -1,15 +1,16 @@
 -- yno hub | anime crusaders x
--- v3.2.0 | 2026-11-17
--- LixHub-inspired game hub rebuilt around visible Anime Crusaders X workflows.
--- All game actions use visible UI controls, normal movement, or normal key input.
--- No private RemoteEvents, inventory edits, currency edits, or anti-cheat bypass.
+-- v4.0.0 | 2026-11-17
+-- Rebuilt around explicit game workflows, documented Solara input APIs,
+-- ranked visible-UI matching, cancellable tasks, and a compact LixHub-inspired UI.
+-- Uses visible UI, ordinary key input, ProximityPrompts and the game's native Macro.
+-- No private RemoteEvent calls, inventory editing, currency editing or anti-cheat bypass.
 
 local Players = game:GetService("Players")
-local UIS = game:GetService("UserInputService")
+local UserInputService = game:GetService("UserInputService")
 local HttpService = game:GetService("HttpService")
 local Lighting = game:GetService("Lighting")
 local CoreGui = game:GetService("CoreGui")
-local RunService = game:GetService("RunService")
+local GuiService = game:GetService("GuiService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -21,22 +22,22 @@ if ENV[RUNTIME_KEY] and type(ENV[RUNTIME_KEY].Unload) == "function" then
 end
 
 local THEME = {
-    background = Color3.fromRGB(5, 9, 14),
-    sidebar = Color3.fromRGB(7, 12, 18),
-    panel = Color3.fromRGB(11, 18, 26),
-    panel2 = Color3.fromRGB(14, 22, 31),
-    panel3 = Color3.fromRGB(25, 37, 49),
-    line = Color3.fromRGB(48, 65, 81),
-    text = Color3.fromRGB(232, 237, 241),
-    muted = Color3.fromRGB(145, 158, 172),
-    accent = Color3.fromRGB(105, 145, 171),
-    accentDark = Color3.fromRGB(34, 55, 74),
-    success = Color3.fromRGB(139, 180, 151),
-    warning = Color3.fromRGB(190, 157, 103),
-    danger = Color3.fromRGB(178, 105, 105),
+    bg = Color3.fromRGB(5, 8, 13),
+    sidebar = Color3.fromRGB(7, 12, 19),
+    surface = Color3.fromRGB(13, 20, 29),
+    surface2 = Color3.fromRGB(18, 27, 38),
+    surface3 = Color3.fromRGB(27, 39, 53),
+    line = Color3.fromRGB(48, 64, 82),
+    text = Color3.fromRGB(233, 238, 244),
+    muted = Color3.fromRGB(144, 159, 176),
+    accent = Color3.fromRGB(111, 151, 181),
+    accentDark = Color3.fromRGB(36, 60, 82),
+    green = Color3.fromRGB(135, 184, 153),
+    amber = Color3.fromRGB(196, 160, 105),
+    red = Color3.fromRGB(190, 108, 108),
 }
 
-local WORLD_LIST = {
+local WORLDS = {
     "Planet Namak",
     "Marine's Ford",
     "Karakura Town",
@@ -54,64 +55,68 @@ local state = {
     running = true,
     page = "Overview",
     minimized = false,
+    generation = 0,
+    storyRunning = false,
+    tasks = {},
+    connections = {},
     toggles = {
-        autoClaim = false,
-        autoStart = false,
+        autoVoteStart = false,
         autoSkip = false,
         autoNext = false,
-        autoRetry = false,
-        autoAbilities = false,
-        autoQuestLoop = false,
-        autoUnitHunt = false,
-        autoHuntClaims = false,
-        autoLowEffects = false,
-        hideEffects = false,
+        autoReplay = false,
+        autoClaim = false,
+        autoHunt = false,
+        autoPerfect = false,
+        lowEffects = false,
+        hideAttackEffects = false,
     },
     values = {
         questCategory = "Daily",
         storyWorld = "Planet Namak",
         storyAct = "Act 1",
         storyDifficulty = "Normal",
-        storyMode = "Individual Act",
+        storyRoute = "Individual Act",
         storyEntry = "Matchmaking",
         macroMode = "Loop",
         blankUnit = "Shadow (Atomic)",
         youtubeChannel = "",
         fpsCap = "60",
+        uiScale = "1.00",
     },
-    lastAction = {},
-    connections = {},
-    threads = {},
-    storyFlow = false,
-    huntLastScan = 0,
-    huntLastPromptScan = 0,
-    cachedCapturePrompt = nil,
-    npcPromptCache = {},
-    lastNpcPromptScan = {},
-    lastNpcMove = {},
-    activeCapturePrompt = nil,
-    lastCapturePromptAt = 0,
-    huntLastMove = 0,
-    huntLastHit = 0,
-    lastClaim = 0,
-    lastStatus = 0,
-    buttonCache = {},
-    buttonCacheAt = 0,
+    cooldowns = {},
+    gameButtons = {},
+    gameButtonsAt = 0,
+    lastGameScan = 0,
+    lastQuestClaim = 0,
+    lastAutoStart = 0,
+    lastAutoSkip = 0,
+    lastAutoNext = 0,
+    lastAutoReplay = 0,
+    lastHuntScan = 0,
+    lastHuntPromptScan = 0,
+    lastHuntMove = 0,
+    lastHuntInteract = 0,
+    activeHuntPrompt = nil,
+    cachedHuntPrompt = nil,
+    logs = {},
+    lastLog = "",
+    lastLogAt = 0,
     originalLighting = {},
+    originalShadows = nil,
     originalAttackEffects = {},
     originalFpsCap = nil,
-    originalShadows = nil,
-    captureMissLogged = false,
-    lastLogMessage = "",
-    lastLogAt = 0,
-    actionGeneration = 0,
 }
 
 local function norm(value)
-    value = string.lower(tostring(value or ""))
-    value = string.gsub(value, "[%p%c]", " ")
-    value = string.gsub(value, "%s+", " ")
-    return string.gsub(value, "^%s*(.-)%s*$", "%1")
+    local s = string.lower(tostring(value or ""))
+    s = string.gsub(s, "[%p%c]", " ")
+    s = string.gsub(s, "%s+", " ")
+    return string.gsub(s, "^%s*(.-)%s*$", "%1")
+end
+
+local function safeFullName(object)
+    local ok, result = pcall(function() return object:GetFullName() end)
+    return ok and result or tostring(object)
 end
 
 local function make(className, props, parent)
@@ -127,69 +132,75 @@ local function round(object, radius)
     make("UICorner", {CornerRadius = UDim.new(0, radius or 4)}, object)
 end
 
-local function outline(object, color, transparency, thickness)
+local function stroke(object, color, transparency, thickness)
     make("UIStroke", {
         Color = color or THEME.line,
-        Transparency = transparency or 0.45,
+        Transparency = transparency or 0.5,
         Thickness = thickness or 1,
     }, object)
 end
 
-local function label(parent, value, size, color, bold, height)
-    local zIndex = 1
-    if parent and parent:IsA("GuiObject") then
-        zIndex = parent.ZIndex + 1
-    end
+local function textLabel(parent, text, size, color, bold, height)
     return make("TextLabel", {
         BackgroundTransparency = 1,
-        Size = UDim2.new(1, 0, 0, height or 22),
+        Size = UDim2.new(1, 0, 0, height or 20),
         Font = bold and Enum.Font.GothamSemibold or Enum.Font.Gotham,
-        Text = tostring(value or ""),
+        Text = tostring(text or ""),
         TextColor3 = color or THEME.text,
-        TextSize = size or 12,
+        TextSize = size or 10,
+        TextWrapped = true,
         TextXAlignment = Enum.TextXAlignment.Left,
         TextYAlignment = Enum.TextYAlignment.Center,
-        TextWrapped = true,
-        ZIndex = zIndex,
+        ZIndex = parent:IsA("GuiObject") and (parent.ZIndex + 1) or 2,
     }, parent)
+end
+
+local function trackConnection(connection)
+    table.insert(state.connections, connection)
+    return connection
+end
+
+local function spawnTracked(callback)
+    local thread = task.spawn(function()
+        local ok, err = pcall(callback)
+        if not ok and state.running then
+            warn("[yno hub] " .. tostring(err))
+        end
+    end)
+    table.insert(state.tasks, thread)
+    return thread
+end
+
+local function isVisible(object)
+    local current = object
+    while current and current ~= game do
+        if current:IsA("GuiObject") and not current.Visible then
+            return false
+        end
+        if current:IsA("ScreenGui") and not current.Enabled then
+            return false
+        end
+        current = current.Parent
+    end
+    return true
 end
 
 local function getUiParent()
     if type(gethui) == "function" then
         local ok, result = pcall(gethui)
-        if ok and result then return result end
+        if ok and typeof(result) == "Instance" then
+            return result
+        end
     end
-    return CoreGui
+    local ok, result = pcall(function() return CoreGui end)
+    if ok and result then return result end
+    return playerGui
 end
 
 local uiParent = getUiParent()
-local existing = uiParent:FindFirstChild("yno_hub")
-if existing then
-    pcall(function() existing:Destroy() end)
-end
-
-local function getBackgroundAsset()
-    local assetUrl = "https://raw.githubusercontent.com/6zyloov/yno-hub/main/assets/yno-background.jpg"
-    if type(getcustomasset) ~= "function" or type(writefile) ~= "function" then
-        return nil
-    end
-    local filePath = "yno_hub/yno-background.jpg"
-    local ok = pcall(function()
-        if type(isfolder) == "function" and not isfolder("yno_hub") then
-            makefolder("yno_hub")
-        end
-        if type(isfile) ~= "function" or not isfile(filePath) then
-            local imageBytes = game:HttpGet(assetUrl)
-            if type(imageBytes) ~= "string" or #imageBytes < 1000 then
-                error("background download returned empty content")
-            end
-            writefile(filePath, imageBytes)
-        end
-    end)
-    if not ok then return nil end
-    local assetOk, asset = pcall(getcustomasset, filePath)
-    if assetOk then return asset end
-    return nil
+local oldGui = uiParent:FindFirstChild("yno_hub")
+if oldGui then
+    pcall(function() oldGui:Destroy() end)
 end
 
 local gui = make("ScreenGui", {
@@ -201,300 +212,300 @@ local gui = make("ScreenGui", {
 }, uiParent)
 
 local camera = workspace.CurrentCamera
-local viewport = camera and camera.ViewportSize or Vector2.new(1280, 720)
+local view = camera and camera.ViewportSize or Vector2.new(1366, 768)
 local uiScale = make("UIScale", {
-    Scale = math.clamp(math.min(viewport.X / 1220, viewport.Y / 790), 0.68, 1),
+    Scale = math.clamp(math.min(view.X / 1180, view.Y / 760), 0.64, 1),
 }, gui)
 state.values.uiScale = string.format("%.2f", uiScale.Scale)
 
 local main = make("Frame", {
+    Name = "Main",
     AnchorPoint = Vector2.new(0.5, 0.5),
     Position = UDim2.fromScale(0.5, 0.5),
-    Size = UDim2.fromOffset(1120, 700),
-    BackgroundColor3 = THEME.background,
+    Size = UDim2.fromOffset(1120, 680),
+    BackgroundColor3 = THEME.bg,
     BorderSizePixel = 0,
     ClipsDescendants = true,
-}, gui)
-outline(main, THEME.line, 0.1, 1)
-
-local backgroundImage = nil
-local backgroundTint = make("Frame", {
-    Name = "background_tint",
-    Size = UDim2.fromScale(1, 1),
-    BackgroundColor3 = Color3.fromRGB(3, 7, 9),
-    BackgroundTransparency = 0,
-    BorderSizePixel = 0,
     ZIndex = 1,
+}, gui)
+round(main, 5)
+stroke(main, THEME.line, 0.12, 1)
+
+local bgImage = nil
+local bgTint = make("Frame", {
+    Name = "BackgroundTint",
+    Size = UDim2.fromScale(1, 1),
+    BackgroundColor3 = THEME.bg,
+    BackgroundTransparency = 0.22,
+    BorderSizePixel = 0,
+    ZIndex = 2,
 }, main)
 
-local function applyBackground(asset)
-    if not asset or not main or not main.Parent then return end
-    if not backgroundImage or not backgroundImage.Parent then
-        backgroundImage = make("ImageLabel", {
-            Name = "yno_background",
+local function loadWallpaper()
+    if type(getcustomasset) ~= "function" or type(writefile) ~= "function" then
+        return nil
+    end
+    local folder = "yno_hub"
+    local filePath = folder .. "/yno-background.jpg"
+    local url = "https://raw.githubusercontent.com/6zyloov/yno-hub/main/assets/yno-background.jpg"
+    local ok = pcall(function()
+        if type(isfolder) == "function" and not isfolder(folder) then
+            makefolder(folder)
+        end
+        if type(isfile) ~= "function" or not isfile(filePath) then
+            local bytes = game:HttpGet(url)
+            if type(bytes) ~= "string" or #bytes < 1000 then
+                error("wallpaper download was empty")
+            end
+            writefile(filePath, bytes)
+        end
+    end)
+    if not ok then return nil end
+    local assetOk, asset = pcall(getcustomasset, filePath)
+    return assetOk and asset or nil
+end
+
+spawnTracked(function()
+    local asset = loadWallpaper()
+    if asset and state.running and main.Parent then
+        bgImage = make("ImageLabel", {
+            Name = "BackgroundImage",
             BackgroundTransparency = 1,
             Size = UDim2.fromScale(1, 1),
             Image = asset,
-            ImageColor3 = Color3.fromRGB(224, 235, 244),
-            ImageTransparency = 0.48,
+            ImageColor3 = Color3.fromRGB(228, 236, 244),
+            ImageTransparency = 0.32,
             ScaleType = Enum.ScaleType.Crop,
-            ZIndex = 0,
+            ZIndex = 1,
         }, main)
-    else
-        backgroundImage.Image = asset
-    end
-    backgroundTint.BackgroundTransparency = 0.43
-end
-
--- Download/render the wallpaper after the panel exists so a slow HTTP request
--- cannot delay the hub itself from appearing.
-task.spawn(function()
-    local ok, asset = pcall(getBackgroundAsset)
-    if ok and asset then
-        applyBackground(asset)
+        bgTint.BackgroundTransparency = 0.43
     end
 end)
 
 local sidebar = make("Frame", {
-    Name = "sidebar",
+    Name = "Sidebar",
     BackgroundColor3 = THEME.sidebar,
-    BackgroundTransparency = 0.08,
-    Size = UDim2.new(0, 190, 1, 0),
+    BackgroundTransparency = 0.06,
+    Size = UDim2.new(0, 188, 1, 0),
     BorderSizePixel = 0,
-    ZIndex = 2,
+    ZIndex = 5,
 }, main)
 make("Frame", {
     BackgroundColor3 = THEME.line,
-    BackgroundTransparency = 0.5,
+    BackgroundTransparency = 0.45,
     Position = UDim2.new(1, -1, 0, 0),
     Size = UDim2.new(0, 1, 1, 0),
     BorderSizePixel = 0,
-    ZIndex = 3,
+    ZIndex = 6,
 }, sidebar)
 
 local brand = make("Frame", {
     BackgroundTransparency = 1,
-    Position = UDim2.new(0, 17, 0, 17),
-    Size = UDim2.new(1, -32, 0, 54),
-    ZIndex = 4,
+    Position = UDim2.new(0, 16, 0, 16),
+    Size = UDim2.new(1, -30, 0, 48),
+    ZIndex = 7,
 }, sidebar)
 local logo = make("Frame", {
     BackgroundColor3 = THEME.accentDark,
-    Size = UDim2.new(0, 39, 0, 39),
+    Size = UDim2.fromOffset(38, 38),
     BorderSizePixel = 0,
-    ZIndex = 5,
+    ZIndex = 8,
 }, brand)
 round(logo, 6)
-local logoText = label(logo, "y", 25, THEME.text, true, 38)
-logoText.TextXAlignment = Enum.TextXAlignment.Center
-logoText.ZIndex = 6
-local brandTitle = label(brand, "yno hub", 17, THEME.text, true, 22)
-brandTitle.Position = UDim2.new(0, 49, 0, 1)
-brandTitle.ZIndex = 6
-local brandSub = label(brand, "ANIME CRUSADERS X", 8, THEME.muted, true, 16)
-brandSub.Position = UDim2.new(0, 50, 0, 25)
-brandSub.ZIndex = 6
+local logoLetter = textLabel(logo, "y", 23, THEME.text, true, 36)
+logoLetter.TextXAlignment = Enum.TextXAlignment.Center
+local brandName = textLabel(brand, "yno hub", 17, THEME.text, true, 22)
+brandName.Position = UDim2.new(0, 47, 0, 0)
+local brandSubtitle = textLabel(brand, "ANIME CRUSADERS X", 8, THEME.muted, true, 16)
+brandSubtitle.Position = UDim2.new(0, 48, 0, 24)
 
-local menuLabel = label(sidebar, "MAIN MENU", 9, THEME.muted, true, 18)
-menuLabel.Position = UDim2.new(0, 16, 0, 83)
-menuLabel.ZIndex = 4
+textLabel(sidebar, "MAIN MENU", 8, THEME.muted, true, 17).Position = UDim2.new(0, 15, 0, 78)
 
 local navHolder = make("Frame", {
     BackgroundTransparency = 1,
-    Position = UDim2.new(0, 8, 0, 108),
-    Size = UDim2.new(1, -16, 0, 430),
-    ZIndex = 4,
+    Position = UDim2.new(0, 8, 0, 103),
+    Size = UDim2.new(1, -16, 0, 440),
+    ZIndex = 7,
 }, sidebar)
-make("UIListLayout", {
+local navLayout = make("UIListLayout", {
     Padding = UDim.new(0, 3),
     SortOrder = Enum.SortOrder.LayoutOrder,
 }, navHolder)
 
-local navButtons = {}
 local content = make("Frame", {
-    Name = "content",
+    Name = "Content",
     BackgroundTransparency = 1,
-    Position = UDim2.new(0, 208, 0, 0),
-    Size = UDim2.new(1, -224, 1, 0),
-    ZIndex = 3,
+    Position = UDim2.new(0, 204, 0, 0),
+    Size = UDim2.new(1, -220, 1, 0),
+    ZIndex = 5,
 }, main)
 
 local topbar = make("Frame", {
-    BackgroundColor3 = Color3.fromRGB(5, 10, 12),
-    BackgroundTransparency = 0.22,
+    Name = "Topbar",
+    BackgroundColor3 = THEME.bg,
+    BackgroundTransparency = 0.15,
     Size = UDim2.new(1, 0, 0, 55),
     BorderSizePixel = 0,
-    ZIndex = 4,
+    ZIndex = 7,
 }, content)
-label(topbar, "COMMAND CENTER", 8, THEME.muted, true, 14).Position = UDim2.new(0, 0, 0, 5)
-local pageTitle = label(topbar, "Overview", 18, THEME.text, true, 28)
-pageTitle.Position = UDim2.new(0, 0, 0, 22)
+textLabel(topbar, "COMMAND CENTER", 8, THEME.muted, true, 13).Position = UDim2.new(0, 0, 0, 4)
+local pageTitle = textLabel(topbar, "Overview", 18, THEME.text, true, 25)
+pageTitle.Position = UDim2.new(0, 0, 0, 21)
 
-local search = make("TextBox", {
+local searchBox = make("TextBox", {
     AnchorPoint = Vector2.new(1, 0),
-    Position = UDim2.new(1, -166, 0, 15),
-    Size = UDim2.new(0, 180, 0, 28),
-    BackgroundColor3 = THEME.panel2,
+    Position = UDim2.new(1, -165, 0, 14),
+    Size = UDim2.fromOffset(182, 28),
+    BackgroundColor3 = THEME.surface2,
     Text = "",
-    PlaceholderText = "Search...",
+    PlaceholderText = "Search controls...",
     PlaceholderColor3 = THEME.muted,
     TextColor3 = THEME.text,
-    TextSize = 10,
+    TextSize = 9,
     Font = Enum.Font.Gotham,
     ClearTextOnFocus = false,
     BorderSizePixel = 0,
-    ZIndex = 5,
+    ZIndex = 9,
 }, topbar)
-round(search, 3)
-outline(search, THEME.line, 0.5, 1)
+round(searchBox, 3)
+stroke(searchBox, THEME.line, 0.55, 1)
 
-local ready = make("TextLabel", {
+local readyPill = make("TextLabel", {
     AnchorPoint = Vector2.new(1, 0),
-    Position = UDim2.new(1, -78, 0, 16),
-    Size = UDim2.new(0, 70, 0, 24),
-    BackgroundColor3 = Color3.fromRGB(24, 49, 44),
-    Font = Enum.Font.GothamBold,
+    Position = UDim2.new(1, -76, 0, 16),
+    Size = UDim2.fromOffset(68, 23),
+    BackgroundColor3 = Color3.fromRGB(22, 45, 40),
     Text = "● READY",
-    TextColor3 = THEME.success,
-    TextSize = 9,
+    TextColor3 = THEME.green,
+    TextSize = 8,
+    Font = Enum.Font.GothamBold,
     BorderSizePixel = 0,
-    ZIndex = 5,
+    ZIndex = 9,
 }, topbar)
-round(ready, 3)
+round(readyPill, 3)
 
-local minimize = make("TextButton", {
+local minimizeButton = make("TextButton", {
     AnchorPoint = Vector2.new(1, 0),
-    Position = UDim2.new(1, -42, 0, 16),
-    Size = UDim2.new(0, 28, 0, 24),
-    BackgroundColor3 = THEME.panel3,
+    Position = UDim2.new(1, -40, 0, 16),
+    Size = UDim2.fromOffset(27, 23),
+    BackgroundColor3 = THEME.surface3,
     Text = "—",
     TextColor3 = THEME.text,
+    TextSize = 14,
+    Font = Enum.Font.GothamBold,
+    BorderSizePixel = 0,
+    ZIndex = 9,
+}, topbar)
+round(minimizeButton, 3)
+
+local closeButton = make("TextButton", {
+    AnchorPoint = Vector2.new(1, 0),
+    Position = UDim2.new(1, -5, 0, 16),
+    Size = UDim2.fromOffset(27, 23),
+    BackgroundColor3 = Color3.fromRGB(55, 32, 35),
+    Text = "×",
+    TextColor3 = THEME.red,
     TextSize = 15,
     Font = Enum.Font.GothamBold,
     BorderSizePixel = 0,
-    ZIndex = 5,
+    ZIndex = 9,
 }, topbar)
-round(minimize, 3)
-
-local close = make("TextButton", {
-    AnchorPoint = Vector2.new(1, 0),
-    Position = UDim2.new(1, -6, 0, 16),
-    Size = UDim2.new(0, 28, 0, 24),
-    BackgroundColor3 = Color3.fromRGB(58, 34, 34),
-    Text = "×",
-    TextColor3 = THEME.danger,
-    TextSize = 16,
-    Font = Enum.Font.GothamBold,
-    BorderSizePixel = 0,
-    ZIndex = 5,
-}, topbar)
-round(close, 3)
+round(closeButton, 3)
 
 local pageScroll = make("ScrollingFrame", {
+    Name = "PageScroll",
     BackgroundTransparency = 1,
-    Position = UDim2.new(0, 0, 0, 64),
-    Size = UDim2.new(1, 0, 1, -94),
-    BorderSizePixel = 0,
+    Position = UDim2.new(0, 0, 0, 63),
+    Size = UDim2.new(1, 0, 1, -93),
+    CanvasSize = UDim2.new(0, 0, 0, 0),
     ScrollBarThickness = 4,
     ScrollBarImageColor3 = THEME.accent,
-    CanvasSize = UDim2.new(0, 0, 0, 0),
-    ZIndex = 4,
+    BorderSizePixel = 0,
+    ZIndex = 7,
 }, content)
-
-local pageLayout = make("UIListLayout", {
-    Padding = UDim.new(0, 9),
+local pageList = make("UIListLayout", {
+    Padding = UDim.new(0, 8),
     SortOrder = Enum.SortOrder.LayoutOrder,
 }, pageScroll)
 make("UIPadding", {
     PaddingTop = UDim.new(0, 6),
-    PaddingBottom = UDim.new(0, 18),
-    PaddingLeft = UDim.new(0, 2),
-    PaddingRight = UDim.new(0, 9),
+    PaddingBottom = UDim.new(0, 14),
+    PaddingLeft = UDim.new(0, 1),
+    PaddingRight = UDim.new(0, 8),
 }, pageScroll)
-
-pageLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    pageScroll.CanvasSize = UDim2.new(0, 0, 0, pageLayout.AbsoluteContentSize.Y + 28)
-end)
 
 local footer = make("Frame", {
     BackgroundColor3 = THEME.sidebar,
-    BackgroundTransparency = 0.12,
-    Position = UDim2.new(0, 8, 1, -63),
-    Size = UDim2.new(1, -16, 0, 47),
+    BackgroundTransparency = 0.1,
+    Position = UDim2.new(0, 8, 1, -62),
+    Size = UDim2.new(1, -16, 0, 46),
     BorderSizePixel = 0,
-    ZIndex = 4,
+    ZIndex = 7,
 }, sidebar)
-round(footer, 5)
-local statusDot = make("Frame", {
-    BackgroundColor3 = THEME.success,
-    Position = UDim2.new(0, 11, 0, 19),
-    Size = UDim2.new(0, 7, 0, 7),
+round(footer, 4)
+local footerDot = make("Frame", {
+    BackgroundColor3 = THEME.green,
+    Position = UDim2.new(0, 10, 0, 18),
+    Size = UDim2.fromOffset(7, 7),
     BorderSizePixel = 0,
-    ZIndex = 5,
+    ZIndex = 9,
 }, footer)
-round(statusDot, 5)
-label(footer, "CLIENT READY", 9, THEME.success, true, 15).Position = UDim2.new(0, 25, 0, 7)
-label(footer, "UI automation", 8, THEME.muted, false, 13).Position = UDim2.new(0, 25, 0, 23)
+round(footerDot, 5)
+textLabel(footer, "CLIENT READY", 8, THEME.green, true, 13).Position = UDim2.new(0, 24, 0, 6)
+local footerStatus = textLabel(footer, "yno hub 4.0.0", 8, THEME.muted, false, 13)
+footerStatus.Position = UDim2.new(0, 24, 0, 22)
 
 local toast = make("TextLabel", {
     AnchorPoint = Vector2.new(1, 1),
-    Position = UDim2.new(1, 360, 1, -26),
-    Size = UDim2.new(0, 330, 0, 34),
-    BackgroundColor3 = THEME.panel3,
-    BackgroundTransparency = 1,
+    Position = UDim2.new(1, -20, 1, -22),
+    Size = UDim2.fromOffset(340, 35),
+    BackgroundColor3 = THEME.surface3,
+    BackgroundTransparency = 0.08,
     Text = "",
     TextColor3 = THEME.text,
-    TextSize = 10,
+    TextSize = 9,
     Font = Enum.Font.GothamSemibold,
     TextXAlignment = Enum.TextXAlignment.Left,
     Visible = false,
     BorderSizePixel = 0,
-    ZIndex = 20,
+    ZIndex = 50,
 }, gui)
 round(toast, 4)
-outline(toast, THEME.line, 0.25, 1)
-make("UIPadding", {PaddingLeft = UDim.new(0, 12)}, toast)
+stroke(toast, THEME.line, 0.2, 1)
+make("UIPadding", {PaddingLeft = UDim.new(0, 11)}, toast)
 
-local function notify(message, color)
-    if not toast or not toast.Parent then return end
-    toast.Text = tostring(message)
-    toast.TextColor3 = color or THEME.text
+local function log(message, level)
+    local value = tostring(message)
+    local now = os.clock()
+    if state.lastLog == value and now - state.lastLogAt < 1.25 then return end
+    state.lastLog = value
+    state.lastLogAt = now
+    table.insert(state.logs, 1, {time = os.date("%H:%M:%S"), message = value, level = level or "info"})
+    while #state.logs > 12 do table.remove(state.logs) end
+
+    footerStatus.Text = string.sub(value, 1, 36)
+    footerStatus.TextColor3 = level == "error" and THEME.red or (level == "success" and THEME.green or THEME.muted)
+
+    toast.Text = value
+    toast.TextColor3 = level == "error" and THEME.red or (level == "success" and THEME.green or THEME.text)
     toast.Visible = true
-    toast.BackgroundTransparency = 0.1
-    toast.Position = UDim2.new(1, -22, 1, -25)
     task.delay(2.8, function()
-        if toast and toast.Parent then
+        if toast and toast.Parent and toast.Text == value then
             toast.Visible = false
-            toast.BackgroundTransparency = 1
-            toast.Position = UDim2.new(1, 360, 1, -25)
         end
     end)
 end
 
-local function log(message, color)
-    local value = tostring(message)
-    local now = os.clock()
-    if state.lastLogMessage == value and now - state.lastLogAt < 1.75 then
-        return
-    end
-    state.lastLogMessage = value
-    state.lastLogAt = now
-    notify(value, color)
-end
+pageList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    pageScroll.CanvasSize = UDim2.new(0, 0, 0, pageList.AbsoluteContentSize.Y + 26)
+end)
 
-local function visible(object)
-    local current = object
-    while current and current ~= game do
-        if current:IsA("GuiObject") and not current.Visible then return false end
-        if current:IsA("ScreenGui") and not current.Enabled then return false end
-        current = current.Parent
+local function getButtonText(button)
+    local parts = {}
+    if button:IsA("TextButton") and button.Text ~= "" then
+        table.insert(parts, norm(button.Text))
     end
-    return true
-end
-
-local function buttonText(button)
-    local parts = {norm(button.Name)}
-    if button:IsA("TextButton") then table.insert(parts, norm(button.Text)) end
+    table.insert(parts, norm(button.Name))
     for _, child in ipairs(button:GetDescendants()) do
         if child:IsA("TextLabel") or child:IsA("TextButton") then
             if child.Text and child.Text ~= "" then
@@ -505,1369 +516,295 @@ local function buttonText(button)
     return table.concat(parts, " ")
 end
 
-local function contextText(object)
+local function getContextText(object)
     local parts = {}
-    local current = object
-    local depth = 0
-    while current and current ~= playerGui and depth < 8 do
-        table.insert(parts, norm(current.Name))
-        if current:IsA("TextLabel") or current:IsA("TextButton") or current:IsA("TextBox") then
-            table.insert(parts, norm(current.Text))
+    local node = object
+    for _ = 1, 7 do
+        if not node or node == playerGui then break end
+        table.insert(parts, norm(node.Name))
+        if node:IsA("TextLabel") or node:IsA("TextButton") or node:IsA("TextBox") then
+            table.insert(parts, norm(node.Text))
         end
-        for _, child in ipairs(current:GetChildren()) do
-            if (child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox"))
-                and child.Text and child.Text ~= "" then
-                table.insert(parts, norm(child.Text))
+        local parent = node.Parent
+        if parent then
+            for _, sibling in ipairs(parent:GetChildren()) do
+                if sibling ~= node and (sibling:IsA("TextLabel") or sibling:IsA("TextButton")) then
+                    local siblingText = norm(sibling.Text)
+                    if siblingText ~= "" and #siblingText < 90 then
+                        table.insert(parts, siblingText)
+                    end
+                end
             end
         end
-        current = current.Parent
-        depth = depth + 1
+        node = parent
     end
     return table.concat(parts, " ")
 end
 
-local function gameButtons()
+local function getGameButtons(forceRefresh)
     local now = os.clock()
-    if now - (state.buttonCacheAt or 0) < 0.25 then
-        return state.buttonCache
+    if not forceRefresh and now - state.gameButtonsAt < 0.5 then
+        return state.gameButtons
     end
+
     local found = {}
     for _, root in ipairs(playerGui:GetChildren()) do
-        if root ~= gui then
-            for _, item in ipairs(root:GetDescendants()) do
-                if item:IsA("GuiButton") and item.Active and visible(item) then
+        for _, item in ipairs(root:GetDescendants()) do
+            if item:IsA("GuiButton") and item.Parent and isVisible(item) then
+                local active = true
+                pcall(function()
+                    active = item.Active and item.Interactable
+                end)
+                if active and not item:IsDescendantOf(gui) then
                     table.insert(found, item)
                 end
             end
         end
     end
-    state.buttonCache = found
-    state.buttonCacheAt = now
+
+    state.gameButtons = found
+    state.gameButtonsAt = now
     return found
 end
 
-local function findButton(phrases, exact, requiredContext, requireUnique)
-    local bestButton, bestScore, bestArea = nil, -1, -1
-    local tied = 0
-    local contextNeedle = requiredContext and norm(requiredContext) or nil
+local function scoreButton(button, labels, contextHint, partial)
+    local ownText = button:IsA("TextButton") and norm(button.Text) or ""
+    local ownName = norm(button.Name)
+    local allText = getButtonText(button)
+    local context = getContextText(button)
+    local contextScore = contextHint and string.find(context, norm(contextHint), 1, true) and 24 or 0
+    local score = -1
 
-    for _, button in ipairs(gameButtons()) do
-        if button.Parent and button.AbsoluteSize.X > 2 and button.AbsoluteSize.Y > 2 then
-            local context = contextText(button)
-            local contextMatches = contextNeedle
-                and string.find(context, contextNeedle, 1, true) ~= nil
-
-            -- Context is a ranking hint, not a hard filter: some game builds
-            -- rename/reparent menu containers while keeping the same button text.
-            do
-                local ownName = norm(button.Name)
-                local ownText = button:IsA("TextButton") and norm(button.Text) or ""
-                local haystack = buttonText(button)
-
-                for _, phrase in ipairs(phrases) do
-                    local target = norm(phrase)
-                    if target ~= "" then
-                        local score = 0
-                        if ownText == target then
-                            score = 120
-                        elseif ownName == target then
-                            score = 112
-                        else
-                            for _, child in ipairs(button:GetDescendants()) do
-                                if child:IsA("TextLabel") or child:IsA("TextButton") then
-                                    local childText = norm(child.Text)
-                                    if childText == target then
-                                        score = math.max(score, 106)
-                                    elseif not exact and string.find(childText, target, 1, true) then
-                                        score = math.max(score, 72)
-                                    end
-                                end
-                            end
-                            if score == 0 and not exact then
-                                if string.find(ownText, target, 1, true) then
-                                    score = 88
-                                elseif string.find(ownName, target, 1, true) then
-                                    score = 80
-                                elseif string.find(haystack, target, 1, true) then
-                                    score = 64
-                                end
-                            end
-                        end
-
-                        if score > 0 then
-                            if contextMatches then
-                                score = score + 36
-                            elseif contextNeedle then
-                                score = score - 8
-                            end
-                            local area = button.AbsoluteSize.X * button.AbsoluteSize.Y
-                            score = score + math.min(area / 18000, 8)
-                            score = score + math.min(button.ZIndex * 0.025, 1)
-                            if score > bestScore or (score == bestScore and area > bestArea) then
-                                bestButton, bestScore, bestArea, tied = button, score, area, 1
-                            elseif score == bestScore and area == bestArea then
-                                tied = tied + 1
-                            end
+    for _, phrase in ipairs(labels) do
+        local target = norm(phrase)
+        if target ~= "" then
+            local localScore = -1
+            if ownText == target then
+                localScore = 120
+            elseif ownName == target then
+                localScore = 108
+            else
+                for _, child in ipairs(button:GetDescendants()) do
+                    if child:IsA("TextLabel") or child:IsA("TextButton") then
+                        local childText = norm(child.Text)
+                        if childText == target then
+                            localScore = math.max(localScore, 112)
+                        elseif partial and string.find(childText, target, 1, true) then
+                            localScore = math.max(localScore, 78)
                         end
                     end
                 end
-            end
-        end
-    end
-
-    -- Choose the strongest match even if multiple menus reuse the same label.
-    return bestButton
-end
-
-local function waitForButton(phrases, exact, timeout, context, unique, runToken)
-    local deadline = os.clock() + (timeout or 8)
-    while state.running and (not runToken or runToken == state.actionGeneration) and os.clock() < deadline do
-        local found = findButton(phrases, exact, context, unique)
-        if found then return found end
-        task.wait(0.2)
-    end
-    return nil
-end
-
-local function findTextBox(needles)
-    local targets = {}
-    for _, needle in ipairs(needles) do table.insert(targets, norm(needle)) end
-    for _, root in ipairs(playerGui:GetChildren()) do
-        for _, object in ipairs(root:GetDescendants()) do
-            if object:IsA("TextBox") and visible(object) then
-                local context = norm(object.Name .. " " .. object.PlaceholderText .. " " .. contextText(object))
-                for _, target in ipairs(targets) do
-                    if target ~= "" and string.find(context, target, 1, true) then
-                        return object
+                if partial and localScore < 0 then
+                    if string.find(ownText, target, 1, true) then
+                        localScore = 88
+                    elseif string.find(ownName, target, 1, true) then
+                        localScore = 82
+                    elseif string.find(allText, target, 1, true) then
+                        localScore = 68
                     end
                 end
             end
+            score = math.max(score, localScore)
         end
     end
-    return nil
+
+    if score < 0 then return -1 end
+    score = score + contextScore
+    local area = button.AbsoluteSize.X * button.AbsoluteSize.Y
+    score = score + math.min(area / 25000, 5)
+    score = score + math.min(button.ZIndex * 0.02, 1)
+    return score
+end
+
+local function findGameButton(labels, contextHint, partial, forceRefresh)
+    local best, bestScore = nil, -math.huge
+    for _, button in ipairs(getGameButtons(forceRefresh)) do
+        local size = button.AbsoluteSize
+        if size.X > 2 and size.Y > 2 then
+            local score = scoreButton(button, labels, contextHint, partial == true)
+            if score > bestScore then
+                best = button
+                bestScore = score
+            end
+        end
+    end
+    if best then return best, bestScore end
+    return nil, "Não encontrei: " .. table.concat(labels, " / ") .. (contextHint and (" (" .. contextHint .. ")") or "")
 end
 
 local function isRobloxFocused()
     if type(isrbxactive) == "function" then
-        local ok, focused = pcall(isrbxactive)
-        if ok then return focused end
+        local ok, active = pcall(isrbxactive)
+        if ok then return active == true end
     end
     return true
 end
 
-local function clickButton(button, actionKey, cooldown)
-    if not button or not button.Parent or not button.Active or not visible(button) then
-        log("Clique cancelado: botão não está ativo ou visível.", THEME.warning)
-        return false
+local function sendMouseClick(button)
+    if not button or not button.Parent or not isVisible(button) then
+        return false, "O botão deixou de estar visível."
     end
-    if not isRobloxFocused() then
-        log("Traga a janela do Roblox para primeiro plano e tente novamente.", THEME.warning)
-        return false
-    end
-
-    local now = os.clock()
-    local key = actionKey or button:GetFullName()
-    if state.lastAction[key] and now - state.lastAction[key] < (cooldown or 0.9) then
-        return false
-    end
+    local active = true
+    pcall(function() active = button.Active and button.Interactable end)
+    if not active then return false, "O botão está desativado." end
+    if not isRobloxFocused() then return false, "Traga o Roblox para primeiro plano." end
 
     local center = button.AbsolutePosition + (button.AbsoluteSize / 2)
-    if center.X < 0 or center.Y < 0 then
-        log("Clique cancelado: controle fora da área visível.", THEME.warning)
-        return false
+    local viewport = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize
+    if viewport and (center.X < 1 or center.Y < 1 or center.X > viewport.X or center.Y > viewport.Y) then
+        return false, "O botão está fora da área visível."
     end
 
-    local attempted = false
+    local moved = false
     if type(mousemoveabs) == "function" then
-        local moved = pcall(mousemoveabs, math.floor(center.X), math.floor(center.Y))
-        if moved then
-            task.wait(0.06)
-            if type(mouse1press) == "function" and type(mouse1release) == "function" then
-                local pressed = pcall(mouse1press)
-                task.wait(0.055)
-                local released = pcall(mouse1release)
-                attempted = pressed and released
-            elseif type(mouse1click) == "function" then
-                attempted = pcall(mouse1click)
-            end
+        moved = pcall(mousemoveabs, math.floor(center.X), math.floor(center.Y))
+    end
+
+    if moved and type(mouse1press) == "function" and type(mouse1release) == "function" then
+        local pressed = pcall(mouse1press)
+        task.wait(0.05)
+        local released = pcall(mouse1release)
+        if pressed and released then return true end
+    end
+
+    if moved and type(mouse1click) == "function" then
+        local ok = pcall(mouse1click)
+        if ok then return true end
+    end
+
+    local activated = pcall(function() button:Activate() end)
+    if activated then return true end
+    return false, "O Solara não conseguiu enviar input para o botão."
+end
+
+local function clickGameButton(labels, contextHint, partial, actionKey, cooldown)
+    local button, reason = findGameButton(labels, contextHint, partial, true)
+    if not button then return false, reason end
+
+    local key = actionKey or safeFullName(button)
+    local now = os.clock()
+    if state.cooldowns[key] and now - state.cooldowns[key] < (cooldown or 1) then
+        return false, "Ação em cooldown."
+    end
+
+    local ok, err = sendMouseClick(button)
+    if ok then
+        state.cooldowns[key] = now
+        return true, "Input enviado: " .. table.concat(labels, " / ")
+    end
+    return false, err
+end
+
+local function waitForGameButton(labels, contextHint, timeout, partial, generation)
+    local deadline = os.clock() + (timeout or 7)
+    while state.running and os.clock() < deadline do
+        if generation and generation ~= state.generation then
+            return nil, "Ação cancelada."
         end
+        local button = findGameButton(labels, contextHint, partial, true)
+        if button then return button end
+        task.wait(0.2)
     end
-
-    if not attempted and type(mouse1click) == "function" then
-        attempted = pcall(function()
-            mousemoveabs(math.floor(center.X), math.floor(center.Y))
-            task.wait(0.05)
-            mouse1click()
-        end)
-    end
-    if not attempted then
-        attempted = pcall(function() button:Activate() end)
-    end
-
-    if attempted then
-        state.lastAction[key] = now
-    else
-        log("Solara não conseguiu enviar o clique. Verifique o foco da janela do Roblox.", THEME.danger)
-    end
-    return attempted
+    return nil, "Tempo esgotado procurando " .. table.concat(labels, " / ")
 end
 
-local VK = {
-    Q = 0x51,
-    E = 0x45,
-    Z = 0x5A,
-    N = 0x4E,
-    Space = 0x20,
-    F6 = 0x75,
-    F7 = 0x76,
-    F8 = 0x77,
-    F9 = 0x78,
-}
+local function clickGameAndWait(labels, contextHint, timeout, partial, generation)
+    local button, reason = waitForGameButton(labels, contextHint, timeout, partial, generation)
+    if not button then error(reason) end
+    local ok, err = sendMouseClick(button)
+    if not ok then error(err) end
+    task.wait(0.35)
+    if generation and generation ~= state.generation then error("Ação cancelada.") end
+    return true
+end
 
-local function sendKey(keyName)
-    local code = VK[keyName]
-    if not code or not isRobloxFocused() then return false end
+local function sendKey(keyCode)
+    if not isRobloxFocused() then return false, "Roblox precisa estar em primeiro plano." end
     if type(keyclick) == "function" then
-        return pcall(keyclick, code)
+        local ok, err = pcall(keyclick, keyCode)
+        return ok, err
     end
-    if type(keypress) == "function" and type(keyrelease) == "function" then
-        local ok = pcall(keypress, code)
-        task.wait(0.045)
-        local released = pcall(keyrelease, code)
-        return ok and released
-    end
-    return false
+    return false, "keyclick não está disponível no Solara."
 end
 
-local function allGuiText()
+local function screenText()
     local parts = {}
     for _, root in ipairs(playerGui:GetChildren()) do
         for _, item in ipairs(root:GetDescendants()) do
-            if item:IsA("TextLabel") or item:IsA("TextButton") or item:IsA("TextBox") then
-                if item.Text and item.Text ~= "" and visible(item) then
-                    table.insert(parts, norm(item.Text))
-                end
+            if (item:IsA("TextLabel") or item:IsA("TextButton") or item:IsA("TextBox"))
+                and item.Text and item.Text ~= "" and isVisible(item) then
+                table.insert(parts, norm(item.Text))
             end
         end
     end
     return table.concat(parts, " | ")
 end
 
-local function safeClipboard(value)
-    if type(setclipboard) ~= "function" then
-        log("Clipboard indisponível neste executor.", THEME.warning)
-        return false
+local function hasScreenText(phrases)
+    local haystack = screenText()
+    for _, phrase in ipairs(phrases) do
+        if string.find(haystack, norm(phrase), 1, true) then return true end
     end
-    local ok = pcall(setclipboard, tostring(value))
-    if ok then log("Copiado.", THEME.success) end
-    return ok
+    return false
 end
 
-local function clearPage()
-    for _, child in ipairs(pageScroll:GetChildren()) do
-        if child ~= pageLayout then child:Destroy() end
-    end
-    pageScroll.CanvasPosition = Vector2.new(0, 0)
+local function clickVisible(labelSet, context, actionKey, cooldown, partial)
+    return clickGameButton(labelSet, context, partial, actionKey, cooldown)
 end
 
-local currentGrid = nil
-local toggleButtons = {}
-
-local function setToggleValue(key, enabled)
-    state.toggles[key] = enabled == true
-    local button = toggleButtons[key]
-    if button and button.Parent then
-        button.Text = state.toggles[key] and "ON" or "OFF"
-        button.BackgroundColor3 = state.toggles[key] and THEME.accentDark or THEME.panel3
-    end
-end
-
-local function section(titleText, subtitle)
-    local holder = make("Frame", {
-        BackgroundTransparency = 1,
-        Size = UDim2.new(1, 0, 0, 49),
-        ZIndex = 5,
-    }, pageScroll)
-    label(holder, titleText, 19, THEME.text, true, 25).ZIndex = 6
-    local sub = label(holder, subtitle or "", 10, THEME.muted, false, 19)
-    sub.Position = UDim2.new(0, 0, 0, 27)
-    sub.ZIndex = 6
-end
-
-local function newGrid()
-    currentGrid = make("Frame", {
-        BackgroundTransparency = 1,
-        Size = UDim2.new(1, 0, 0, 0),
-        ZIndex = 5,
-    }, pageScroll)
-    local gridFrame = currentGrid
-    gridFrame.Size = UDim2.new(1, 0, 0, 8)
-    local gridLayout = make("UIGridLayout", {
-        CellSize = UDim2.new(0.5, -7, 0, 52),
-        CellPadding = UDim2.new(0, 8, 0, 5),
-        FillDirectionMaxCells = 2,
-        SortOrder = Enum.SortOrder.LayoutOrder,
-        HorizontalAlignment = Enum.HorizontalAlignment.Left,
-    }, gridFrame)
-    gridLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        if gridFrame and gridFrame.Parent then
-            gridFrame.Size = UDim2.new(1, 0, 0, gridLayout.AbsoluteContentSize.Y)
-        end
-    end)
-end
-
-local function makeControlCard(titleText, description, controlText, callback, controlKind, initialValue)
-    if not currentGrid then newGrid() end
-    local card = make("Frame", {
-        BackgroundColor3 = THEME.panel,
-        BackgroundTransparency = 0.36,
-        Size = UDim2.new(1, 0, 0, 52),
-        BorderSizePixel = 0,
-        ZIndex = 5,
-    }, currentGrid)
-    round(card, 2)
-    outline(card, THEME.line, 0.84, 1)
-
-    local title = label(card, titleText, 10, THEME.text, true, 16)
-    title.Position = UDim2.new(0, 9, 0, 5)
-    title.Size = UDim2.new(1, -116, 0, 16)
-    title.ZIndex = 6
-    local desc = label(card, description, 8, THEME.muted, false, 16)
-    desc.Position = UDim2.new(0, 9, 0, 23)
-    desc.Size = UDim2.new(1, -16, 0, 16)
-    desc.ZIndex = 6
-
-    local function runAction()
-        if not callback then
-            log(titleText .. ": ação não configurada.", THEME.warning)
-            return
-        end
-        local ok, result = pcall(callback)
-        if not ok then
-            log(titleText .. " falhou: " .. tostring(result), THEME.danger)
-        elseif result == false or (type(result) == "number" and result <= 0) then
-            log(titleText .. ": não encontrou um controle válido. Confira o menu aberto.", THEME.warning)
-        elseif result == true or (type(result) == "number" and result > 0) then
-            log(titleText .. ": comando enviado; confirme o resultado no jogo.", THEME.success)
-        end
-    end
-
-    local control
-    if controlKind == "toggle" then
-        local enabled = state.toggles[controlText] == true
-        control = make("TextButton", {
-            AnchorPoint = Vector2.new(1, 0.5),
-            Position = UDim2.new(1, -9, 0.5, 0),
-            Size = UDim2.new(0, 39, 0, 20),
-            BackgroundColor3 = enabled and THEME.accentDark or THEME.panel3,
-            Text = enabled and "ON" or "OFF",
-            TextColor3 = THEME.text,
-            TextSize = 8,
-            Font = Enum.Font.GothamBold,
-            BorderSizePixel = 0,
-            ZIndex = 7,
-        }, card)
-        round(control, 3)
-        toggleButtons[controlText] = control
-        control.MouseButton1Click:Connect(function()
-            local nextValue = not state.toggles[controlText]
-            local accepted = true
-            if callback then
-                local ok, result = pcall(callback, nextValue)
-                if not ok then
-                    accepted = false
-                    log(titleText .. " falhou: " .. tostring(result), THEME.danger)
-                elseif result == false then
-                    accepted = false
-                    log(titleText .. ": o jogo não apresentou o controle esperado.", THEME.warning)
-                end
-            end
-            if accepted then setToggleValue(controlText, nextValue) end
-        end)
-    elseif controlKind == "select" then
-        control = make("TextButton", {
-            AnchorPoint = Vector2.new(1, 0.5),
-            Position = UDim2.new(1, -9, 0.5, 0),
-            Size = UDim2.new(0, 104, 0, 22),
-            BackgroundColor3 = THEME.panel3,
-            Text = tostring(state.values[controlText] or initialValue[1]),
-            TextColor3 = THEME.text,
-            TextSize = 8,
-            Font = Enum.Font.GothamSemibold,
-            BorderSizePixel = 0,
-            ZIndex = 7,
-        }, card)
-        round(control, 3)
-        control.MouseButton1Click:Connect(function()
-            local list = initialValue
-            local current = state.values[controlText] or list[1]
-            local index = 1
-            for i, choice in ipairs(list) do
-                if choice == current then index = i break end
-            end
-            index = index + 1
-            if index > #list then index = 1 end
-            state.values[controlText] = list[index]
-            control.Text = list[index]
-            if callback then
-                local ok, err = pcall(callback, list[index])
-                if not ok then log(titleText .. ": " .. tostring(err), THEME.danger) end
-            end
-        end)
-    elseif controlKind == "input" then
-        control = make("TextBox", {
-            AnchorPoint = Vector2.new(1, 0.5),
-            Position = UDim2.new(1, -9, 0.5, 0),
-            Size = UDim2.new(0, 104, 0, 22),
-            BackgroundColor3 = THEME.panel3,
-            Text = tostring(state.values[controlText] or initialValue or ""),
-            PlaceholderText = "Value",
-            PlaceholderColor3 = THEME.muted,
-            TextColor3 = THEME.text,
-            TextSize = 8,
-            Font = Enum.Font.Gotham,
-            ClearTextOnFocus = false,
-            BorderSizePixel = 0,
-            ZIndex = 7,
-        }, card)
-        round(control, 3)
-        control.FocusLost:Connect(function()
-            state.values[controlText] = control.Text
-            if callback then
-                local ok, err = pcall(callback, control.Text)
-                if not ok then log(titleText .. ": " .. tostring(err), THEME.danger) end
-            end
-        end)
-    else
-        control = make("TextButton", {
-            AnchorPoint = Vector2.new(1, 0.5),
-            Position = UDim2.new(1, -9, 0.5, 0),
-            Size = UDim2.new(0, 88, 0, 22),
-            BackgroundColor3 = THEME.accentDark,
-            Text = controlText,
-            TextColor3 = THEME.text,
-            TextSize = 8,
-            Font = Enum.Font.GothamBold,
-            BorderSizePixel = 0,
-            ZIndex = 7,
-        }, card)
-        round(control, 3)
-        control.MouseButton1Click:Connect(runAction)
-    end
-    card:SetAttribute("yno_search", norm(titleText .. " " .. description))
-    return card
-end
-
-local function addNotice(titleText, description, tagText)
-    local card = make("Frame", {
-        BackgroundColor3 = THEME.panel2,
-        BackgroundTransparency = 0.1,
-        Size = UDim2.new(1, 0, 0, 76),
-        BorderSizePixel = 0,
-        ZIndex = 5,
-    }, pageScroll)
-    round(card, 4)
-    outline(card, THEME.line, 0.62, 1)
-    label(card, titleText, 11, THEME.text, true, 20).Position = UDim2.new(0, 12, 0, 7)
-    local desc = label(card, description, 9, THEME.muted, false, 39)
-    desc.Position = UDim2.new(0, 12, 0, 30)
-    desc.Size = UDim2.new(1, -24, 0, 39)
-    if tagText then
-        local tag = make("TextLabel", {
-            AnchorPoint = Vector2.new(1, 0),
-            Position = UDim2.new(1, -10, 0, 8),
-            Size = UDim2.new(0, 88, 0, 20),
-            BackgroundColor3 = THEME.accentDark,
-            Text = tagText,
-            TextColor3 = THEME.text,
-            TextSize = 8,
-            Font = Enum.Font.GothamBold,
-            BorderSizePixel = 0,
-            ZIndex = 7,
-        }, card)
-        round(tag, 3)
-    end
-    card:SetAttribute("yno_search", norm(titleText .. " " .. description))
-end
-
-local function finishGrid()
-    if currentGrid then
-        local gridFrame = currentGrid
-        local layout = gridFrame:FindFirstChildOfClass("UIGridLayout")
-            or gridFrame:FindFirstChildOfClass("UIListLayout")
-        task.defer(function()
-            if gridFrame and gridFrame.Parent and layout then
-                gridFrame.Size = UDim2.new(1, 0, 0, layout.AbsoluteContentSize.Y)
-            end
-        end)
-    end
-    currentGrid = nil
-end
-
-local function newColumnGroup(leftTitle, rightTitle)
-    local group = make("Frame", {
-        BackgroundTransparency = 1,
-        Size = UDim2.new(1, 0, 0, 0),
-        ZIndex = 5,
-    }, pageScroll)
-
-    local function makeColumn(titleText, xScale)
-        local column = make("Frame", {
-            BackgroundColor3 = THEME.panel,
-            BackgroundTransparency = 0.42,
-            Position = UDim2.new(xScale, 0, 0, 0),
-            Size = UDim2.new(0.5, -5, 0, 40),
-            BorderSizePixel = 0,
-            ZIndex = 5,
-        }, group)
-        round(column, 3)
-        outline(column, THEME.line, 0.84, 1)
-
-        local heading = label(column, titleText, 10, THEME.text, true, 19)
-        heading.Position = UDim2.new(0, 10, 0, 5)
-        heading.ZIndex = 6
-
-        local rows = make("Frame", {
-            BackgroundTransparency = 1,
-            Position = UDim2.new(0, 7, 0, 29),
-            Size = UDim2.new(1, -14, 0, 0),
-            ZIndex = 6,
-        }, column)
-        local layout = make("UIListLayout", {
-            Padding = UDim.new(0, 4),
-            SortOrder = Enum.SortOrder.LayoutOrder,
-        }, rows)
-
-        local function resize()
-            if not column.Parent or not rows.Parent then return end
-            rows.Size = UDim2.new(1, -14, 0, layout.AbsoluteContentSize.Y)
-            column.Size = UDim2.new(0.5, -5, 0, 35 + layout.AbsoluteContentSize.Y)
-            local leftHeight = group:FindFirstChild("left_column") and group.left_column.AbsoluteSize.Y or 0
-            local rightHeight = group:FindFirstChild("right_column") and group.right_column.AbsoluteSize.Y or 0
-            group.Size = UDim2.new(1, 0, 0, math.max(leftHeight, rightHeight))
-        end
-        layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(resize)
-        return rows, column, resize
-    end
-
-    local leftRows, leftColumn, resizeLeft = makeColumn(leftTitle, 0)
-    leftColumn.Name = "left_column"
-    local rightRows, rightColumn, resizeRight = makeColumn(rightTitle, 0.5)
-    rightColumn.Name = "right_column"
-    resizeLeft()
-    resizeRight()
-    return leftRows, rightRows
-end
-
-local function addButton(titleText, description, caption, callback)
-    return makeControlCard(titleText, description, caption, callback, "button")
-end
-
-local function addToggle(titleText, description, key, defaultValue, callback)
-    if state.toggles[key] == nil then state.toggles[key] = defaultValue == true end
-    return makeControlCard(titleText, description, key, callback, "toggle")
-end
-
-local function addSelect(titleText, description, key, choices)
-    if state.values[key] == nil then state.values[key] = choices[1] end
-    return makeControlCard(titleText, description, key, nil, "select", choices)
-end
-
-local function addInput(titleText, description, key, defaultValue, callback)
-    if state.values[key] == nil then state.values[key] = defaultValue end
-    return makeControlCard(titleText, description, key, callback, "input", defaultValue)
-end
-
-local function openMenuButton(name, actionKey)
-    local button = findButton({name}, true) or findButton({name}, false)
+local function openMacroPanel()
+    local button, reason = findGameButton({"Macro"}, nil, false, true)
     if not button then
-        log("Não encontrei '" .. name .. "' na interface. Abra esse menu manualmente.", THEME.warning)
-        return false
+        return false, "Entre em uma partida; o botão Macro fica no lado direito da tela."
     end
-    return clickButton(button, actionKey or ("menu:" .. norm(name)), 1.3)
+    return clickVisible({"Macro"}, nil, "open-macro-panel", 1.3, false)
 end
 
-local function clickPhrase(phrases, key, exact, context, unique)
-    local button = findButton(phrases, exact, context, unique)
-    if not button then
-        log("Não encontrei o botão: " .. table.concat(phrases, " / ") .. (context and (" em " .. context) or "") .. ".", THEME.warning)
-        return false
-    end
-    return clickButton(button, key, 1.1)
-end
-
-local function clickFirstPhrase(phrases, key, exact, context, unique)
-    for index, phrase in ipairs(phrases) do
-        local button = findButton({phrase}, exact, context, unique)
-        if button then
-            return clickButton(button, key .. ":" .. tostring(index), 1.1)
-        end
-    end
-    log("Não encontrei nenhum botão: " .. table.concat(phrases, " / ") .. (context and (" em " .. context) or "") .. ".", THEME.warning)
-    return false
-end
-
-local function hasAnyScope(context, scopes)
-    local value = norm(context)
-    for _, scope in ipairs(scopes) do
-        if string.find(value, norm(scope), 1, true) then return true end
-    end
-    return false
-end
-
-local function exactChildText(button, expected)
-    local target = norm(expected)
-    if button:IsA("TextButton") and norm(button.Text) == target then return true end
-    if norm(button.Name) == target then return true end
-    for _, child in ipairs(button:GetDescendants()) do
-        if (child:IsA("TextLabel") or child:IsA("TextButton")) and norm(child.Text) == target then
-            return true
-        end
-    end
-    return false
-end
-
-local function openQuests(category)
-    if not clickPhrase({"Quests"}, "open-quests", false, nil, true) then
-        log("Abra Quests pelo menu lateral do jogo.", THEME.warning)
-        return false
-    end
-    task.wait(0.35)
-    if category and category ~= "All" then
-        local categoryButton = waitForButton({category}, true, 3, "quest", true)
-        if not categoryButton then
-            categoryButton = waitForButton({category}, true, 2, nil, true)
-        end
-        if categoryButton then
-            clickButton(categoryButton, "quest-category:" .. category, 0.7)
-        else
-            log("A categoria " .. category .. " não apareceu. Selecione-a no jogo.", THEME.warning)
-            return false
-        end
-    end
-    return true
-end
-
-local function claimVisibleQuests()
-    local scopes = {"event quest", "unit hunt", "guide", "bounty", "quest"}
-    local claimed = 0
-    local claimAll = nil
-
-    for _, button in ipairs(gameButtons()) do
-        if exactChildText(button, "Claim All") and hasAnyScope(contextText(button), scopes) then
-            claimAll = button
-            break
-        end
-    end
-
-    if claimAll and clickButton(claimAll, "scoped-quest-claim-all", 2.2) then
-        claimed = 1
-        task.wait(0.3)
-    end
-
-    if claimed == 0 then
-        for _, button in ipairs(gameButtons()) do
-            local context = contextText(button)
-            local isClaim = exactChildText(button, "Claim Rewards") or exactChildText(button, "Claim Reward")
-            if isClaim and hasAnyScope(context, scopes) then
-                if clickButton(button, "scoped-quest-claim:" .. button:GetFullName(), 0.8) then
-                    claimed = claimed + 1
-                    task.wait(0.15)
-                end
-            end
-        end
-    end
-
-    log(claimed > 0 and ("Ações de coleta enviadas: " .. tostring(claimed)) or "Não achei um botão Claim dentro de uma janela de Quest/Guide/Bounty/Event. Abra a janela correta e tente novamente.", claimed > 0 and THEME.success or THEME.warning)
-    return claimed
-end
-
-local function openBountyBoard()
-    if clickFirstPhrase({"Bounties"}, "open-bounties", false, nil, true) then return true end
-    if clickPhrase({"Missions"}, "open-missions-npc", false, nil, true) then
-        task.wait(0.4)
-        if clickFirstPhrase({"Bounties"}, "open-bounties-after-missions", false, nil, true) then return true end
-    end
-    for attempt = 1, 40 do
-        if not state.running then return false end
-        interactWithNpc("Navi")
-        task.wait(0.5)
-        if clickFirstPhrase({"Bounties"}, "open-bounties-after-navi", false, nil, true) then
-            return true
-        end
-    end
-    log("Não consegui abrir Navi's Bounty Board. Vá até Navi no lobby e tente novamente.", THEME.warning)
-    return false
-end
-
-local function claimBounties()
-    local opened = openBountyBoard()
-    if not opened then return false end
-    task.wait(0.4)
-    local screenText = allGuiText()
-    if not string.find(screenText, "bount", 1, true) then
-        log("Bounty Board não está visível. Abra a aba Bounties.", THEME.warning)
-        return false
-    end
-    return claimVisibleQuests() > 0
-end
-
-local function storyStep(phrases, title, exact, context, timeout, unique, runToken)
-    if runToken and runToken ~= state.actionGeneration then
-        error("ação cancelada pelo Stop All")
-    end
-    log("Story: aguardando " .. title .. "...", THEME.muted)
-    local button = waitForButton(phrases, exact, timeout or 8, context, unique, runToken)
-    if not button then
-        error("controle '" .. title .. "' não apareceu. Confira o menu aberto.")
-    end
-    if not clickButton(button, "story-step:" .. norm(title), 0.7) then
-        error("não consegui ativar '" .. title .. "'.")
-    end
-    task.wait(0.65)
-end
-
-local function startStory()
-    if state.storyFlow then
-        log("Story Runner já está executando.", THEME.warning)
-        return false
-    end
-    local world = state.values.storyWorld
-    local act = state.values.storyAct
-    local difficulty = state.values.storyDifficulty
-    local mode = state.values.storyMode
-    local entry = state.values.storyEntry
-
-    if mode == "World Skip" and world == "Sword Arena" then
-        log("Sword Arena não oferece World Skip; escolha Individual Act.", THEME.warning)
-        return false
-    end
-
-    state.storyFlow = true
-    local runToken = state.actionGeneration
-    task.spawn(function()
-        local ok, err = pcall(function()
-            storyStep({"Play"}, "Play", true, nil, 5, true, runToken)
-            storyStep({"Story"}, "Story", true, "play", 6, true, runToken)
-            storyStep({world}, world, false, "play", 8, true, runToken)
-
-            if mode == "World Skip" then
-                storyStep({"World Skip"}, "World Skip", true, nil, 6, true, runToken)
-            else
-                storyStep({act}, act, false, nil, 6, true, runToken)
-            end
-
-            storyStep({difficulty}, difficulty, true, nil, 5, true, runToken)
-            storyStep({entry}, entry, true, nil, 6, true, runToken)
-
-            if entry == "Matchmaking" then
-                if runToken ~= state.actionGeneration then error("ação cancelada pelo Stop All") end
-                log(world .. " · " .. mode .. " · " .. difficulty .. " enviado para Matchmaking.", THEME.success)
-                return
-            end
-
-            local startButton = waitForButton({"Start"}, true, 10, nil, true, runToken)
-            if startButton then
-                clickButton(startButton, "story-final-start", 2)
-                log(world .. " · " .. mode .. " · " .. difficulty .. " enviado para Start.", THEME.success)
-            else
-                log("A tela Select Stage abriu, mas o botão Start não apareceu. Confira a seleção no jogo.", THEME.warning)
-            end
-        end)
-        if not ok then
-            log("Story Runner pausado: " .. tostring(err), THEME.warning)
-        end
-        state.storyFlow = false
-    end)
-    return true
-end
-
-local function startNativeMacro()
-    local runTab = findButton({"Run"}, true, "macro", true)
-    if not runTab then
-        local macroButton = findButton({"Macro"}, true, nil, true)
-        if not macroButton then
-            log("Entre em uma partida e abra Macro no próprio jogo.", THEME.warning)
-            return false
-        end
-        clickButton(macroButton, "native-macro-open", 1.5)
-        task.wait(0.4)
-        runTab = waitForButton({"Run"}, true, 5, "macro", true)
-    end
-    if not runTab then
-        log("Abra Macro → Run no jogo e tente novamente.", THEME.warning)
-        return false
-    end
-    clickButton(runTab, "native-macro-run", 0.8)
-    task.wait(0.25)
-    local mode = state.values.macroMode or "Loop"
-    local modeButton = findButton({mode}, true, "run", true)
-    if not modeButton then
-        log("Escolha " .. mode .. " manualmente em Macro → Run.", THEME.warning)
-        return false
-    end
-    clickButton(modeButton, "native-macro-mode:" .. mode, 0.8)
-    task.wait(0.25)
-    local start = findButton({"Start"}, true, "run", true)
-    if not start then
-        log("O botão Start do Macro não está visível. Confira a configuração da rotina.", THEME.warning)
-        return false
-    end
-    local ok = clickButton(start, "native-macro-start", 2)
-    if ok then log("Smart Macro nativo iniciado: " .. mode .. ".", THEME.success) end
-    return ok
-end
-
-local function stopNativeMacro()
-    local stop = findButton({"Stop"}, true, "macro", true)
-    if not stop then stop = findButton({"Pause"}, true, "macro", true) end
-    if not stop then
-        log("Abra o painel flutuante do Macro nativo para pausar ou parar.", THEME.warning)
-        return false
-    end
-    return clickButton(stop, "native-macro-stop", 1.5)
-end
-
-local function startUnitHunt()
-    local runToken = state.actionGeneration
-    task.spawn(function()
-        local ok, err = pcall(function()
-            storyStep({"Events"}, "Events", false, nil, 5, true, runToken)
-            storyStep({"Unit Hunt"}, "Unit Hunt", false, "events", 6, true, runToken)
-            storyStep({"Start Hunt"}, "Start Hunt", true, nil, 6, true, runToken)
-        end)
-        if ok then
-            log("Unit Hunt aberto. Q procura unidades raras; aproxime-se do alvo e use E para capturar.", THEME.success)
-        else
-            log("Não consegui abrir Unit Hunt: " .. tostring(err), THEME.warning)
-        end
-    end)
-end
-
-local function startHuntBook()
-    task.spawn(function()
-        local book = findButton({"Collection Book", "Book"}, false, "unit hunt", true)
-        if not book then book = findButton({"Collection Book", "Book"}, false, nil, true) end
-
-        if not book then
-            local unitHuntButton = findButton({"Unit Hunt"}, false, "events", true)
-            if not unitHuntButton then
-                if not clickPhrase({"Events"}, "unit-hunt-book-open-events", false, nil, true) then
-                    log("Abra Events no menu do jogo.", THEME.warning)
-                    return
-                end
-                unitHuntButton = waitForButton({"Unit Hunt"}, false, 6, "events", true)
-            end
-
-            if not unitHuntButton then
-                log("Selecione Unit Hunt na lista de eventos.", THEME.warning)
-                return
-            end
-            clickButton(unitHuntButton, "unit-hunt-book-open-page", 1)
-            book = waitForButton({"Collection Book", "Book"}, false, 6, "unit hunt", true)
-        end
-
-        if book then
-            clickButton(book, "unit-hunt-open-book", 1.2)
-            log("Collection Book aberto.", THEME.success)
-        else
-            log("Não encontrei Book dentro de Unit Hunt. Abra-o manualmente no painel do evento.", THEME.warning)
-        end
-    end)
-    return true
-end
-
-local function startHuntEventQuests()
-    if not clickPhrase({"Events"}, "event-quests-open-events", false, nil, true) then
-        log("Abra Events no menu do jogo.", THEME.warning)
-        return false
+local function openMacroUnits()
+    local opened = openMacroPanel()
+    if not opened and not hasScreenText({"Units", "Placement", "Run"}) then
+        return false, "Não consegui abrir Macro. Entre primeiro em uma partida."
     end
     task.wait(0.3)
-    if not clickFirstPhrase({"Unit Hunt"}, "event-quests-unit-hunt", false, "events", true) then
-        log("Selecione Unit Hunt na lista de eventos.", THEME.warning)
-        return false
+    local units = findGameButton({"Units"}, "macro", false, true)
+    if units then
+        return clickVisible({"Units"}, "macro", "macro-open-units", 1.1, false)
     end
-    task.wait(0.3)
-    local questButton = findButton({"Event Quests"}, false, "unit hunt", true)
-    if questButton then clickButton(questButton, "event-quests-tab", 0.8) end
-    return true
+    if hasScreenText({"Slot", "Auto upgrade", "Auto abilities"}) then
+        return true, "Macro → Units já está visível."
+    end
+    return false, "Abra Macro → Units manualmente e tente novamente."
 end
 
-local function findCapturePrompt()
-    local character = player.Character
-    local root = character and character:FindFirstChild("HumanoidRootPart")
-    if not root then return nil end
-
-    local now = os.clock()
-    local cached = state.cachedCapturePrompt
-    if cached and cached.prompt and cached.prompt.Parent and cached.prompt.Enabled
-        and cached.part and cached.part.Parent and now - state.huntLastPromptScan < 1.2 then
-        cached.distance = (root.Position - cached.part.Position).Magnitude
-        return cached
-    end
-    if now - state.huntLastPromptScan < 1.2 then
-        return nil
-    end
-    state.huntLastPromptScan = now
-
-    local nearest, nearestDistance = nil, math.huge
-    for _, object in ipairs(workspace:GetDescendants()) do
-        if object:IsA("ProximityPrompt") and object.Enabled then
-            local action = norm(object.ActionText .. " " .. object.ObjectText .. " " .. object.Name)
-            if string.find(action, "capture", 1, true) then
-                local part = object.Parent
-                if not part:IsA("BasePart") then
-                    local model = object:FindFirstAncestorOfClass("Model")
-                    part = model and (model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart", true))
-                end
-                if part and part:IsA("BasePart") then
-                    local distance = (root.Position - part.Position).Magnitude
-                    if distance < nearestDistance then
-                        nearest = {prompt = object, part = part, distance = distance}
-                        nearestDistance = distance
-                    end
-                end
-            end
-        end
-    end
-    state.cachedCapturePrompt = nearest
-    return nearest
-end
-
-local function colorIsGold(color)
-    return color and color.R > 0.56 and color.G > 0.32 and color.B < 0.45 and color.R > color.G * 0.92
-end
-
-local function shareCaptureTrack(marker, zone)
-    local ancestors = {}
-    local current = marker
-    for _ = 1, 5 do
-        if not current then break end
-        ancestors[current] = true
-        current = current.Parent
-    end
-    current = zone
-    for _ = 1, 5 do
-        if not current then break end
-        if ancestors[current] and current:IsA("GuiObject")
-            and current.AbsoluteSize.X >= 120 and current.AbsoluteSize.Y <= 180 then
-            return true
-        end
-        current = current.Parent
-    end
-    return false
-end
-
-local function findCaptureTiming()
-    local markers, zones = {}, {}
-    for _, root in ipairs(playerGui:GetChildren()) do
-        for _, item in ipairs(root:GetDescendants()) do
-            if item:IsA("GuiObject") and item.Visible then
-                local name = norm(item.Name)
-                local parent = item.Parent
-                local parentWidth = parent and parent:IsA("GuiObject") and parent.AbsoluteSize.X or 0
-                local parentHeight = parent and parent:IsA("GuiObject") and parent.AbsoluteSize.Y or 0
-                local namedMarker = string.find(name, "marker", 1, true)
-                    or string.find(name, "needle", 1, true)
-                    or string.find(name, "cursor", 1, true)
-                    or string.find(name, "pointer", 1, true)
-                local geometryMarker = item:IsA("Frame") and parentWidth >= 120
-                    and item.AbsoluteSize.X <= math.max(12, parentWidth * 0.08)
-                    and item.AbsoluteSize.Y >= math.max(8, parentHeight * 0.45)
-                if namedMarker or geometryMarker then
-                    table.insert(markers, item)
-                end
-
-                local namedZone = string.find(name, "perfect", 1, true)
-                    or string.find(name, "gold", 1, true)
-                    or string.find(name, "targetzone", 1, true)
-                    or string.find(name, "capturezone", 1, true)
-                    or string.find(name, "sweet spot", 1, true)
-                local goldColor = colorIsGold(item.BackgroundColor3)
-                if item:IsA("ImageLabel") or item:IsA("ImageButton") then
-                    goldColor = goldColor or colorIsGold(item.ImageColor3)
-                end
-                if namedZone or goldColor then
-                    table.insert(zones, item)
-                end
-            end
-        end
-    end
-
-    for _, marker in ipairs(markers) do
-        for _, zone in ipairs(zones) do
-            if marker ~= zone and shareCaptureTrack(marker, zone) then
-                local markerX = marker.AbsolutePosition.X + marker.AbsoluteSize.X / 2
-                local zoneLeft = zone.AbsolutePosition.X
-                local zoneRight = zoneLeft + zone.AbsoluteSize.X
-                local sameBand = math.abs(marker.AbsolutePosition.Y - zone.AbsolutePosition.Y) < 42
-                if sameBand and markerX >= zoneLeft and markerX <= zoneRight then
-                    return true
-                end
-            end
-        end
-    end
-    return false
-end
-
-local function processUnitHunt()
-    if not state.toggles.autoUnitHunt then return end
-    local now = os.clock()
-    local text = allGuiText()
-    local hasCaptureTiming = findCaptureTiming()
-    local inEncounter = hasCaptureTiming
-        or string.find(text, "perfect", 1, true) ~= nil
-        or string.find(text, "hit the center", 1, true) ~= nil
-
-    if inEncounter then
-        state.activeCapturePrompt = nil
-        if now - state.huntLastHit > 0.16 and hasCaptureTiming then
-            state.huntLastHit = now
-            sendKey("Space")
-        elseif not state.captureMissLogged and now - state.huntLastScan > 9 then
-            state.captureMissLogged = true
-            log("Assist de captura ativo; se a barra não for reconhecida, acerte manualmente o centro dourado com Space/E.", THEME.warning)
-        end
-        return
-    end
-
-    local target = findCapturePrompt()
-    if target then
-        if state.activeCapturePrompt ~= target.prompt then
-            state.activeCapturePrompt = target.prompt
-            state.lastCapturePromptAt = 0
-        end
-        local character = player.Character
-        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-        if target.distance > math.max(4, target.prompt.MaxActivationDistance - 1) then
-            if humanoid and now - state.huntLastMove > 1.4 then
-                state.huntLastMove = now
-                local direction = (target.part.Position - character.HumanoidRootPart.Position).Unit
-                humanoid:MoveTo(target.part.Position - direction * math.max(2, target.prompt.MaxActivationDistance * 0.45))
-            end
-        elseif now - state.lastCapturePromptAt > 12 then
-            state.lastCapturePromptAt = now
-            sendKey("E")
-        end
-    else
-        state.activeCapturePrompt = nil
-        if now - state.huntLastScan > 7 then
-            state.huntLastScan = now
-            sendKey("Q")
-        end
-    end
-end
-
-local function openGuidebook()
-    if not openQuests("Guide") then return false end
-    return true
-end
-
-local function claimPhoenix()
-    if not openGuidebook() then return false end
-    task.wait(0.3)
-    local claimAll = findButton({"Claim All"}, true, "guide", true)
-    if claimAll then
-        clickButton(claimAll, "guidebook-claim-all", 1.8)
-        task.wait(0.3)
-    end
-    local completion = findButton({"Guide Quests Complete"}, false, "guide", true)
-    if completion then
-        clickButton(completion, "guidebook-phoenix-completion", 1.5)
-        return true
-    end
-    local claim = findButton({"Claim Rewards", "Claim Reward"}, true, "guide", true)
-    if claim then
-        clickButton(claim, "guidebook-phoenix-claim", 1.5)
-        return true
-    end
-    log("Conclua as 10 Guide Quests e use Claim All; Phoenix só aparece ao completar a missão final.", THEME.warning)
-    return false
-end
-
-local function promptPart(prompt)
-    local part = prompt.Parent
-    if part and part:IsA("BasePart") then return part end
-    local model = prompt:FindFirstAncestorOfClass("Model")
-    if model then return model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart", true) end
-    return nil
-end
-
-local function interactWithNpc(npcName)
-    local character = player.Character
-    local root = character and character:FindFirstChild("HumanoidRootPart")
-    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-    if not root then return false end
-
-    local needle = norm(npcName)
-    local cached = state.npcPromptCache[needle]
-    local now = os.clock()
-    local target, targetPart, distance = nil, nil, math.huge
-    if cached and cached.prompt and cached.prompt.Parent and cached.prompt.Enabled
-        and cached.part and cached.part.Parent and now - (state.lastNpcPromptScan[needle] or 0) < 2.5 then
-        target, targetPart = cached.prompt, cached.part
-        distance = (root.Position - targetPart.Position).Magnitude
-    elseif now - (state.lastNpcPromptScan[needle] or 0) >= 2.5 then
-        state.lastNpcPromptScan[needle] = now
-        for _, object in ipairs(workspace:GetDescendants()) do
-            if object:IsA("ProximityPrompt") and object.Enabled then
-                local context = norm(object.Name .. " " .. object.ObjectText .. " " .. object.ActionText)
-                local ancestor = object.Parent
-                local depth = 0
-                while ancestor and depth < 4 do
-                    context = context .. " " .. norm(ancestor.Name)
-                    ancestor = ancestor.Parent
-                    depth = depth + 1
-                end
-                if string.find(context, needle, 1, true) then
-                    local part = promptPart(object)
-                    if part then
-                        local dist = (root.Position - part.Position).Magnitude
-                        if dist < distance then
-                            target, targetPart, distance = object, part, dist
-                        end
-                    end
-                end
-            end
-        end
-        state.npcPromptCache[needle] = target and {prompt = target, part = targetPart} or nil
-    end
-
-    if not target then
-        local button = findButton({npcName}, false, nil, true)
-        if button then return clickButton(button, "npc-ui:" .. needle, 1.5) end
-        log("Não encontrei o prompt de " .. npcName .. ". Vá até o NPC no lobby e pressione E.", THEME.warning)
-        return false
-    end
-
-    local activationDistance = math.max(1, target.MaxActivationDistance or 10)
-    if distance > activationDistance * 0.72 then
-        if humanoid and now - (state.lastNpcMove[needle] or 0) > 2 then
-            local direction = (targetPart.Position - root.Position).Unit
-            humanoid:MoveTo(targetPart.Position - direction * math.min(3, activationDistance * 0.35))
-            state.lastNpcMove[needle] = now
-        end
-        if humanoid then
-            log("Indo até " .. npcName .. "...", THEME.muted)
-            return true
-        end
-        return false
-    end
-    local actionKey = "npc-interact:" .. needle
-    if state.lastAction[actionKey] and now - state.lastAction[actionKey] < 2 then
-        return true
-    end
-    state.lastAction[actionKey] = now
-    return sendKey("E")
-end
-
-local function claimLoginRewards()
-    local dailyTab = findButton({"Daily"}, true, "login", true)
-    local anniversaryTab = findButton({"Anniversary"}, true, "login", true)
-    if not dailyTab or not anniversaryTab then
-        if not clickPhrase({"Login Rewards"}, "open-login-rewards", false, nil, true) then
-            log("Abra Login Rewards pelo botão de recompensas do jogo.", THEME.warning)
-            return false
-        end
-        task.wait(0.4)
-    end
-
-    local claimed = 0
-    for _, tabName in ipairs({"Daily", "Anniversary"}) do
-        local tab = findButton({tabName}, true, "login", true)
-        if tab and clickButton(tab, "login-tab:" .. tabName, 0.7) then
-            task.wait(0.25)
-            local claim = findButton({"Claim"}, true, "login", true)
-            if claim and clickButton(claim, "login-claim:" .. tabName, 1.3) then
-                claimed = claimed + 1
-            end
-        end
-    end
-    log(claimed > 0 and ("Login claims enviados: " .. tostring(claimed)) or "Não achei Claim disponível dentro da janela Login Rewards.", claimed > 0 and THEME.success or THEME.warning)
-    return claimed > 0
-end
-
-local function openHesiaRewards()
-    task.spawn(function()
-        if not string.find(allGuiText(), "free rewards", 1, true) then
-            for attempt = 1, 40 do
-                if not state.running then return end
-                interactWithNpc("Hesia")
-                task.wait(0.5)
-                if clickFirstPhrase({"Free Rewards"}, "hesia-free-rewards", false, nil, true) then break end
-                if string.find(allGuiText(), "free rewards", 1, true) then break end
-            end
-        end
-        log("Hesia Free Rewards: conclua as quatro tarefas sociais e use Claim Rewards quando estiver disponível.", THEME.warning)
-    end)
-    return true
-end
-
-local function claimHesiaRewards()
-    task.spawn(function()
-        if not string.find(allGuiText(), "free rewards", 1, true) then
-            openHesiaRewards()
-        end
-        local claim = waitForButton({"Claim Rewards"}, false, 25, "free rewards", true)
-        if claim then
-            clickButton(claim, "hesia-claim-rewards", 1.8)
-        else
-            log("Hesia's Claim Rewards ainda não está disponível. Conclua Join Group, Like + Favorite, Notifications e Follow Event.", THEME.warning)
-        end
-    end)
-    return true
-end
-
-local function openYoutubeReward()
-    if clickFirstPhrase({"YouTube Reward"}, "youtube-reward-open", false, nil, true) then
-        log("YouTube Reward aberto. Informe seu canal e conclua a inscrição exigida.", THEME.warning)
-        return true
-    end
-    log("Não encontrei YouTube Reward. Procure o botão correspondente no lobby.", THEME.warning)
-    return false
-end
-
-local function redeemYoutubeReward()
-    if not string.find(allGuiText(), "youtube reward", 1, true) then openYoutubeReward() task.wait(0.35) end
-    local channel = tostring(state.values.youtubeChannel or "")
-    if channel == "" then
-        log("Digite seu nome de canal no campo YouTube Channel antes de tentar Redeem.", THEME.warning)
-        return false
-    end
-    local box = findTextBox({"channel name", "youtube channel", "channel"})
-    if not box then
-        local deadline = os.clock() + 6
-        while state.running and os.clock() < deadline and not box do
-            task.wait(0.2)
-            box = findTextBox({"channel name", "youtube channel", "channel"})
-        end
-    end
-    if not box then
-        log("Campo de canal não encontrado no painel YouTube Reward; preencha-o manualmente.", THEME.warning)
-        return false
-    end
-    box.Text = channel
-    local redeem = findButton({"Redeem"}, true, "youtube", true)
-    if redeem then
-        log("Enviando Redeem. A inscrição e a verificação da plataforma continuam sendo exigidas.", THEME.warning)
-        return clickButton(redeem, "youtube-redeem", 2)
-    end
-    log("Botão Redeem não está disponível no painel.", THEME.warning)
-    return false
-end
-
-local function claimKingIndex()
-    for attempt = 1, 40 do
-        if not state.running then return false end
-        local claim = findButton({"Claim All"}, true, "index", true)
-        if claim then
-            return clickButton(claim, "king-index-claim-all", 1.8)
-        end
-        local openIndex = findButton({"Open Index"}, false, nil, true)
-        if openIndex then
-            clickButton(openIndex, "king-open-index", 0.8)
-        else
-            interactWithNpc("King")
-        end
-        task.wait(0.5)
-    end
-    log("King's Index aberto ou não há Claim All disponível agora.", THEME.warning)
-    return false
-end
-
-local function openEventPage(eventName)
-    if not clickPhrase({"Events"}, "open-events-page:" .. norm(eventName), false, nil, true) then
-        log("Abra Events no menu lateral do jogo.", THEME.warning)
-        return false
-    end
-    task.wait(0.25)
-    if clickFirstPhrase({eventName}, "select-event:" .. norm(eventName), false, "events", true) then
-        return true
-    end
-    if clickFirstPhrase({eventName}, "select-event-fallback:" .. norm(eventName), false, nil, true) then
-        return true
-    end
-    log(eventName .. " não aparece na lista de eventos ativos.", THEME.warning)
-    return false
-end
-
-local function useCrusaderToken()
-    if not clickPhrase({"Items"}, "open-items-for-crusader-token", false, nil, true) then
-        log("Abra Items no lobby para usar Crusader Token.", THEME.warning)
-        return false
-    end
-    task.wait(0.3)
-    local token = findButton({"Crusader Token"}, false, nil, true)
-    if not token then
-        log("Crusader Token não está no inventário visível.", THEME.warning)
-        return false
-    end
-    clickButton(token, "select-crusader-token", 1)
-    task.wait(0.25)
-    local useButton = findButton({"Use"}, true, "crusader token", true)
-    if useButton then
-        clickButton(useButton, "use-crusader-token", 1.5)
-        log("Use enviado para Crusader Token. Confira o recebimento de 250.000 Gems e Trait Remnants.", THEME.success)
-        return true
-    end
-    log("Crusader Token selecionado; botão Use não está visível.", THEME.warning)
-    return false
-end
-
-local function claimBlankUnit()
-    if not openBountyBoard() then return false end
-    task.wait(0.3)
-    if not clickPhrase({"Blank Tokens"}, "blank-token-tab", false, nil, true) then
-        log("No Bounty Board, selecione Blank Tokens.", THEME.warning)
-        return false
-    end
-    task.wait(0.25)
-    local unit = state.values.blankUnit or "Shadow (Atomic)"
-    local unitButton = findButton({unit}, false, nil, true)
-    if not unitButton then
-        log(unit .. " não está visível. Confira se você tem 30 Blank Tokens.", THEME.warning)
-        return false
-    end
-    clickButton(unitButton, "blank-unit:" .. unit, 1)
-    task.wait(0.25)
-    local claim = findButton({"Claim"}, true, "blank", true)
-    if claim then
-        clickButton(claim, "blank-unit-claim", 2)
-        log("Pedido de claim enviado para " .. unit .. ". Confira o resultado no jogo.", THEME.success)
-        return true
-    end
-    log("A unidade pode estar bloqueada ou já resgatada. Confira o custo de 30 Blank Tokens.", THEME.warning)
-    return false
-end
-
-local function gameToggleByLabel(labelText)
+local function setNativeToggle(labelText, wanted)
     local target = norm(labelText)
-    local bestButton, bestDistance = nil, math.huge
+    local bestButton, bestDistance, currentValue = nil, math.huge, nil
 
     for _, root in ipairs(playerGui:GetChildren()) do
         for _, labelObject in ipairs(root:GetDescendants()) do
-            if labelObject:IsA("TextLabel") and visible(labelObject) and norm(labelObject.Text) == target then
-                local labelCenter = labelObject.AbsolutePosition + (labelObject.AbsoluteSize / 2)
+            if labelObject:IsA("TextLabel") and isVisible(labelObject) and norm(labelObject.Text) == target then
+                local center = labelObject.AbsolutePosition + (labelObject.AbsoluteSize / 2)
                 local parent = labelObject.Parent
 
-                for depth = 1, 3 do
+                for depth = 1, 4 do
                     if not parent then break end
-                    for _, object in ipairs(parent:GetDescendants()) do
-                        if object:IsA("GuiButton") and visible(object) and object.Active
-                            and object.AbsoluteSize.X > 4 and object.AbsoluteSize.Y > 4 then
-                            local name = norm(object.Name)
-                            local buttonLabel = object:IsA("TextButton") and norm(object.Text) or ""
-                            local explicitSwitch = string.find(name, "toggle", 1, true)
-                                or string.find(name, "switch", 1, true)
-                                or buttonLabel == "on" or buttonLabel == "off"
-                                or buttonLabel == "enabled" or buttonLabel == "disabled"
-
-                            local center = object.AbsolutePosition + (object.AbsoluteSize / 2)
-                            local distance = (center - labelCenter).Magnitude
-                            local compactControl = object.AbsoluteSize.X <= 120 and object.AbsoluteSize.Y <= 70
-                            if (explicitSwitch or compactControl) and distance < bestDistance and distance < 150 then
-                                bestButton = object
+                    for _, candidate in ipairs(parent:GetDescendants()) do
+                        if candidate:IsA("GuiButton") and candidate.Parent and isVisible(candidate) then
+                            local candidateCenter = candidate.AbsolutePosition + (candidate.AbsoluteSize / 2)
+                            local distance = (candidateCenter - center).Magnitude
+                            local width = candidate.AbsoluteSize.X
+                            local height = candidate.AbsoluteSize.Y
+                            if distance < 145 and width <= 150 and height <= 80 and distance < bestDistance then
+                                bestButton = candidate
                                 bestDistance = distance
+                                local stateText = candidate:IsA("TextButton") and norm(candidate.Text) or norm(candidate.Name)
+                                if stateText == "on" or stateText == "enabled" or stateText == "true" then
+                                    currentValue = true
+                                elseif stateText == "off" or stateText == "disabled" or stateText == "false" then
+                                    currentValue = false
+                                else
+                                    currentValue = nil
+                                end
                             end
                         end
                     end
@@ -1877,69 +814,468 @@ local function gameToggleByLabel(labelText)
         end
     end
 
-    if bestButton then
-        return clickButton(bestButton, "game-setting:" .. target, 1.4)
+    if not bestButton then
+        return false, "Não encontrei o toggle ao lado de " .. labelText .. ". Abra Macro → Units e deixe a opção visível."
     end
-    log("Não encontrei o interruptor ao lado de " .. labelText .. ". Abra Settings e deixe essa opção visível.", THEME.warning)
+    if currentValue ~= nil and currentValue == wanted then
+        return true, labelText .. " já está " .. (wanted and "ON." or "OFF.")
+    end
+    local ok, err = sendMouseClick(bestButton)
+    if not ok then return false, err end
+    return true, "Input enviado para " .. labelText .. ". Confira o estado no jogo."
+end
+
+local function runAsync(name, callback)
+    if state[name] then return false, "Essa sequência já está em execução." end
+    state[name] = true
+    local generation = state.generation
+    spawnTracked(function()
+        local ok, err = pcall(callback, generation)
+        state[name] = false
+        if ok then
+            log(name .. " concluído.", "success")
+        elseif state.running then
+            log(name .. ": " .. tostring(err), "error")
+        end
+    end)
+    return true, name .. " iniciado."
+end
+
+local function storyStep(labels, context, generation, timeout, partial)
+    return clickGameAndWait(labels, context, timeout or 8, partial == true, generation)
+end
+
+local function startStory()
+    local world = state.values.storyWorld
+    local act = state.values.storyAct
+    local difficulty = state.values.storyDifficulty
+    local route = state.values.storyRoute
+    local entry = state.values.storyEntry
+
+    if route == "World Skip" and world == "Sword Arena" then
+        return false, "Sword Arena não tem World Skip. Escolha Individual Act."
+    end
+
+    return runAsync("storyRunning", function(generation)
+        storyStep({"Play"}, nil, generation, 8, false)
+        storyStep({"Story"}, "play", generation, 8, false)
+        storyStep({world}, "story", generation, 8, true)
+
+        if route == "World Skip" then
+            storyStep({"World Skip"}, "story", generation, 6, false)
+        else
+            storyStep({act}, "story", generation, 6, true)
+        end
+
+        storyStep({difficulty}, "story", generation, 6, false)
+        storyStep({entry}, "story", generation, 6, false)
+
+        if entry == "Matchmaking" then
+            log(world .. " / " .. route .. " / " .. difficulty .. " enviado para Matchmaking.", "success")
+            return
+        end
+
+        storyStep({"Start"}, "select stage", generation, 10, false)
+    end)
+end
+
+local function openQuests(category)
+    local ok, reason = clickVisible({"Quests"}, nil, "open-quests", 1.2, true)
+    if not ok then return false, reason end
+    task.wait(0.3)
+    local tab = findGameButton({category}, "quest", false, true)
+    if not tab then
+        tab = findGameButton({category}, nil, false, true)
+    end
+    if not tab then return false, "Quests abriu, mas não encontrei a aba " .. category .. "." end
+    return sendMouseClick(tab)
+end
+
+local function claimAllQuests()
+    local button = findGameButton({"Claim All"}, "quest", false, true)
+    if not button then button = findGameButton({"Claim All"}, nil, false, true) end
+    if not button then return false, "Abra Quests, Guide, Event Quests ou Bounties primeiro." end
+    return sendMouseClick(button)
+end
+
+local function openGuidebook()
+    return openQuests("Guide")
+end
+
+local function openBounties()
+    local button = findGameButton({"Bounties"}, nil, false, true)
+    if button then return sendMouseClick(button) end
+    if hasScreenText({"Request Board", "Navi"}) then
+        return false, "Fale com Navi no Request Board e selecione Bounties."
+    end
+    return false, "Vá ao Request Board no lobby, fale com Navi e abra Bounties."
+end
+
+local function startNativeMacro()
+    return runAsync("macroStarting", function()
+        local opened = openMacroPanel()
+        if not opened then
+            error("Entre em uma partida antes de iniciar o Smart Macro.")
+        end
+        task.wait(0.35)
+
+        local runButton, reason = waitForGameButton({"Run"}, "macro", 6, false)
+        if not runButton then error(reason) end
+        local runOk, runErr = sendMouseClick(runButton)
+        if not runOk then error(runErr) end
+        task.wait(0.25)
+
+        local mode = state.values.macroMode
+        local modeButton, modeReason = waitForGameButton({mode}, "run", 6, false)
+        if not modeButton then error("Não achei o modo " .. mode .. ": " .. tostring(modeReason)) end
+        local modeOk, modeErr = sendMouseClick(modeButton)
+        if not modeOk then error(modeErr) end
+        task.wait(0.25)
+
+        local startButton, startReason = waitForGameButton({"Start"}, "run", 6, false)
+        if not startButton then error("Não achei Start no menu Run: " .. tostring(startReason)) end
+        local startOk, startErr = sendMouseClick(startButton)
+        if not startOk then error(startErr) end
+    end)
+end
+
+local function stopNativeMacro()
+    local pause = findGameButton({"Pause"}, "macro", false, true)
+    if pause then return sendMouseClick(pause) end
+    local stop = findGameButton({"Stop"}, "macro", false, true)
+    if stop then return sendMouseClick(stop) end
+    return false, "Painel flutuante do Macro não está visível; use Open no painel nativo."
+end
+
+local function findPromptPart(prompt)
+    local parent = prompt.Parent
+    if parent and parent:IsA("BasePart") then return parent end
+    local model = prompt:FindFirstAncestorOfClass("Model")
+    if model then return model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart", true) end
+    return nil
+end
+
+local function findCapturePrompt()
+    local character = player.Character
+    local root = character and character:FindFirstChild("HumanoidRootPart")
+    if not root then return nil end
+
+    local now = os.clock()
+    local cached = state.cachedHuntPrompt
+    if cached and cached.prompt and cached.prompt.Parent and cached.prompt.Enabled
+        and cached.part and cached.part.Parent and now - state.lastHuntPromptScan < 1.6 then
+        cached.distance = (root.Position - cached.part.Position).Magnitude
+        return cached
+    end
+    if now - state.lastHuntPromptScan < 1.6 then return nil end
+    state.lastHuntPromptScan = now
+
+    local nearest, nearestDistance = nil, math.huge
+    for _, object in ipairs(workspace:GetDescendants()) do
+        if object:IsA("ProximityPrompt") and object.Enabled then
+            local promptText = norm(object.ActionText .. " " .. object.ObjectText .. " " .. object.Name)
+            if string.find(promptText, "capture", 1, true) then
+                local part = findPromptPart(object)
+                if part then
+                    local distance = (root.Position - part.Position).Magnitude
+                    if distance < nearestDistance then
+                        nearest = {prompt = object, part = part, distance = distance}
+                        nearestDistance = distance
+                    end
+                end
+            end
+        end
+    end
+    state.cachedHuntPrompt = nearest
+    return nearest
+end
+
+local function colorLooksGold(color)
+    return color and color.R > 0.58 and color.G > 0.34 and color.B < 0.48 and color.R > color.G * 0.92
+end
+
+local function isSameTrack(marker, zone)
+    local parents = {}
+    local current = marker
+    for _ = 1, 5 do
+        if not current then break end
+        parents[current] = true
+        current = current.Parent
+    end
+    current = zone
+    for _ = 1, 5 do
+        if not current then break end
+        if parents[current] and current:IsA("GuiObject") then
+            return true
+        end
+        current = current.Parent
+    end
     return false
 end
 
-local function openGameSettings()
-    if not clickPhrase({"Settings"}, "settings-open", false, nil, true) then
-        log("Abra Settings no menu do jogo.", THEME.warning)
-        return false
+local function capturePerfectReady()
+    local markers, zones = {}, {}
+    for _, root in ipairs(playerGui:GetChildren()) do
+        for _, object in ipairs(root:GetDescendants()) do
+            if object:IsA("GuiObject") and object.Visible then
+                local name = norm(object.Name)
+                if string.find(name, "marker", 1, true)
+                    or string.find(name, "needle", 1, true)
+                    or string.find(name, "pointer", 1, true) then
+                    table.insert(markers, object)
+                end
+
+                local isZone = string.find(name, "perfect", 1, true)
+                    or string.find(name, "gold", 1, true)
+                    or colorLooksGold(object.BackgroundColor3)
+                if isZone then table.insert(zones, object) end
+            end
+        end
     end
-    return true
+
+    for _, marker in ipairs(markers) do
+        for _, zone in ipairs(zones) do
+            if marker ~= zone and isSameTrack(marker, zone) then
+                local markerX = marker.AbsolutePosition.X + marker.AbsoluteSize.X / 2
+                local left = zone.AbsolutePosition.X
+                local right = left + zone.AbsoluteSize.X
+                local sameBand = math.abs(marker.AbsolutePosition.Y - zone.AbsolutePosition.Y) < 42
+                if sameBand and markerX >= left and markerX <= right then
+                    return true
+                end
+            end
+        end
+    end
+    return false
 end
 
-local function setPerformance(enabled)
+local function startUnitHunt()
+    return runAsync("huntStarting", function(generation)
+        storyStep({"Events"}, nil, generation, 8, false)
+        storyStep({"Unit Hunt"}, "events", generation, 8, false)
+        storyStep({"Start Hunt"}, "unit hunt", generation, 8, false)
+    end)
+end
+
+local function openUnitHuntBook()
+    if not hasScreenText({"Unit Hunt", "Hunting Isles"}) then
+        local events = clickVisible({"Events"}, nil, "open-events-book", 1.2, false)
+        if not events then return false, "Abra Events no menu do jogo." end
+        task.wait(0.25)
+        local unit = findGameButton({"Unit Hunt"}, "events", false, true)
+        if not unit then return false, "Não encontrei Unit Hunt na lista de eventos." end
+        local ok, err = sendMouseClick(unit)
+        if not ok then return false, err end
+        task.wait(0.3)
+    end
+
+    local book = findGameButton({"Book", "Collection Book"}, "unit hunt", false, true)
+    if not book then book = findGameButton({"Book", "Collection Book"}, nil, false, true) end
+    if not book then return false, "Unit Hunt está aberto, mas o botão Book não apareceu." end
+    return sendMouseClick(book)
+end
+
+local function openEventQuests()
+    local events = findGameButton({"Events"}, nil, false, true)
+    if events then
+        local ok, err = sendMouseClick(events)
+        if not ok then return false, err end
+        task.wait(0.25)
+    end
+    local hunt = findGameButton({"Unit Hunt"}, "events", false, true)
+    if not hunt then return false, "Selecione Unit Hunt em Events." end
+    local ok, err = sendMouseClick(hunt)
+    if not ok then return false, err end
+    task.wait(0.3)
+    local quest = findGameButton({"Event Quests"}, "unit hunt", false, true)
+    if not quest then return false, "Não encontrei Event Quests na página Unit Hunt." end
+    return sendMouseClick(quest)
+end
+
+local function processUnitHunt()
+    if not state.toggles.autoHunt then return end
+    local now = os.clock()
+    if not hasScreenText({"Hunting Isles", "Hunt Wave", "Unit Hunt"}) then return end
+
+    if state.toggles.autoPerfect and capturePerfectReady() and now - state.lastHuntInteract > 0.16 then
+        state.lastHuntInteract = now
+        sendKey(0x20)
+        return
+    end
+
+    local target = findCapturePrompt()
+    if target then
+        local character = player.Character
+        local root = character and character:FindFirstChild("HumanoidRootPart")
+        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+        local prompt = target.prompt
+        local maxDistance = math.max(3, prompt.MaxActivationDistance - 1)
+
+        if state.activeHuntPrompt ~= prompt then
+            state.activeHuntPrompt = prompt
+            state.lastHuntInteract = 0
+        end
+
+        if target.distance > maxDistance then
+            if humanoid and now - state.lastHuntMove > 2.0 then
+                state.lastHuntMove = now
+                local delta = target.part.Position - root.Position
+                if delta.Magnitude > 0.1 then
+                    local direction = delta.Unit
+                    humanoid:MoveTo(target.part.Position - direction * math.min(3, maxDistance * 0.35))
+                end
+            end
+        elseif now - state.lastHuntInteract > 12 then
+            state.lastHuntInteract = now
+            sendKey(0x45)
+        end
+    else
+        state.activeHuntPrompt = nil
+        if now - state.lastHuntScan > 8 then
+            state.lastHuntScan = now
+            sendKey(0x51)
+        end
+    end
+end
+
+local function claimLoginRewards()
+    local open = findGameButton({"Login Rewards"}, nil, true, true)
+    if open then
+        local ok, err = sendMouseClick(open)
+        if not ok then return false, err end
+        task.wait(0.3)
+    end
+
+    local claimed = 0
+    for _, tabName in ipairs({"Daily", "Anniversary"}) do
+        local tab = findGameButton({tabName}, "login", false, true)
+        if tab then
+            local tabOk = sendMouseClick(tab)
+            if tabOk then
+                task.wait(0.2)
+                local claim = findGameButton({"Claim"}, "login", false, true)
+                if claim then
+                    local claimOk = sendMouseClick(claim)
+                    if claimOk then claimed = claimed + 1 end
+                end
+            end
+        end
+    end
+
+    if claimed > 0 then return true, "Claims de Login Rewards enviados: " .. tostring(claimed) end
+    return false, "Não achei Claim disponível. Abra Login Rewards e tente novamente."
+end
+
+local function openHesiaRewards()
+    local button = findGameButton({"Free Rewards"}, "hesia", false, true)
+    if not button then return false, "Vá até Hesia no lobby, fale com ela e abra Free Rewards." end
+    return sendMouseClick(button)
+end
+
+local function claimHesiaRewards()
+    local button = findGameButton({"Claim Rewards"}, "free rewards", false, true)
+    if not button then return false, "Conclua as quatro tarefas sociais de Hesia antes do Claim Rewards." end
+    return sendMouseClick(button)
+end
+
+local function openYoutubeReward()
+    local button = findGameButton({"YouTube Reward"}, nil, false, true)
+    if not button then return false, "Abra YouTube Reward no lobby primeiro." end
+    return sendMouseClick(button)
+end
+
+local function redeemYoutubeReward()
+    local channel = tostring(state.values.youtubeChannel or "")
+    if channel == "" then return false, "Digite seu nome de canal no campo YouTube channel name." end
+
+    local box
+    for _, root in ipairs(playerGui:GetChildren()) do
+        for _, item in ipairs(root:GetDescendants()) do
+            if item:IsA("TextBox") and isVisible(item) then
+                local context = norm(item.Name .. " " .. item.PlaceholderText .. " " .. getContextText(item))
+                if string.find(context, "channel", 1, true) then
+                    box = item
+                    break
+                end
+            end
+        end
+        if box then break end
+    end
+    if not box then return false, "Campo de canal não encontrado. Abra YouTube Reward e preencha manualmente." end
+    box.Text = channel
+    local redeem = findGameButton({"Redeem"}, "youtube", false, true)
+    if not redeem then return false, "Não encontrei Redeem na tela YouTube Reward." end
+    return sendMouseClick(redeem)
+end
+
+local function claimKingsIndex()
+    local open = findGameButton({"Open Index"}, "king", false, true)
+    if open then
+        local ok, err = sendMouseClick(open)
+        if not ok then return false, err end
+        task.wait(0.3)
+    end
+    local claim = findGameButton({"Claim All"}, "index", false, true)
+    if not claim then return false, "Fale com King, abra Open Index e verifique se há recompensas." end
+    return sendMouseClick(claim)
+end
+
+local function claimBlankUnit()
+    local board = findGameButton({"Bounties"}, nil, false, true)
+    if board then
+        local ok, err = sendMouseClick(board)
+        if not ok then return false, err end
+        task.wait(0.25)
+    end
+    local blank = findGameButton({"Blank Tokens"}, nil, false, true)
+    if not blank then return false, "Abra Bounty Board → Blank Tokens." end
+    local ok, err = sendMouseClick(blank)
+    if not ok then return false, err end
+    task.wait(0.25)
+    local unit = findGameButton({state.values.blankUnit}, nil, false, true)
+    if not unit then return false, "Não encontrei " .. state.values.blankUnit .. " na loja. Cada uma custa 30 Blank Tokens." end
+    local unitOk, unitErr = sendMouseClick(unit)
+    if not unitOk then return false, unitErr end
+    task.wait(0.25)
+    local claim = findGameButton({"Claim"}, "blank", false, true)
+    if not claim then return false, "Confira seu saldo de 30 Blank Tokens e a janela de confirmação." end
+    return sendMouseClick(claim)
+end
+
+local function setLowEffects(enabled)
     if enabled then
         if state.originalShadows == nil then
             state.originalShadows = Lighting.GlobalShadows
         end
         Lighting.GlobalShadows = false
-        for _, object in ipairs(Lighting:GetDescendants()) do
-            if object:IsA("BloomEffect") or object:IsA("BlurEffect") or object:IsA("ColorCorrectionEffect")
-                or object:IsA("DepthOfFieldEffect") or object:IsA("SunRaysEffect") then
-                if state.originalLighting[object] == nil then
-                    state.originalLighting[object] = object.Enabled
+        for _, effect in ipairs(Lighting:GetDescendants()) do
+            if effect:IsA("BloomEffect") or effect:IsA("BlurEffect")
+                or effect:IsA("ColorCorrectionEffect") or effect:IsA("DepthOfFieldEffect")
+                or effect:IsA("SunRaysEffect") then
+                if state.originalLighting[effect] == nil then
+                    state.originalLighting[effect] = effect.Enabled
                 end
-                object.Enabled = false
+                effect.Enabled = false
             end
         end
-        log("Low Effects ativado localmente.", THEME.success)
-    else
-        if state.originalShadows ~= nil then
-            Lighting.GlobalShadows = state.originalShadows
-            state.originalShadows = nil
-        end
-        for object, oldValue in pairs(state.originalLighting) do
-            if object and object.Parent then pcall(function() object.Enabled = oldValue end) end
-        end
-        state.originalLighting = {}
-        log("Efeitos visuais restaurados.", THEME.success)
+        return true, "Low Effects ligado localmente."
     end
+
+    if state.originalShadows ~= nil then
+        Lighting.GlobalShadows = state.originalShadows
+        state.originalShadows = nil
+    end
+    for effect, oldValue in pairs(state.originalLighting) do
+        if effect and effect.Parent then pcall(function() effect.Enabled = oldValue end) end
+    end
+    state.originalLighting = {}
+    return true, "Efeitos visuais restaurados."
 end
 
-local function setFpsCap(value)
-    if type(setfpscap) ~= "function" then
-        log("setfpscap não está disponível neste executor.", THEME.warning)
-        return false
-    end
-    local limit = tonumber(value) or 60
-    limit = math.clamp(math.floor(limit), 30, 360)
-    if state.originalFpsCap == nil and type(getfpscap) == "function" then
-        local ok, old = pcall(getfpscap)
-        if ok then state.originalFpsCap = old end
-    end
-    return pcall(setfpscap, limit)
-end
-
-local function setAttackEffects(enabled)
+local function setHideAttackEffects(enabled)
     if enabled then
         for _, object in ipairs(workspace:GetDescendants()) do
-            if object:IsA("ParticleEmitter") or object:IsA("Trail") or object:IsA("Beam")
-                or object:IsA("Highlight") then
+            if object:IsA("ParticleEmitter") or object:IsA("Trail") or object:IsA("Beam") or object:IsA("Highlight") then
                 if state.originalAttackEffects[object] == nil then
                     state.originalAttackEffects[object] = object.Enabled
                 end
@@ -1948,589 +1284,877 @@ local function setAttackEffects(enabled)
         end
     else
         for object, oldValue in pairs(state.originalAttackEffects) do
-            if object and object.Parent then
-                pcall(function() object.Enabled = oldValue end)
-            end
+            if object and object.Parent then pcall(function() object.Enabled = oldValue end) end
         end
         state.originalAttackEffects = {}
     end
+    return true, enabled and "Attack Effects ocultos localmente." or "Attack Effects restaurados."
+end
+
+local function applyFpsCap()
+    if type(setfpscap) ~= "function" then return false, "setfpscap não está disponível no Solara." end
+    local cap = math.clamp(math.floor(tonumber(state.values.fpsCap) or 60), 30, 360)
+    if state.originalFpsCap == nil and type(getfpscap) == "function" then
+        local ok, previous = pcall(getfpscap)
+        if ok then state.originalFpsCap = previous end
+    end
+    local ok, err = pcall(setfpscap, cap)
+    return ok, ok and ("FPS cap definido para " .. tostring(cap) .. ".") or tostring(err)
 end
 
 local function restorePerformance()
-    setPerformance(false)
-    setAttackEffects(false)
+    setLowEffects(false)
+    setHideAttackEffects(false)
     if state.originalFpsCap ~= nil and type(setfpscap) == "function" then
         pcall(setfpscap, state.originalFpsCap)
         state.originalFpsCap = nil
     end
-end
-
-local function drawOverview()
-    section("Overview", "Ações principais do Anime Crusaders X.")
-    newGrid()
-    addButton("Start Story", "Abre Play → Story e inicia o mundo/ato/dificuldade selecionados.", "START", startStory)
-    addButton("Claim Quest Rewards", "Coleta Claim All ou recompensas concluídas nas telas de Quest.", "CLAIM", function()
-        if not string.find(allGuiText(), "quest", 1, true) then openQuests(state.values.questCategory) end
-        claimVisibleQuests()
-    end)
-    addButton("Enter Unit Hunt", "Abre Events → Unit Hunt → Start Hunt.", "ENTER", startUnitHunt)
-    addButton("Start Smart Macro", "Inicia o Macro nativo já configurado em Macro → Run.", "MACRO", startNativeMacro)
-    finishGrid()
-    addNotice("Game automation", "O farming de fases usa o Smart Macro nativo: posicionamento, upgrades, habilidades e venda de unidades são decididos pela configuração de slots e zonas que você salvou.", "NATIVE")
-    addNotice("Mission automation", "Quests tem categorias All, Daily, Infinite, Story, Event e Guide. O yno hub pode abrir as categorias e coletar recompensas concluídas; os objetivos de batalha são cumpridos jogando as fases.", "QUESTS")
-    addNotice("Unit Hunt", "Evento de captura à parte do roster de Tower Defense. São 39 entradas no Book, quatro regiões e cinco Event Quests. O modo exige Level 5.", "EVENT")
-    addNotice("Floating panel", "Arraste pela barra superior. — minimiza para o botão y. Clique y para reabrir. RightShift alterna a janela.", "UI")
-end
-
-local function drawMissions()
-    section("Missions", "Quests, Guidebook, Daily objectives e Bounties.")
-    newGrid()
-    addSelect("Quest category", "All / Daily / Infinite / Story / Event / Guide.", "questCategory", {"All", "Daily", "Infinite", "Story", "Event", "Guide"})
-    addButton("Open selected category", "Abre Quests e seleciona a categoria escolhida.", "OPEN", function()
-        openQuests(state.values.questCategory)
-    end)
-    addButton("Claim All rewards", "Tenta coletar somente recompensas visíveis de Quest/Guide/Event.", "CLAIM ALL", claimVisibleQuests)
-    addToggle("Auto claim completed quests", "Coleta Claim All quando uma tela de Quest ou Event Quest já estiver aberta.", "autoClaim", false)
-    addButton("Open Guidebook", "Quests → Guide. Use para seguir as 10 tarefas que liberam Phoenix.", "GUIDE", openGuidebook)
-    addButton("Open Bounty Board", "Navi, marcado Missions, no Request Board → Bounties.", "BOUNTIES", openBountyBoard)
-    addButton("Claim completed bounties", "Coleta recompensas dos cartões de Bounty já concluídos.", "CLAIM", claimBounties)
-    addButton("Start Story quest grind", "Liga Auto Start/Skip/Next e inicia o Story selecionado para objetivos de kills e stage clears.", "START GRIND", function()
-        setToggleValue("autoStart", true)
-        setToggleValue("autoSkip", true)
-        setToggleValue("autoNext", true)
-        startStory()
-    end)
-    addButton("Open Challenges", "Abre Play → Challenges para selecionar o desafio diário/semanal ativo.", "CHALLENGES", function()
-        if clickPhrase({"Play"}, "mission-challenges-play", false, nil, true) then
-            task.wait(0.35)
-            clickFirstPhrase({"Challenges"}, "mission-challenges", false, "play", true)
-        else
-            log("Abra Play → Challenges no lobby.", THEME.warning)
-        end
-    end)
-    addButton("Start Auto Challenge Routine", "Inicia Macro → Routine após configurar Auto Challenge em Macro → Dailies.", "START ROUTINE", function()
-        state.values.macroMode = "Routine"
-        startNativeMacro()
-    end)
-    addToggle("Auto quest farming", "Liga/desliga Auto Start, Auto Skip e Auto Next em conjunto para objetivos de kills e clears no Story.", "autoQuestLoop", false, function(enabled)
-        setToggleValue("autoStart", enabled)
-        setToggleValue("autoSkip", enabled)
-        setToggleValue("autoNext", enabled)
-    end)
-    finishGrid()
-    addNotice("Daily Quests", "Complete cinco tarefas diárias e reivindique o bônus Daily Quests Complete!: 750 Gems + 10 Trait Remnants. As tarefas podem incluir Kills, Challenge, Summoning e Stage Completion; confira a lista atual do seu jogo.", "750 GEMS")
-    addNotice("Guidebook → Phoenix", "Complete as 10 Guide Quests e colete Guide Quests Complete! para receber Phoenix. As tarefas incluem Roll Traits, Feed Units, Fuse Units, Clear Stages, Place Units, Sell Units e Roll Stats.", "FREE UNIT")
-    addNotice("Bounty cards", "Cada cartão tem três objetivos. Complete os três e receba 5 Event Tokens + 1 Blank Token. A placa diária oferece dez cartões; reroll custa 10.000 Gold e apaga o progresso daquele cartão.", "BOUNTY")
-end
-
-local function drawStory()
-    section("Story", "Selecione mundo, ato e dificuldade. O runner navega pelos menus visíveis.")
-    newGrid()
-    addSelect("World", "11 mundos em ordem de progressão.", "storyWorld", WORLD_LIST)
-    addSelect("Act", "Sword Arena e mundos com atos individuais usam Act 1–6.", "storyAct", {"Act 1", "Act 2", "Act 3", "Act 4", "Act 5", "Act 6"})
-    addSelect("Difficulty", "Hard só fica disponível depois de concluir aquele ato em Normal.", "storyDifficulty", {"Normal", "Hard"})
-    addSelect("Story route", "World Skip está disponível nos mundos 1–10; Sword Arena exige atos individuais.", "storyMode", {"Individual Act", "World Skip"})
-    addSelect("Party entry", "Matchmaking procura jogadores; Select Stage abre a tela de party.", "storyEntry", {"Matchmaking", "Select Stage"})
-    addButton("Start selected Story", "Play → Story → World → Act/World Skip → Difficulty → Matchmaking/Select Stage → Start.", "START STORY", startStory)
-    addToggle("Auto Start match", "Clica em Vote Start ou Start Match quando esses controles aparecem.", "autoStart", false)
-    addToggle("Auto Skip waves", "Vota em Skip Wave quando o botão estiver visível.", "autoSkip", false)
-    addToggle("Auto Next stage", "Clica Next/Next Stage após uma conclusão, para avançar na sequência disponível.", "autoNext", false)
-    addToggle("Auto Retry after defeat", "Clica Retry/Replay quando derrota e o botão estiver disponível.", "autoRetry", false)
-    finishGrid()
-    addNotice("World order", "Planet Namak → Marine's Ford → Karakura Town → Shibuya → Demon District → Devil City → Soul Society → West City (Ruined) → Culling Games → Doldrey → Sword Arena.", "11 WORLDS")
-    addNotice("World Skip", "Normal only, com +900% de HP dos inimigos. Uma vitória completa todos os atos daquele mundo. Não está disponível em Sword Arena.", "WORLDS 1–10")
-    addNotice("Progression tip", "Conclua Culling Games para liberar Doldrey. Concluir um ato em Normal libera Hard para aquele ato. Use Auto Next com cautela: ele segue o próximo estágio que o próprio jogo disponibilizar.", "STORY")
-end
-
-local function drawUnitHunt()
-    section("Unit Hunt", "O evento de captura de criaturas — não confundir com unidades equipáveis do modo Tower Defense.")
-    newGrid()
-    addButton("Enter Hunting Isles", "Events → Unit Hunt → Start Hunt. Requer Player Level 5.", "ENTER", startUnitHunt)
-    addToggle("Auto Hunt", "Procura ProximityPrompts de Capture, aproxima o personagem e usa E. Pressiona Q para procurar raros.", "autoUnitHunt", false)
-    addButton("Open Collection Book", "Abre Book para conferir entradas capturadas, regiões e Shinies.", "BOOK", startHuntBook)
-    addButton("Open Event Quests", "Abre a lista das cinco missões do Unit Hunt.", "QUESTS", startHuntEventQuests)
-    addToggle("Auto claim Unit Hunt quests", "Coleta recompensas de Event Quests quando a lista está aberta.", "autoHuntClaims", false)
-    addButton("Claim Event rewards", "Tenta Claim All / Claim Rewards na página de Event Quests.", "CLAIM", function()
-        if not string.find(allGuiText(), "event quest", 1, true) then startHuntEventQuests() end
-        task.wait(0.2)
-        claimVisibleQuests()
-    end)
-    addButton("Open Anniversary Hunt", "Evento de drops de inimigos ativo até Update 11; configure o Smart Macro para farmar partidas.", "ANNIVERSARY", function()
-        openEventPage("Anniversary Hunt")
-    end)
-    addButton("Open Golden Crusader", "Abre o rastreador do inimigo raro que dá um token por jogador uma única vez.", "GOLDEN", function()
-        openEventPage("Golden Crusader")
-    end)
-    addButton("Use Crusader Token", "Usa o token do inventário para receber 250.000 Gems e Trait Remnants.", "USE TOKEN", useCrusaderToken)
-    finishGrid()
-    addNotice("Capture mechanics", "Pressione Q para scan; aproxime-se do alvo até E Capture aparecer; pressione E. No minigame, acerte o marcador no centro dourado com clique, Space ou E para PERFECT (dano dobrado).", "Q · E · SPACE")
-    addNotice("Regions & rewards", "Whisperwood Isles: 8 entries / 5 Event Tokens. Bridgeway Hollow: 11 / 10 Tokens (Hunt Wave 3). Crown Ward: 15 Tokens (Wave 6). Frostfang Peak: 20 Tokens (Wave 9). O Book principal tem 39 entradas; Shinies é uma aba separada com 35.", "4 REGIONS")
-    addNotice("Five event quests", "Rookie Hunter: 25 captures / 5 Tokens. Seasoned Hunter: 150 / 15. Shiny Spotter: 1 Shiny / 25. Valkyrie Slayer: 3 assists / 10. Shrine Keeper: awaken 2 Guardians / 10.", "EVENT QUESTS")
-    addNotice("Final Page #039", "Capture the other 38 entries and reach Hunt Wave 10. Ride the Wind Geyser to Sky Altar above Frostfang Peak, break the Sky Seal and capture No.039 alone. First capture rewards 25 Event Tokens.", "SECRET")
-    addNotice("Golden Crusader", "Inimigo permanente com chance base de 1 em 5.000.000 por inimigo normal fora do Testing Zone. Ao derrotar, cada jogador elegível recebe um token de uso único; o token concede 250.000 Gems e Trait Remnants.", "LIFETIME TOKEN")
-    addNotice("Important distinction", "As 39 entradas de Unit Hunt são capturas do Collection Book do evento. Elas não são personagens que entram automaticamente no seu time de Tower Defense.", "COLLECTION")
-end
-
-local function drawFreeUnits()
-    section("Free Units & Rewards", "Unidades resgatáveis por objetivos — custos e requisitos explícitos.")
-    newGrid()
-    addButton("Claim Login Rewards", "Verifica e coleta separadamente Daily e Anniversary, quando houver Claim disponível.", "CLAIM LOGIN", claimLoginRewards)
-    addButton("Open Hesia Free Rewards", "Vai até Hesia e abre as quatro tarefas sociais; conclua as que ainda faltam no jogo.", "HESIA", openHesiaRewards)
-    addButton("Claim Hesia Rewards", "Coleta Claim Rewards depois que Join Group, Like + Favorite, Notifications e Follow Event estiverem concluídos.", "CLAIM", claimHesiaRewards)
-    addInput("YouTube channel name", "Digite o nome do seu próprio canal após concluir a inscrição.", "youtubeChannel", "")
-    addButton("Open YouTube Reward", "Abre a verificação de inscrição do canal oficial.", "YOUTUBE", openYoutubeReward)
-    addButton("Redeem YouTube Reward", "Envia o nome do canal informado. O jogo ainda valida a inscrição e as notificações.", "REDEEM", redeemYoutubeReward)
-    addButton("Claim King's Index", "Vai até King, abre Open Index e reivindica Claim All quando estiver disponível.", "INDEX", claimKingIndex)
-    addButton("Claim Phoenix", "Abre Guidebook e tenta coletar Guide Quests Complete! se as 10 tarefas estiverem feitas.", "CLAIM PHOENIX", claimPhoenix)
-    addButton("Open Guidebook", "Veja progresso e objetivos individuais que faltam.", "OPEN", openGuidebook)
-    addSelect("Blank Unit", "Shadow (Atomic) ou Lao (Heart).", "blankUnit", {"Shadow (Atomic)", "Lao (Heart)"})
-    addButton("Open Blank Token shop", "Bounty Board → Blank Tokens. Selecione a unidade desejada.", "OPEN SHOP", function()
-        if openBountyBoard() then
-            task.wait(0.3)
-            clickPhrase({"Blank Tokens"}, "blank-token-shop", false, nil, true)
-        end
-    end)
-    addButton("Claim selected Blank Unit", "Envia o Claim da unidade selecionada. Só clique se você tiver os 30 Blank Tokens.", "CLAIM UNIT", claimBlankUnit)
-    finishGrid()
-    addNotice("Twenty One", "A trilha Anniversary Login de sete dias dá Twenty One no Day 1 e oito Anniversary Tickets no total. Daily e Anniversary são abas diferentes: reivindique as duas separadamente enquanto o evento estiver ativo.", "FREE LOGIN")
-    addNotice("Phoenix", "Phoenix é a recompensa de completar todas as 10 Guide Quests e reivindicar Guide Quests Complete! Phoenix (Rebirth) é outra forma, não a recompensa original.", "10 QUESTS")
-    addNotice("Hesia / YouTube / Index", "Hesia oferece quatro tarefas sociais com Claim Rewards; YouTube Reward exige subscrever @32xGames e inserir seu próprio canal; King's Index entrega recompensas por unidades registradas. O YouTube Reward consultado lista 30 Trait Remnants, 1.000 Gems, 10 Stat Cubes, 5 Perfect Stat Cubes, 5 Relic Cubes, 5 Curse Tokens e 2.500 Gold.", "REWARDS")
-    addNotice("Blank Units are not free", "Shadow (Atomic) custa 30 Blank Tokens e Lao (Heart) custa 30. O yno hub não gasta esses tokens automaticamente; o botão de claim acima só age quando você o aciona.", "30 TOKENS")
-    addNotice("Other free rewards", "Use Missions → Claim All para recolher Daily, Story, Infinite e Event quest rewards concluídos. Códigos e recompensas podem expirar; verifique a lista atual dentro do jogo.", "CLAIM")
-end
-
-local function drawGame()
-    section("Game", "Game controls on the left · Wave Actions on the right.")
-    local leftRows, rightRows = newColumnGroup("Game", "Wave Actions")
-
-    currentGrid = leftRows
-    addToggle("Auto Skip Wave", "Vote em Skip Wave / Vote Skip quando estiver disponível.", "autoSkip", false)
-    addToggle("Auto Start", "Envia Vote Start / Start Match quando a sala estiver pronta.", "autoStart", false)
-    addToggle("Auto Replay / Retry", "Repete a partida após uma tela de derrota detectada.", "autoRetry", false)
-    addToggle("Auto Next", "Avança apenas quando uma tela de vitória/conclusão aparece.", "autoNext", false)
-    addToggle("Auto Use Abilities", "Usa botões de habilidade ativos e visíveis.", "autoAbilities", false)
-    finishGrid()
-
-    currentGrid = rightRows
-    addButton("Open Macro Units", "Macro → Units: Fill My Team, targeting, upgrades e habilidades por slot.", "OPEN", function()
-        local macro = findButton({"Macro"}, true, nil, true)
-        if macro then
-            clickButton(macro, "macro-open-units", 1.2)
-            task.wait(0.3)
-        end
-        return clickPhrase({"Units"}, "macro-units", false, "macro", true)
-    end)
-    addButton("Toggle Auto Upgrade", "Alterna a opção nativa Auto Upgrade quando o controle está visível em Macro/Units.", "TOGGLE", function()
-        return gameToggleByLabel("Auto Upgrade")
-    end)
-    addButton("Toggle Auto Use Abilities", "Alterna a configuração nativa Auto Use Abilities quando estiver visível.", "TOGGLE", function()
-        return gameToggleByLabel("Auto Use Abilities")
-    end)
-    addButton("Toggle Auto Sell Farms", "Alterna o controle nativo Auto Sell Farms.", "TOGGLE", function()
-        return gameToggleByLabel("Auto Sell Farms")
-    end)
-    addButton("Toggle Auto Sell Units", "Alterna o controle nativo Auto Sell Units.", "TOGGLE", function()
-        return gameToggleByLabel("Auto Sell Units")
-    end)
-    addButton("Open Game Settings", "Abre Settings para opções persistentes do jogo.", "SETTINGS", openGameSettings)
-    finishGrid()
-
-    addNotice("Native Smart Macro", "O jogo controla posicionamento, upgrades por slot, venda, targeting e habilidades. Configure Units e Placement antes de iniciar Loop, This Stage ou Routine.", "NATIVE")
-end
-
-local function drawMacro()
-    section("Smart Macro", "O sistema nativo do jogo faz o farm de verdade.")
-    newGrid()
-    addSelect("Run mode", "Loop repete a fase atual; This Stage faz uma partida; Routine executa uma fila pré-configurada.", "macroMode", {"Loop", "This Stage", "Routine"})
-    addButton("Open Macro", "Abre o painel Smart Macro nativo do jogo.", "OPEN", function()
-        openMenuButton("Macro", "native-macro-open-manual")
-    end)
-    addButton("Start Smart Macro", "Abre Run, seleciona o modo e pressiona Start. Configure o time e o mapa antes.", "START", startNativeMacro)
-    addButton("Stop Smart Macro", "Pressiona Stop/Pause no painel Macro nativo.", "STOP", stopNativeMacro)
-    addButton("Copy Icy preset code", "Preset comunitário AP-RSEHDXU para Sword Arena - Raid.", "COPY CODE", function()
-        safeClipboard("AP-RSEHDXU")
-    end)
-    finishGrid()
-    addNotice("Team setup", "Macro → Units → Fill My Team. Configure os seis slots + Hero, targeting, Auto upgrade, Auto abilities, placement limits e ondas.", "6 SLOTS + HERO")
-    addNotice("Placement", "Macro → Units → Placement. Use Zones para definir áreas por unidade ou Recording para gravar o posicionamento por mapa.", "ZONES / RECORDING")
-    addNotice("Routine", "Macro → Routine → New → Add Task. Defina Mode, World, Act, Difficulty e Play until Runs. Crie a fila primeiro; depois escolha Routine em Run.", "QUEUE")
-    addNotice("Smart Challenge", "Macro → Dailies → Challenges. Selecione Daily/Weekly/Resource/Boost/Elemental/Weekly Tower, configure When e ligue a chave mestra Auto Challenge.", "DAILIES")
-end
-
-local function drawPerformance()
-    section("Performance", "Ajustes locais de renderização. Os valores originais são restaurados ao descarregar.")
-    newGrid()
-    addToggle("Low Effects", "Desativa sombras globais e pós-processamento local.", "autoLowEffects", false, function(enabled)
-        setPerformance(enabled)
-    end)
-    addToggle("Hide Attack Effects", "Desliga partículas, trails, beams e highlights locais.", "hideEffects", false, function(enabled)
-        setAttackEffects(enabled)
-    end)
-    addInput("FPS cap", "Valor permitido: 30–360.", "fpsCap", "60")
-    addButton("Apply FPS cap", "Aplica o limite selecionado com setfpscap.", "APPLY", function()
-        local ok = setFpsCap(state.values.fpsCap)
-        log(ok and "FPS cap aplicado." or "Não consegui aplicar o FPS cap.", ok and THEME.success or THEME.warning)
-    end)
-    addButton("Restore performance", "Restaura FPS, sombras e pós-processamento para os valores anteriores.", "RESTORE", restorePerformance)
-    finishGrid()
-    addNotice("Performance", "Redução de efeitos muda somente a renderização local. Não altera as regras, os drops nem o processamento do servidor.", "CLIENT SIDE")
+    return true, "Configurações visuais restauradas."
 end
 
 local function saveConfig()
-    if type(writefile) ~= "function" then
-        log("Filesystem do executor indisponível.", THEME.warning)
-        return false
-    end
-    local payload = {
-        values = state.values,
-    }
-    local ok = pcall(function()
-        if type(makefolder) == "function" and type(isfolder) == "function" and not isfolder("yno_hub") then
+    if type(writefile) ~= "function" then return false, "Filesystem indisponível." end
+    local payload = {values = state.values}
+    local ok, err = pcall(function()
+        if type(isfolder) == "function" and not isfolder("yno_hub") then
             makefolder("yno_hub")
         end
         writefile("yno_hub/config.json", HttpService:JSONEncode(payload))
     end)
-    return ok
+    return ok, ok and "Preferências salvas em yno_hub/config.json." or tostring(err)
 end
 
 local function loadConfig()
-    if type(readfile) ~= "function" or type(isfile) ~= "function" or not isfile("yno_hub/config.json") then
-        return false
-    end
+    if type(readfile) ~= "function" or type(isfile) ~= "function" then return false end
+    local exists = false
+    pcall(function() exists = isfile("yno_hub/config.json") end)
+    if not exists then return false end
     local ok, data = pcall(function()
         return HttpService:JSONDecode(readfile("yno_hub/config.json"))
     end)
-    if not ok or type(data) ~= "table" then return false end
-    if type(data.values) == "table" then
-        for key, value in pairs(data.values) do
-            if state.values[key] ~= nil then state.values[key] = value end
-        end
+    if not ok or type(data) ~= "table" or type(data.values) ~= "table" then return false end
+    for key, value in pairs(data.values) do
+        if state.values[key] ~= nil then state.values[key] = value end
     end
-    -- Automation toggles intentionally start OFF on every execution.
     return true
 end
 
-local function copyGameUiReport()
-    local buttons = gameButtons()
-    local lines = {"yno hub · visible Roblox UI controls · " .. tostring(#buttons) .. " buttons"}
-    table.sort(buttons, function(left, right)
-        return left:GetFullName() < right:GetFullName()
+local currentSection = nil
+local currentColumn = nil
+local toggleControls = {}
+
+local function clearPage()
+    for _, child in ipairs(pageScroll:GetChildren()) do
+        if child ~= pageList and not child:IsA("UIPadding") then
+            child:Destroy()
+        end
+    end
+    table.clear(toggleControls)
+    currentSection = nil
+    currentColumn = nil
+    pageScroll.CanvasPosition = Vector2.new(0, 0)
+end
+
+local function addPageHeader(title, description)
+    local holder = make("Frame", {
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, 0, 0, 48),
+        ZIndex = 8,
+    }, pageScroll)
+    textLabel(holder, title, 19, THEME.text, true, 24)
+    local sub = textLabel(holder, description, 9, THEME.muted, false, 18)
+    sub.Position = UDim2.new(0, 0, 0, 26)
+end
+
+local function createColumn(parent, title)
+    local column = make("Frame", {
+        BackgroundColor3 = THEME.surface,
+        BackgroundTransparency = 0.2,
+        Size = UDim2.new(0.5, -5, 0, 40),
+        BorderSizePixel = 0,
+        ZIndex = 8,
+    }, parent)
+    round(column, 3)
+    stroke(column, THEME.line, 0.7, 1)
+    local heading = textLabel(column, title, 10, THEME.text, true, 24)
+    heading.Position = UDim2.new(0, 10, 0, 3)
+    local body = make("Frame", {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 7, 0, 31),
+        Size = UDim2.new(1, -14, 0, 0),
+        ZIndex = 9,
+    }, column)
+    local layout = make("UIListLayout", {
+        Padding = UDim.new(0, 4),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+    }, body)
+
+    local function resize()
+        if not column.Parent then return end
+        local height = layout.AbsoluteContentSize.Y
+        body.Size = UDim2.new(1, -14, 0, height)
+        column.Size = UDim2.new(0.5, -5, 0, 37 + height)
+    end
+    layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(resize)
+    return body, column, resize
+end
+
+local function addColumns(leftTitle, rightTitle)
+    local group = make("Frame", {
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, 0, 0, 40),
+        ZIndex = 8,
+    }, pageScroll)
+    local leftBody, leftColumn, resizeLeft = createColumn(group, leftTitle)
+    local rightBody, rightColumn, resizeRight = createColumn(group, rightTitle)
+    rightColumn.Position = UDim2.new(0.5, 5, 0, 0)
+    local function resizeGroup()
+        resizeLeft()
+        resizeRight()
+        group.Size = UDim2.new(1, 0, 0, math.max(leftColumn.AbsoluteSize.Y, rightColumn.AbsoluteSize.Y))
+    end
+    task.defer(resizeGroup)
+    currentColumn = {left = leftBody, right = rightBody, resize = resizeGroup}
+    return leftBody, rightBody
+end
+
+local function setToggleUi(key, value)
+    state.toggles[key] = value == true
+    local control = toggleControls[key]
+    if control and control.Parent then
+        control.Text = state.toggles[key] and "ON" or "OFF"
+        control.BackgroundColor3 = state.toggles[key] and THEME.accentDark or THEME.surface3
+    end
+end
+
+local function addControlRow(parent, title, description, controlText, callback, kind, key, choices)
+    local row = make("Frame", {
+        BackgroundColor3 = THEME.surface2,
+        BackgroundTransparency = 0.08,
+        Size = UDim2.new(1, 0, 0, 51),
+        BorderSizePixel = 0,
+        ZIndex = 9,
+    }, parent)
+    round(row, 3)
+    stroke(row, THEME.line, 0.84, 1)
+
+    local heading = textLabel(row, title, 9, THEME.text, true, 16)
+    heading.Position = UDim2.new(0, 9, 0, 5)
+    heading.Size = UDim2.new(1, -118, 0, 16)
+    local sub = textLabel(row, description, 7, THEME.muted, false, 16)
+    sub.Position = UDim2.new(0, 9, 0, 24)
+    sub.Size = UDim2.new(1, -16, 0, 16)
+
+    local control
+    if kind == "toggle" then
+        local active = state.toggles[key] == true
+        control = make("TextButton", {
+            AnchorPoint = Vector2.new(1, 0.5),
+            Position = UDim2.new(1, -8, 0.5, 0),
+            Size = UDim2.fromOffset(40, 20),
+            BackgroundColor3 = active and THEME.accentDark or THEME.surface3,
+            Text = active and "ON" or "OFF",
+            TextColor3 = THEME.text,
+            TextSize = 8,
+            Font = Enum.Font.GothamBold,
+            BorderSizePixel = 0,
+            ZIndex = 11,
+        }, row)
+        round(control, 3)
+        toggleControls[key] = control
+        control.Activated:Connect(function()
+            local nextValue = not state.toggles[key]
+            if callback then
+                local ok, result, message = pcall(callback, nextValue)
+                if not ok then
+                    log(title .. ": " .. tostring(result), "error")
+                    return
+                end
+                if result == false then
+                    log(message or (title .. " não foi alterado."), "warn")
+                    return
+                end
+            end
+            setToggleUi(key, nextValue)
+            if callback == nil then
+                log(title .. (nextValue and " ON." or " OFF."), "success")
+            elseif nextValue then
+                log(message or (title .. " ativado."), "success")
+            else
+                log(message or (title .. " desativado."), "info")
+            end
+        end)
+    elseif kind == "select" then
+        control = make("TextButton", {
+            AnchorPoint = Vector2.new(1, 0.5),
+            Position = UDim2.new(1, -8, 0.5, 0),
+            Size = UDim2.fromOffset(112, 22),
+            BackgroundColor3 = THEME.surface3,
+            Text = tostring(state.values[key]),
+            TextColor3 = THEME.text,
+            TextSize = 8,
+            Font = Enum.Font.GothamSemibold,
+            BorderSizePixel = 0,
+            ZIndex = 11,
+        }, row)
+        round(control, 3)
+        control.Activated:Connect(function()
+            local index = 1
+            for i, choice in ipairs(choices) do
+                if choice == state.values[key] then index = i break end
+            end
+            index = index + 1
+            if index > #choices then index = 1 end
+            state.values[key] = choices[index]
+            control.Text = tostring(choices[index])
+            log(title .. ": " .. tostring(choices[index]), "info")
+        end)
+    elseif kind == "input" then
+        control = make("TextBox", {
+            AnchorPoint = Vector2.new(1, 0.5),
+            Position = UDim2.new(1, -8, 0.5, 0),
+            Size = UDim2.fromOffset(112, 22),
+            BackgroundColor3 = THEME.surface3,
+            Text = tostring(state.values[key] or ""),
+            PlaceholderText = "Digite aqui",
+            PlaceholderColor3 = THEME.muted,
+            TextColor3 = THEME.text,
+            TextSize = 8,
+            Font = Enum.Font.Gotham,
+            ClearTextOnFocus = false,
+            BorderSizePixel = 0,
+            ZIndex = 11,
+        }, row)
+        round(control, 3)
+        control.FocusLost:Connect(function()
+            state.values[key] = control.Text
+        end)
+    else
+        control = make("TextButton", {
+            AnchorPoint = Vector2.new(1, 0.5),
+            Position = UDim2.new(1, -8, 0.5, 0),
+            Size = UDim2.fromOffset(94, 22),
+            BackgroundColor3 = THEME.accentDark,
+            Text = controlText or "OPEN",
+            TextColor3 = THEME.text,
+            TextSize = 8,
+            Font = Enum.Font.GothamBold,
+            BorderSizePixel = 0,
+            ZIndex = 11,
+        }, row)
+        round(control, 3)
+        control.Activated:Connect(function()
+            if not callback then
+                log(title .. ": ação não configurada.", "warn")
+                return
+            end
+            local ok, result, message = pcall(callback)
+            if not ok then
+                log(title .. ": " .. tostring(result), "error")
+            elseif result == false then
+                log(message or (title .. " não encontrou o controle esperado."), "warn")
+            else
+                log(message or (title .. ": comando enviado; confira o jogo."), "success")
+            end
+        end)
+    end
+
+    row:SetAttribute("yno_search", norm(title .. " " .. description))
+    return row
+end
+
+local function addButton(title, description, caption, callback)
+    return addControlRow(currentColumn and currentColumn.left or currentSection, title, description, caption, callback, "button")
+end
+
+local function addToggle(title, description, key, callback, column)
+    local parent = column or (currentColumn and currentColumn.left or currentSection)
+    return addControlRow(parent, title, description, nil, callback, "toggle", key)
+end
+
+local function addSelect(title, description, key, choices, column)
+    local parent = column or (currentColumn and currentColumn.left or currentSection)
+    return addControlRow(parent, title, description, nil, nil, "select", key, choices)
+end
+
+local function addInput(title, description, key, column)
+    local parent = column or (currentColumn and currentColumn.left or currentSection)
+    return addControlRow(parent, title, description, nil, nil, "input", key)
+end
+
+local function addNotice(title, description, tag)
+    local card = make("Frame", {
+        BackgroundColor3 = THEME.surface,
+        BackgroundTransparency = 0.12,
+        Size = UDim2.new(1, 0, 0, 65),
+        BorderSizePixel = 0,
+        ZIndex = 8,
+    }, pageScroll)
+    round(card, 3)
+    stroke(card, THEME.line, 0.8, 1)
+    textLabel(card, title, 9, THEME.text, true, 17).Position = UDim2.new(0, 10, 0, 6)
+    local body = textLabel(card, description, 8, THEME.muted, false, 35)
+    body.Position = UDim2.new(0, 10, 0, 25)
+    body.Size = UDim2.new(1, -20, 0, 35)
+    if tag then
+        local pill = make("TextLabel", {
+            AnchorPoint = Vector2.new(1, 0),
+            Position = UDim2.new(1, -8, 0, 6),
+            Size = UDim2.fromOffset(76, 18),
+            BackgroundColor3 = THEME.accentDark,
+            Text = tag,
+            TextColor3 = THEME.text,
+            TextSize = 7,
+            Font = Enum.Font.GothamBold,
+            BorderSizePixel = 0,
+            ZIndex = 11,
+        }, card)
+        round(pill, 3)
+    end
+    card:SetAttribute("yno_search", norm(title .. " " .. description))
+end
+
+local function beginColumnPage(leftTitle, rightTitle, description)
+    addPageHeader(pageTitle.Text, description)
+    local left, right = addColumns(leftTitle, rightTitle)
+    currentColumn = {left = left, right = right}
+    currentSection = left
+    return left, right
+end
+
+local function finishColumns()
+    if currentColumn and currentColumn.resize then
+        currentColumn.resize()
+    end
+    currentColumn = nil
+    currentSection = nil
+end
+
+local function addSingleSection(title, description)
+    addPageHeader(title, description)
+    local panel = make("Frame", {
+        BackgroundColor3 = THEME.surface,
+        BackgroundTransparency = 0.2,
+        Size = UDim2.new(1, 0, 0, 40),
+        BorderSizePixel = 0,
+        ZIndex = 8,
+    }, pageScroll)
+    round(panel, 3)
+    stroke(panel, THEME.line, 0.75, 1)
+    textLabel(panel, title, 10, THEME.text, true, 19).Position = UDim2.new(0, 10, 0, 5)
+    local body = make("Frame", {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 8, 0, 29),
+        Size = UDim2.new(1, -16, 0, 0),
+        ZIndex = 9,
+    }, panel)
+    local layout = make("UIListLayout", {
+        Padding = UDim.new(0, 4),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+    }, body)
+    layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        body.Size = UDim2.new(1, -16, 0, layout.AbsoluteContentSize.Y)
+        panel.Size = UDim2.new(1, 0, 0, 36 + layout.AbsoluteContentSize.Y)
     end)
+    currentSection = body
+    return body
+end
+
+local function copyUiReport()
+    local buttons = getGameButtons(true)
+    table.sort(buttons, function(a, b)
+        return safeFullName(a) < safeFullName(b)
+    end)
+    local lines = {
+        "yno hub 4.0.0 - visible Anime Crusaders X controls",
+        "Player: " .. player.Name,
+        "Visible buttons: " .. tostring(#buttons),
+        "Generated: " .. os.date("%Y-%m-%d %H:%M:%S"),
+    }
     for index, button in ipairs(buttons) do
-        if index > 180 then break end
+        if index > 160 then break end
         table.insert(lines, string.format(
-            "%03d | %s | %s | context=%s",
-            index, button:GetFullName(), buttonText(button), contextText(button)
+            "%03d | %s | text=%s | context=%s",
+            index,
+            safeFullName(button),
+            getButtonText(button),
+            getContextText(button)
         ))
     end
     local report = table.concat(lines, "\n")
     if type(setclipboard) == "function" then
         local ok = pcall(setclipboard, report)
-        if ok then
-            log("Relatório de UI copiado: " .. tostring(math.min(#buttons, 180)) .. " controles.", THEME.success)
-            return true
-        end
+        if ok then return true, "Relatório da UI copiado (" .. tostring(math.min(#buttons, 160)) .. " botões)." end
     end
-    log("Clipboard indisponível; relatório enviado ao console.", THEME.warning)
     print(report)
-    return false
+    return false, "Clipboard não disponível; relatório enviado ao console."
 end
 
-local function drawSettings()
-    section("Settings", "Preferências, diagnóstico e encerramento.")
-    newGrid()
-    addButton("Copy Game UI report", "Copia nomes, textos e hierarquia dos controles visíveis para diagnosticar ações.", "COPY UI", copyGameUiReport)
-    addSelect("UI scale", "Ajuste a escala do painel.", "uiScale", {"0.80", "0.90", "1.00", "1.10"})
-    addButton("Apply UI scale", "Aplica a escala escolhida.", "APPLY", function()
-        uiScale.Scale = tonumber(state.values.uiScale) or 1
-    end)
-    addButton("Save configuration", "Salva seleções e toggles que podem ser restaurados com segurança.", "SAVE", function()
-        local ok = saveConfig()
-        log(ok and "Configuração salva em yno_hub/config.json." or "Falha ao salvar configuração.", ok and THEME.success or THEME.warning)
-    end)
-    addButton("Stop All automation", "Interrompe ciclos de quests, Story Runner, Unit Hunt e automações de tela.", "STOP ALL", function()
-        setToggleValue("autoClaim", false)
-        setToggleValue("autoStart", false)
-        setToggleValue("autoSkip", false)
-        setToggleValue("autoNext", false)
-        setToggleValue("autoRetry", false)
-        setToggleValue("autoAbilities", false)
-        setToggleValue("autoQuestLoop", false)
-        setToggleValue("autoUnitHunt", false)
-        setToggleValue("autoHuntClaims", false)
-        state.actionGeneration = state.actionGeneration + 1
-        state.storyFlow = false
-        local macroStop = findButton({"Stop"}, true, "macro", true)
-            or findButton({"Pause"}, true, "macro", true)
-        if macroStop then
-            stopNativeMacro()
+local function selfTest()
+    local apis = {
+        "getgenv", "gethui", "getcustomasset", "writefile", "readfile",
+        "isfile", "isfolder", "makefolder", "mousemoveabs", "mouse1press",
+        "mouse1release", "mouse1click", "keyclick", "isrbxactive", "setfpscap",
+    }
+    local found, missing = {}, {}
+    for _, name in ipairs(apis) do
+        if type(ENV[name]) == "function" or type(_G[name]) == "function" then
+            table.insert(found, name)
+        elseif type(getfenv) == "function" and type(getfenv()[name]) == "function" then
+            table.insert(found, name)
+        else
+            table.insert(missing, name)
         end
-        log("Automações do yno hub interrompidas; Smart Macro pausado/parado quando estava visível.", THEME.warning)
-    end)
-    addButton("Unload yno hub", "Desconecta eventos, restaura efeitos e fecha a interface.", "UNLOAD", function()
-        if ENV[RUNTIME_KEY] and ENV[RUNTIME_KEY].Unload then
-            ENV[RUNTIME_KEY].Unload()
-        end
-    end)
-    finishGrid()
-    addNotice("Hotkey", "RightShift alterna mostrar/ocultar. — minimiza para o botão flutuante y. × descarrega o script.", "CONTROLS")
-    addNotice("Privacy", "O script não pede senha, cookie Roblox, token de conta ou webhook. Webhooks e chamadas remotas privadas não fazem parte desta build.", "LOCAL")
+    end
+    local lines = {
+        "yno hub 4.0.0 runtime self-check",
+        "Visible game buttons: " .. tostring(#getGameButtons(true)),
+        "Solara APIs found: " .. tostring(#found),
+        "Solara APIs missing: " .. tostring(#missing),
+        "Found: " .. table.concat(found, ", "),
+        "Missing: " .. table.concat(missing, ", "),
+    }
+    local report = table.concat(lines, "\n")
+    if type(setclipboard) == "function" then pcall(setclipboard, report) end
+    print(report)
+    if #missing == 0 then return true, "Self-check concluído; relatório copiado/impresso." end
+    return true, "Self-check: " .. tostring(#missing) .. " APIs não detectadas. Veja o relatório."
 end
 
-local pageBuilders = {
-    ["Overview"] = drawOverview,
-    ["Missions"] = drawMissions,
-    ["Story"] = drawStory,
-    ["Unit Hunt"] = drawUnitHunt,
-    ["Free Units"] = drawFreeUnits,
-    ["Game"] = drawGame,
-    ["Macro"] = drawMacro,
-    ["Performance"] = drawPerformance,
-    ["Settings"] = drawSettings,
-}
-
-local function showPage(name)
-    if not pageBuilders[name] then return end
-    state.page = name
-    pageTitle.Text = name
-    clearPage()
-    pageBuilders[name]()
-    for pageName, button in pairs(navButtons) do
-        local active = pageName == name
-        button.BackgroundColor3 = active and Color3.fromRGB(38, 54, 54) or THEME.sidebar
-        button.TextColor3 = active and THEME.text or THEME.muted
-        local marker = button:FindFirstChild("active_marker")
-        if marker then marker.Visible = active end
-    end
-    search.Text = ""
+local function buildOverview()
+    beginColumnPage("QUICK ACTIONS", "SESSION STATUS", "Farm, progress and rewards at a glance.")
+    addButton("Start Story", "Abre Play → Story e usa as escolhas configuradas.", "START", startStory, currentColumn.left)
+    addButton("Claim Quest Rewards", "Reivindica Claim All na janela de Quests que estiver aberta.", "CLAIM", claimAllQuests, currentColumn.left)
+    addButton("Enter Unit Hunt", "Events → Unit Hunt → Start Hunt.", "ENTER", startUnitHunt, currentColumn.left)
+    addButton("Start Smart Macro", "Inicia o Macro nativo com o modo selecionado.", "RUN", startNativeMacro, currentColumn.left)
+    addNotice("NATIVE FARM ENGINE", "O Smart Macro do jogo faz posicionamento, upgrades e venda. Configure Units e Placement uma vez; depois use This Stage, Loop ou Routine.", "MACRO")
+    addNotice("QUESTS", "All, Daily, Infinite, Story, Event e Guide. O hub abre a categoria e reivindica objetivos que o próprio jogo já marcou como concluídos.", "CLAIM")
+    addNotice("UNIT HUNT", "Q procura raros; E inicia o encontro; clique, Space ou E durante a barra de captura. PERFECT no centro dourado causa dano dobrado.", "EVENT")
+    finishColumns()
+    currentSection = nil
 end
 
-local navData = {
-    {"Overview", "◈"},
-    {"Missions", "◎"},
-    {"Story", "▣"},
-    {"Unit Hunt", "✧"},
-    {"Free Units", "◇"},
-    {"Game", "⚔"},
-    {"Macro", "▤"},
-    {"Performance", "◌"},
-    {"Settings", "⚙"},
-}
+local function buildGame()
+    local left, right = beginColumnPage("GAME", "WAVE ACTIONS", "Compact controls for the active match and Smart Macro.")
+    addToggle("Auto Vote Start", "Envia Vote Start / Start Match quando visível.", "autoVoteStart", nil, left)
+    addToggle("Auto Skip Waves", "Envia Vote Skip / Skip Wave quando visível.", "autoSkip", nil, left)
+    addToggle("Auto Next", "Clica Next depois de detectar uma tela de vitória.", "autoNext", nil, left)
+    addToggle("Auto Replay", "Clica Replay / Retry depois de detectar derrota.", "autoReplay", nil, left)
+    addButton("Open Macro → Units", "Abre a configuração nativa de slots, Auto upgrade e Auto abilities.", "OPEN", openMacroUnits, left)
 
-for _, entry in ipairs(navData) do
-    local name, iconText = entry[1], entry[2]
-    local button = make("TextButton", {
-        AutoButtonColor = false,
-        BackgroundColor3 = THEME.sidebar,
-        Size = UDim2.new(1, 0, 0, 36),
-        Font = Enum.Font.GothamSemibold,
-        Text = "   " .. iconText .. "   " .. name,
-        TextColor3 = THEME.muted,
-        TextSize = 10,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        BorderSizePixel = 0,
-        ZIndex = 5,
-    }, navHolder)
-    round(button, 3)
-    local marker = make("Frame", {
-        Name = "active_marker",
-        BackgroundColor3 = THEME.accent,
-        Size = UDim2.new(0, 3, 0, 22),
-        Position = UDim2.new(0, 0, 0.5, -11),
-        BorderSizePixel = 0,
-        Visible = false,
-        ZIndex = 6,
-    }, button)
-    round(marker, 2)
-    button.MouseButton1Click:Connect(function() showPage(name) end)
-    navButtons[name] = button
+    addButton("Set Auto Upgrade ON", "Ative quando Macro → Units estiver aberto.", "ENABLE", function()
+        return setNativeToggle("Auto upgrade", true)
+    end, right)
+    addButton("Set Auto Abilities ON", "Ative quando Macro → Units estiver aberto.", "ENABLE", function()
+        return setNativeToggle("Auto abilities", true)
+    end, right)
+    addButton("Set Auto Skip Waves ON", "Alterna a opção nativa do Smart Macro.", "ENABLE", function()
+        return setNativeToggle("Auto skip waves", true)
+    end, right)
+    addButton("Set Smart Placement ON", "Alterna o posicionamento inteligente em mapas novos.", "ENABLE", function()
+        return setNativeToggle("Smart placement on new maps", true)
+    end, right)
+    addButton("Stop / Pause Macro", "Usa o controle Pause ou Stop do painel flutuante nativo.", "STOP", stopNativeMacro, right)
+
+    finishColumns()
+    addNotice("HOW IT WORKS", "Auto Vote Start/Skip/Next/Replay observam botões normais do jogo. Auto upgrade, habilidades e colocação são opções internas do Smart Macro, não comandos inventados pelo yno hub.", "GAME UI")
 end
 
-local floatingButton = make("TextButton", {
-    AnchorPoint = Vector2.new(1, 1),
-    Position = UDim2.new(1, -22, 1, -90),
-    Size = UDim2.new(0, 47, 0, 47),
-    BackgroundColor3 = THEME.accentDark,
-    Text = "y",
-    TextColor3 = THEME.text,
-    TextSize = 24,
-    Font = Enum.Font.GothamBold,
-    Visible = false,
-    BorderSizePixel = 0,
-    ZIndex = 30,
-}, gui)
-round(floatingButton, 7)
-outline(floatingButton, THEME.accent, 0.15, 1)
-floatingButton.MouseButton1Click:Connect(function()
-    if main and main.Parent then main.Visible = true end
-    floatingButton.Visible = false
-    state.minimized = false
-end)
-
-minimize.MouseButton1Click:Connect(function()
-    main.Visible = false
-    floatingButton.Visible = true
-    state.minimized = true
-end)
-
-close.MouseButton1Click:Connect(function()
-    if ENV[RUNTIME_KEY] and ENV[RUNTIME_KEY].Unload then
-        ENV[RUNTIME_KEY].Unload()
-    end
-end)
-
-search:GetPropertyChangedSignal("Text"):Connect(function()
-    local query = norm(search.Text)
-    for _, child in ipairs(pageScroll:GetChildren()) do
-        if child:IsA("Frame") then
-            if query == "" then
-                child.Visible = true
-            else
-                local matchText = norm(child:GetAttribute("yno_search") or "")
-                if matchText == "" then
-                    for _, descendant in ipairs(child:GetDescendants()) do
-                        if descendant:IsA("TextLabel") or descendant:IsA("TextButton") then
-                            matchText = matchText .. " " .. norm(descendant.Text)
-                        end
-                    end
-                end
-                child.Visible = string.find(matchText, query, 1, true) ~= nil
-            end
-        end
-    end
-end)
-
--- Window drag handling; all connections are stored for clean unload.
-local dragging = false
-local dragStart
-local startPos
-table.insert(state.connections, topbar.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPos = main.Position
-    end
-end))
-table.insert(state.connections, topbar.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = false
-    end
-end))
-table.insert(state.connections, UIS.InputChanged:Connect(function(input)
-    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-        local delta = input.Position - dragStart
-        main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
-end))
-table.insert(state.connections, UIS.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = false
-    end
-end))
-table.insert(state.connections, UIS.InputBegan:Connect(function(input, processed)
-    if not processed and input.KeyCode == Enum.KeyCode.RightShift then
-        if main and main.Parent then
-            main.Visible = not main.Visible
-            floatingButton.Visible = not main.Visible
-            state.minimized = not main.Visible
-        end
-    end
-end))
-
-local function claimLoop()
-    while state.running do
-        if state.toggles.autoClaim then
-            local text = allGuiText()
-            local eligible = string.find(text, "quest", 1, true) or string.find(text, "guide", 1, true)
-                or string.find(text, "event quest", 1, true) or string.find(text, "bounty", 1, true)
-            if eligible and os.clock() - state.lastClaim > 3.5 then
-                state.lastClaim = os.clock()
-                claimVisibleQuests()
-            end
-        end
-        if state.toggles.autoHuntClaims then
-            local text = allGuiText()
-            if string.find(text, "event quest", 1, true) and os.clock() - state.lastClaim > 3.5 then
-                state.lastClaim = os.clock()
-                claimVisibleQuests()
-            end
-        end
-        task.wait(0.7)
-    end
+local function buildStory()
+    addPageHeader("Story", "Selecione a rota. O runner navega apenas por botões visíveis.")
+    local left, right = addColumns("STAGE SELECTOR", "AUTOMATION")
+    addSelect("World", "11 mundos em ordem de progressão.", "storyWorld", WORLDS, left)
+    addSelect("Act", "Selecione o ato individual.", "storyAct", {"Act 1", "Act 2", "Act 3", "Act 4", "Act 5", "Act 6"}, left)
+    addSelect("Difficulty", "Hard exige completar o ato em Normal.", "storyDifficulty", {"Normal", "Hard"}, left)
+    addSelect("Route", "World Skip existe nos mundos 1–10; Sword Arena não tem.", "storyRoute", {"Individual Act", "World Skip"}, left)
+    addSelect("Entry", "Matchmaking procura jogadores; Select Stage abre a seleção de fase.", "storyEntry", {"Matchmaking", "Select Stage"}, left)
+    addButton("Start selected Story", "Play → Story → World → Act/World Skip → Difficulty → Matchmaking/Select Stage.", "START", startStory, right)
+    addToggle("Auto Vote Start", "Liga/desliga a votação de início na sala.", "autoVoteStart", nil, right)
+    addToggle("Auto Skip Waves", "Liga/desliga a votação de skip durante partidas.", "autoSkip", nil, right)
+    addToggle("Auto Next", "Avança somente após vitória/conclusão detectada.", "autoNext", nil, right)
+    addToggle("Auto Replay", "Repete somente após derrota detectada.", "autoReplay", nil, right)
+    finishColumns()
+    addNotice("WORLD ORDER", "Planet Namak → Marine's Ford → Karakura Town → Shibuya → Demon District → Devil City → Soul Society → West City (Ruined) → Culling Games → Doldrey → Sword Arena.", "11 WORLDS")
+    addNotice("WORLD SKIP", "Normal only, +900% enemy HP, worlds 1–10. Sword Arena uses the six individual acts.", "LIMITS")
 end
 
-local function gameAutomationLoop()
-    while state.running do
-        local ok, err = pcall(function()
-            local matchWon, matchLost = false, false
-            if state.toggles.autoNext or state.toggles.autoRetry then
-                local visibleText = allGuiText()
-                matchWon = string.find(visibleText, "victory", 1, true)
-                    or string.find(visibleText, "stage cleared", 1, true)
-                    or string.find(visibleText, "wave completed", 1, true)
-                    or string.find(visibleText, "completed the stage", 1, true)
-                matchLost = string.find(visibleText, "defeat", 1, true)
-                    or string.find(visibleText, "you lost", 1, true)
-                    or string.find(visibleText, "you were defeated", 1, true)
-                    or string.find(visibleText, "match lost", 1, true)
-            end
+local function buildQuests()
+    local left, right = beginColumnPage("QUESTS", "GUIDE / BOUNTIES", "Open a game quest category, then claim completed objectives.")
+    addSelect("Quest category", "All / Daily / Infinite / Story / Event / Guide.", "questCategory", {"All", "Daily", "Infinite", "Story", "Event", "Guide"}, left)
+    addButton("Open selected category", "Abre Quests e escolhe a categoria atual.", "OPEN", function()
+        return openQuests(state.values.questCategory)
+    end, left)
+    addButton("Claim All", "Coleta apenas quando Claim All aparece na UI do jogo.", "CLAIM", claimAllQuests, left)
+    addToggle("Auto Claim", "Verifica a cada intervalo se Claim All está visível em Quests.", "autoClaim", nil, left)
+    addButton("Open Guidebook", "Quests → Guide; acompanhe as dez tarefas que liberam Phoenix.", "GUIDE", openGuidebook, right)
+    addButton("Open Bounties", "Abra Bounties no Request Board com Navi.", "BOUNTIES", openBounties, right)
+    addButton("Claim Bounties", "Coleta Claim All se a janela de Bounties estiver aberta.", "CLAIM", claimAllQuests, right)
+    addButton("Start Story quest grind", "Liga Auto Start, Auto Skip e Auto Next e inicia o Story selecionado.", "GRIND", function()
+        setToggleUi("autoVoteStart", true)
+        setToggleUi("autoSkip", true)
+        setToggleUi("autoNext", true)
+        return startStory()
+    end, right)
+    finishColumns()
+    addNotice("DAILY QUEST COMPLETE", "Cinco tarefas diárias liberam o bônus de 750 Gems + 10 Trait Remnants. O hub recolhe a recompensa depois que o jogo marca as tarefas como concluídas.", "DAILY")
+    addNotice("GUIDEBOOK → PHOENIX", "Complete as dez Guide Quests e reivindique Guide Quests Complete! para receber Phoenix. Algumas tarefas gastam XP Food, unidades ou Stat Cubes.", "FREE UNIT")
+    addNotice("BOUNTIES", "Cada cartão tem três objetivos. Complete os três e reivindique 5 Event Tokens + 1 Blank Token. Reroll custa 10.000 Gold e apaga o progresso do cartão.", "TOKENS")
+end
 
-            if state.toggles.autoStart then
-                clickFirstPhrase({"Vote Start", "Start Match"}, "auto-start", false, nil, true)
-            end
-            if state.toggles.autoSkip then
-                clickFirstPhrase({"Vote Skip", "Skip Wave"}, "auto-skip", false, nil, true)
-            end
-            if state.toggles.autoNext and matchWon then
-                clickFirstPhrase({"Next Stage", "Next"}, "auto-next", false, nil, true)
-            end
-            if state.toggles.autoRetry and matchLost then
-                clickFirstPhrase({"Retry", "Replay"}, "auto-retry", false, nil, true)
-            end
-            if state.toggles.autoAbilities then
-                local buttons = gameButtons()
-                for _, button in ipairs(buttons) do
-                    local text = buttonText(button)
-                    if string.find(text, "use ability", 1, true) or string.find(text, "ability ready", 1, true) then
-                        clickButton(button, "auto-ability:" .. button:GetFullName(), 1.3)
-                    end
-                end
-            end
-            if state.toggles.autoUnitHunt then
-                processUnitHunt()
-            end
-        end)
-        if not ok then
-            log("Automation recovery: " .. tostring(err), THEME.warning)
-        end
-        task.wait(0.35)
+local function buildMacro()
+    local left, right = beginColumnPage("RUN MODE", "NATIVE SETTINGS", "The game's built-in Smart Macro is the actual farming engine.")
+    addSelect("Run mode", "This Stage, Loop ou Routine.", "macroMode", {"This Stage", "Loop", "Routine"}, left)
+    addButton("Open Macro", "Macro fica no lado direito durante uma partida.", "OPEN", openMacroPanel, left)
+    addButton("Open Units", "Abre slots, targeting, Auto upgrade e Auto abilities.", "UNITS", openMacroUnits, left)
+    addButton("Start Smart Macro", "Macro → Run → modo selecionado → Start.", "START", startNativeMacro, left)
+    addButton("Pause / Stop", "Usa Pause ou Stop no floating panel do jogo.", "PAUSE", stopNativeMacro, left)
+    addButton("Set Auto Upgrade ON", "Requer Macro → Units aberto.", "ENABLE", function()
+        return setNativeToggle("Auto upgrade", true)
+    end, right)
+    addButton("Set Auto Abilities ON", "Requer Macro → Units aberto.", "ENABLE", function()
+        return setNativeToggle("Auto abilities", true)
+    end, right)
+    addButton("Set Auto Skip Waves ON", "Requer o painel Macro nativo visível.", "ENABLE", function()
+        return setNativeToggle("Auto skip waves", true)
+    end, right)
+    addButton("Set Smart Placement ON", "Smart placement on new maps.", "ENABLE", function()
+        return setNativeToggle("Smart placement on new maps", true)
+    end, right)
+    addButton("Open Macro Routine", "Configure uma fila de tarefas antes de iniciar Routine.", "ROUTINE", function()
+        local ok, reason = openMacroPanel()
+        if not ok then return false, reason end
+        task.wait(0.25)
+        return clickVisible({"Routine"}, "macro", "open-macro-routine", 1.1, false)
+    end, right)
+    finishColumns()
+    addNotice("CONFIGURE ONCE", "Macro → Units → Slots: configure seus seis slots e Hero. Macro → Units → Placement: escolha Zones, Recording ou Shared area.", "SETUP")
+    addNotice("RUN MODES", "This Stage executa uma partida; Loop repete a fase atual; Routine percorre a fila de tarefas que você configurou.", "MODES")
+    addNotice("FLOATING PANEL", "Pause pausa a execução, Stop encerra a rotina e Open volta ao painel de configuração.", "CONTROLS")
+end
+
+local function buildUnitHunt()
+    local left, right = beginColumnPage("HUNTING ISLES", "COLLECTION / EVENT", "Creature capture event. Requires Player Level 5.")
+    addButton("Enter Unit Hunt", "Events → Unit Hunt → Start Hunt.", "ENTER", startUnitHunt, left)
+    addToggle("Auto Hunt", "Q scan; aproxima-se de prompts Capture e usa E quando estiver perto.", "autoHunt", nil, left)
+    addToggle("Auto PERFECT Assist", "Tenta Space quando o marcador é detectado dentro da zona dourada.", "autoPerfect", nil, left)
+    addButton("Open Collection Book", "Abre Book na página do Unit Hunt.", "BOOK", openUnitHuntBook, left)
+    addButton("Open Event Quests", "Events → Unit Hunt → Event Quests.", "QUESTS", openEventQuests, right)
+    addButton("Claim Event Rewards", "Coleta Claim All na janela de Event Quests.", "CLAIM", claimAllQuests, right)
+    addButton("Scan now (Q)", "Envia uma tecla Q para procurar criaturas raras.", "SCAN", function()
+        return sendKey(0x51)
+    end, right)
+    addButton("Capture key (E)", "Envia E para iniciar a captura quando o prompt aparecer.", "CAPTURE", function()
+        return sendKey(0x45)
+    end, right)
+    finishColumns()
+    addNotice("CAPTURE INPUT", "Pressione Q para scan. Aproxime até E Capture aparecer. Durante a barra, clique, Space ou E quando o marcador entrar na zona; o centro dourado dá PERFECT com dano dobrado.", "Q / E / SPACE")
+    addNotice("COLLECTION", "Book principal: 39 entradas. Shinies: 35 entradas em aba separada. Capturas repetidas aumentam o contador Caught, sem contar como nova entrada distinta.", "39 + 35")
+    addNotice("REGIONS", "Whisperwood Isles é a inicial; Bridgeway Hollow abre na Hunt Wave 3; Crown Ward na Wave 6; Frostfang Peak na Wave 9. No.039 exige 38 entradas e Hunt Wave 10.", "4 REGIONS")
+    addNotice("EVENT QUESTS", "Rookie Hunter: 25 captures; Seasoned Hunter: 150; Shiny Spotter: 1 Shiny; Valkyrie Slayer: 3 assists; Shrine Keeper: 2 Guardian awakenings.", "5 QUESTS")
+end
+
+local function buildRewards()
+    local left, right = beginColumnPage("LOGIN / FREE REWARDS", "INDEX / BLANK TOKENS", "Claim rewards only after the game's own requirements are complete.")
+    addButton("Claim Login Rewards", "Tenta Daily e Anniversary separadamente.", "CLAIM", claimLoginRewards, left)
+    addButton("Open Hesia Free Rewards", "Fale com Hesia no lobby e use Free Rewards.", "OPEN", openHesiaRewards, left)
+    addButton("Claim Hesia Rewards", "Requer as quatro tarefas sociais concluídas.", "CLAIM", claimHesiaRewards, left)
+    addInput("YouTube channel name", "Digite seu próprio nome de canal antes do Redeem.", "youtubeChannel", left)
+    addButton("Open YouTube Reward", "Abre a tela para inscrição e verificação.", "OPEN", openYoutubeReward, left)
+    addButton("Redeem YouTube Reward", "Preenche seu canal e envia Redeem. O jogo valida a inscrição.", "REDEEM", redeemYoutubeReward, left)
+    addButton("Claim King's Index", "Requer King → Open Index.", "CLAIM", claimKingsIndex, right)
+    addSelect("Blank Unit", "Shadow (Atomic) ou Lao (Heart).", "blankUnit", {"Shadow (Atomic)", "Lao (Heart)"}, right)
+    addButton("Claim Blank Unit", "Cada unidade custa 30 Blank Tokens. Claim manual, sem gastar automaticamente.", "CLAIM", claimBlankUnit, right)
+    finishColumns()
+    addNotice("TWENTY ONE", "Anniversary Login Day 1 entrega Twenty One e um Anniversary Ticket. Daily e Anniversary são abas diferentes.", "DAY 1")
+    addNotice("PHOENIX", "Complete as dez Guide Quests e reivindique Guide Quests Complete! para receber Phoenix.", "10 QUESTS")
+    addNotice("HESIA / YOUTUBE", "Hesia exige Join Group, Like + Favorite, Notifications e Follow Event. YouTube Reward exige inscrição em @32xGames e notificações ativadas.", "SOCIAL")
+    addNotice("BLANK UNITS", "Shadow (Atomic) custa 30 Blank Tokens. Lao (Heart) custa 30 Blank Tokens. Nenhuma das duas é gratuita.", "30 TOKENS")
+end
+
+local function buildPerformance()
+    local left, right = beginColumnPage("LOCAL RENDER", "FPS / RESTORE", "Client-only presentation settings. Server state is untouched.")
+    addToggle("Low Effects", "Desliga sombras globais e pós-processamento local.", "lowEffects", function(enabled)
+        return setLowEffects(enabled)
+    end, left)
+    addToggle("Hide Attack Effects", "Desliga ParticleEmitter, Trail, Beam e Highlight locais.", "hideAttackEffects", function(enabled)
+        return setHideAttackEffects(enabled)
+    end, left)
+    addInput("FPS cap", "30–360 FPS.", "fpsCap", right)
+    addButton("Apply FPS cap", "Aplica o limite escolhido com setfpscap.", "APPLY", applyFpsCap, right)
+    addButton("Restore performance", "Restaura efeitos e FPS cap anteriores.", "RESTORE", restorePerformance, right)
+    finishColumns()
+    addNotice("LOCAL ONLY", "Low Effects e Hide Attack Effects alteram a renderização deste cliente. Não aumentam dano, drops ou velocidade do servidor.", "CLIENT")
+end
+
+local function stopAll()
+    state.generation = state.generation + 1
+    for key in pairs(state.toggles) do
+        state.toggles[key] = false
     end
+    for key, button in pairs(toggleControls) do
+        if button and button.Parent then
+            button.Text = "OFF"
+            button.BackgroundColor3 = THEME.surface3
+        end
+    end
+    local macroStopped = stopNativeMacro()
+    log(macroStopped and "Automações do yno hub desligadas; Smart Macro pausado." or "Automações do yno hub desligadas. Pause o Smart Macro se ainda estiver rodando.", "warn")
+    return true
 end
 
 local function unload()
     if not state.running then return end
     state.running = false
-    state.storyFlow = false
-    state.toggles.autoUnitHunt = false
-    restorePerformance()
+    state.generation = state.generation + 1
+    setLowEffects(false)
+    setHideAttackEffects(false)
+    if state.originalFpsCap ~= nil and type(setfpscap) == "function" then
+        pcall(setfpscap, state.originalFpsCap)
+        state.originalFpsCap = nil
+    end
     for _, connection in ipairs(state.connections) do
         pcall(function() connection:Disconnect() end)
     end
-    for _, thread in ipairs(state.threads) do
+    for _, thread in ipairs(state.tasks) do
         pcall(task.cancel, thread)
     end
-    if gui and gui.Parent then
-        pcall(function() gui:Destroy() end)
-    end
+    if gui and gui.Parent then pcall(function() gui:Destroy() end) end
     ENV[RUNTIME_KEY] = nil
 end
 
-ENV[RUNTIME_KEY] = {Unload = unload, Version = "3.2.0"}
+local function buildSettings()
+    local left, right = beginColumnPage("DIAGNOSTICS", "PREFERENCES / CONTROL", "Runtime inspection and safe shutdown.")
+    addButton("Copy Game UI report", "Copia até 160 botões visíveis com texto e hierarquia.", "COPY UI", copyUiReport, left)
+    addButton("Run Solara self-check", "Verifica input, filesystem, GUI e APIs do executor.", "SELF TEST", selfTest, left)
+    addButton("Save preferences", "Salva seleções; toggles de automação sempre iniciam OFF.", "SAVE", saveConfig, left)
+    addSelect("UI scale", "0.80–1.10.", "uiScale", {"0.80", "0.90", "1.00", "1.10"}, right)
+    addButton("Apply UI scale", "Aplica a escala selecionada.", "APPLY", function()
+        uiScale.Scale = math.clamp(tonumber(state.values.uiScale) or 1, 0.64, 1.1)
+        return true, "Escala atualizada."
+    end, right)
+    addButton("STOP ALL", "Cancela sequências e desliga os toggles do hub.", "STOP", stopAll, right)
+    addButton("UNLOAD", "Fecha o painel, desconecta eventos e restaura efeitos.", "CLOSE", unload, right)
+    finishColumns()
+    addNotice("HOTKEY", "RightShift mostra/oculta. — minimiza para o botão flutuante y. × descarrega o yno hub.", "UI")
+    addNotice("SAFE CONFIG", "Save preferences guarda escolhas de mundo, categoria e modo, mas não liga automações ao iniciar novamente.", "CONFIG")
+end
+
+local pages = {
+    Overview = buildOverview,
+    Game = buildGame,
+    Story = buildStory,
+    Quests = buildQuests,
+    Macro = buildMacro,
+    ["Unit Hunt"] = buildUnitHunt,
+    Rewards = buildRewards,
+    Performance = buildPerformance,
+    Settings = buildSettings,
+}
+
+local navData = {
+    {"Overview", "◈"},
+    {"Game", "⚔"},
+    {"Story", "▣"},
+    {"Quests", "◎"},
+    {"Macro", "▤"},
+    {"Unit Hunt", "✧"},
+    {"Rewards", "◇"},
+    {"Performance", "◌"},
+    {"Settings", "⚙"},
+}
+
+local navButtons = {}
+
+local function showPage(name)
+    if not pages[name] then return end
+    state.page = name
+    pageTitle.Text = name
+    clearPage()
+    local ok, err = pcall(pages[name])
+    if not ok then
+        log("Erro na página " .. name .. ": " .. tostring(err), "error")
+    end
+    if currentColumn and currentColumn.resize then currentColumn.resize() end
+    for pageName, button in pairs(navButtons) do
+        local active = pageName == name
+        button.BackgroundColor3 = active and THEME.accentDark or THEME.sidebar
+        button.TextColor3 = active and THEME.text or THEME.muted
+        local marker = button:FindFirstChild("ActiveMarker")
+        if marker then marker.Visible = active end
+    end
+    searchBox.Text = ""
+end
+
+for index, item in ipairs(navData) do
+    local name, glyph = item[1], item[2]
+    local button = make("TextButton", {
+        Name = "Nav_" .. string.gsub(name, "%s+", ""),
+        AutoButtonColor = false,
+        BackgroundColor3 = THEME.sidebar,
+        Size = UDim2.new(1, 0, 0, 34),
+        Font = Enum.Font.GothamSemibold,
+        Text = "   " .. glyph .. "    " .. name,
+        TextColor3 = THEME.muted,
+        TextSize = 9,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        BorderSizePixel = 0,
+        LayoutOrder = index,
+        ZIndex = 9,
+    }, navHolder)
+    round(button, 3)
+    local marker = make("Frame", {
+        Name = "ActiveMarker",
+        BackgroundColor3 = THEME.accent,
+        Position = UDim2.new(0, 0, 0.5, -10),
+        Size = UDim2.fromOffset(3, 20),
+        BorderSizePixel = 0,
+        Visible = false,
+        ZIndex = 10,
+    }, button)
+    round(marker, 2)
+    button.Activated:Connect(function() showPage(name) end)
+    navButtons[name] = button
+end
+
+local floatingButton = make("TextButton", {
+    AnchorPoint = Vector2.new(1, 1),
+    Position = UDim2.new(1, -22, 1, -86),
+    Size = UDim2.fromOffset(46, 46),
+    BackgroundColor3 = THEME.accentDark,
+    Text = "y",
+    TextColor3 = THEME.text,
+    TextSize = 23,
+    Font = Enum.Font.GothamBold,
+    Visible = false,
+    BorderSizePixel = 0,
+    ZIndex = 60,
+}, gui)
+round(floatingButton, 7)
+stroke(floatingButton, THEME.accent, 0.2, 1)
+floatingButton.Activated:Connect(function()
+    main.Visible = true
+    floatingButton.Visible = false
+    state.minimized = false
+end)
+
+minimizeButton.Activated:Connect(function()
+    main.Visible = false
+    floatingButton.Visible = true
+    state.minimized = true
+end)
+
+closeButton.Activated:Connect(unload)
+
+searchBox:GetPropertyChangedSignal("Text"):Connect(function()
+    local query = norm(searchBox.Text)
+    for _, child in ipairs(pageScroll:GetChildren()) do
+        if child:IsA("Frame") then
+            if query == "" then
+                child.Visible = true
+            else
+                local searchText = norm(child:GetAttribute("yno_search") or "")
+                if searchText == "" then
+                    for _, descendant in ipairs(child:GetDescendants()) do
+                        if descendant:IsA("TextLabel") or descendant:IsA("TextButton") then
+                            searchText = searchText .. " " .. norm(descendant.Text)
+                        end
+                    end
+                end
+                child.Visible = string.find(searchText, query, 1, true) ~= nil
+            end
+        end
+    end
+end)
+
+local dragging = false
+local dragStart = nil
+local dragOrigin = nil
+trackConnection(topbar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        dragOrigin = main.Position
+    end
+end))
+trackConnection(UserInputService.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - dragStart
+        main.Position = UDim2.new(
+            dragOrigin.X.Scale, dragOrigin.X.Offset + delta.X,
+            dragOrigin.Y.Scale, dragOrigin.Y.Offset + delta.Y
+        )
+    end
+end))
+trackConnection(UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end))
+trackConnection(UserInputService.InputBegan:Connect(function(input, processed)
+    if not processed and input.KeyCode == Enum.KeyCode.RightShift then
+        main.Visible = not main.Visible
+        floatingButton.Visible = not main.Visible
+        state.minimized = not main.Visible
+    end
+end))
+
+local function automationLoop()
+    while state.running do
+        local now = os.clock()
+
+        if state.toggles.autoVoteStart and now - state.lastAutoStart > 2.5 then
+            state.lastAutoStart = now
+            clickVisible({"Vote Start", "Start Match"}, nil, "auto-vote-start", 2.2, false)
+        end
+
+        if state.toggles.autoSkip and now - state.lastAutoSkip > 2.5 then
+            state.lastAutoSkip = now
+            clickVisible({"Vote Skip", "Skip Wave"}, nil, "auto-skip-wave", 2.2, false)
+        end
+
+        local won, lost = false, false
+        if state.toggles.autoNext or state.toggles.autoReplay then
+            local content = screenText()
+            won = string.find(content, "victory", 1, true)
+                or string.find(content, "stage cleared", 1, true)
+                or string.find(content, "wave completed", 1, true)
+                or string.find(content, "completed the stage", 1, true)
+            lost = string.find(content, "defeat", 1, true)
+                or string.find(content, "you lost", 1, true)
+                or string.find(content, "you were defeated", 1, true)
+                or string.find(content, "match lost", 1, true)
+        end
+
+        if state.toggles.autoNext and won and now - state.lastAutoNext > 3 then
+            state.lastAutoNext = now
+            clickVisible({"Next Stage", "Next"}, nil, "auto-next", 2.5, false)
+        end
+
+        if state.toggles.autoReplay and lost and now - state.lastAutoReplay > 3 then
+            state.lastAutoReplay = now
+            clickVisible({"Replay", "Retry"}, nil, "auto-replay", 2.5, false)
+        end
+
+        if state.toggles.autoClaim and now - state.lastQuestClaim > 3 then
+            local claim = findGameButton({"Claim All"}, "quest", false, true)
+            if claim then
+                state.lastQuestClaim = now
+                sendMouseClick(claim)
+            end
+        end
+
+        if state.toggles.autoHunt then
+            local ok, err = pcall(processUnitHunt)
+            if not ok then log("Auto Hunt: " .. tostring(err), "error") end
+        end
+
+        task.wait(0.28)
+    end
+end
 
 loadConfig()
 showPage("Overview")
+ENV[RUNTIME_KEY] = {Unload = unload, Version = "4.0.0", Open = function() main.Visible = true end}
 
-table.insert(state.threads, task.spawn(gameAutomationLoop))
-table.insert(state.threads, task.spawn(claimLoop))
-
-log("yno hub 3.2.0 carregado. RightShift oculta/mostra.", THEME.success)
+spawnTracked(automationLoop)
+log("yno hub 4.0.0 carregado. RightShift mostra/oculta.", "success")
