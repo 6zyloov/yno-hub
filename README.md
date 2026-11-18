@@ -16,6 +16,8 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/6zyloov/yno-hub/main/
 - [Repository](https://github.com/6zyloov/yno-hub)
 - [Usage guide](docs/usage.md)
 - [Feature/validation matrix](docs/feature-matrix.md)
+- [Complete LixHub reference catalog and parity requirements](docs/lixhub-parity-spec.md)
+- [Review of the newly attached Lua draft](docs/imported-script-review.md)
 - [Changelog](CHANGELOG.md)
 
 ## Interface
