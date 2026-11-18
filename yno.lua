@@ -98,6 +98,7 @@ local state = {
     lastHuntPromptScan = 0,
     lastHuntMove = 0,
     lastHuntInteract = 0,
+    captureReadyLatched = false,
     activeHuntPrompt = nil,
     cachedHuntPrompt = nil,
     logs = {},
@@ -826,7 +827,7 @@ local function toggleNativeOption(labelText)
     end
 
     if not bestButton then
-        return false, "Não encontrei o toggle ao lado de " .. labelText .. ". Abra Macro → Units e deixe a opção visível."
+        return false, "Não encontrei o toggle ao lado de " .. labelText .. ". Abra a área do Smart Macro onde essa opção aparece e deixe-a visível."
     end
     local ok, err = sendMouseClick(bestButton)
     if not ok then return false, err end
@@ -903,8 +904,20 @@ end
 
 local function claimAllQuests()
     local button = findGameButton({"Claim All"}, "quest", false, true)
-    if not button then button = findGameButton({"Claim All"}, nil, false, true) end
-    if not button then return false, "Abra Quests, Guide, Event Quests ou Bounties primeiro." end
+        or findGameButton({"Claim All"}, "guide", false, true)
+        or findGameButton({"Claim All"}, "event", false, true)
+    if not button then
+        return false, "Abra Quests, Guide ou Event Quests e verifique se Claim All está disponível."
+    end
+    return sendMouseClick(button)
+end
+
+local function claimBountyRewards()
+    local button = findGameButton({"Claim All", "Claim Rewards"}, "bounty", false, true, true)
+        or findGameButton({"Claim"}, "bounty", false, true, true)
+    if not button then
+        return false, "Abra o Bounty Board de Navi e deixe visível a recompensa concluída."
+    end
     return sendMouseClick(button)
 end
 
@@ -1125,10 +1138,16 @@ local function processUnitHunt()
     local now = os.clock()
     if not hasScreenText({"Hunting Isles", "Hunt Wave"}) then return end
 
-    if state.toggles.autoPerfect and capturePerfectReady() and now - state.lastHuntInteract > 0.16 then
-        state.lastHuntInteract = now
-        sendKey(0x20)
+    local perfectReady = state.toggles.autoPerfect and capturePerfectReady()
+    if perfectReady then
+        if not state.captureReadyLatched and now - state.lastHuntInteract > 0.22 then
+            state.lastHuntInteract = now
+            state.captureReadyLatched = true
+            sendKey(0x20)
+        end
         return
+    else
+        state.captureReadyLatched = false
     end
 
     local target = findCapturePrompt()
@@ -1856,7 +1875,7 @@ local function buildQuests()
     addToggle("Auto Claim", "Verifica a cada intervalo se Claim All está visível em Quests.", "autoClaim", nil, left)
     addButton("Open Guidebook", "Quests → Guide; acompanhe as dez tarefas que liberam Phoenix.", "GUIDE", openGuidebook, right)
     addButton("Open Bounties", "Abra Bounties no Request Board com Navi.", "BOUNTIES", openBounties, right)
-    addButton("Claim Bounties", "Coleta Claim All se a janela de Bounties estiver aberta.", "CLAIM", claimAllQuests, right)
+    addButton("Claim Bounties", "Coleta a recompensa dentro da janela de Bounties.", "CLAIM", claimBountyRewards, right)
     addButton("Start Story quest grind", "Liga Auto Start, Auto Skip e Auto Next e inicia o Story selecionado.", "GRIND", function()
         setToggleUi("autoVoteStart", true)
         setToggleUi("autoSkip", true)
@@ -1897,11 +1916,18 @@ local function buildMacro()
     addButton("Toggle Auto Next", "Native Smart Macro option.", "TOGGLE", function()
         return toggleNativeOption("Auto Next")
     end, right)
-    addButton("Open Macro Routine", "Configure uma fila de tarefas antes de iniciar Routine.", "ROUTINE", function()
-        local ok, reason = openMacroPanel()
-        if not ok then return false, reason end
+    addButton("Open Macro Routine", "Abre Macro → Run → Routine para configurar uma fila de tarefas.", "ROUTINE", function()
+        local opened, reason = openMacroPanel()
+        if not opened then return false, reason end
         task.wait(0.25)
-        return clickVisible({"Routine"}, "macro", "open-macro-routine", 1.1, false)
+        local run = findGameButton({"Run"}, "macro", false, true)
+        if not run then return false, "Não encontrei Macro → Run." end
+        local runOk, runErr = sendMouseClick(run)
+        if not runOk then return false, runErr end
+        task.wait(0.25)
+        local routine = findGameButton({"Routine"}, "run", false, true)
+        if not routine then return false, "Não encontrei Routine dentro de Macro → Run." end
+        return sendMouseClick(routine)
     end, right)
     finishColumns()
     addNotice("CONFIGURE ONCE", "Macro → Units → Slots: configure seus seis slots e Hero. Macro → Units → Placement: escolha Zones, Recording ou Shared area.", "SETUP")
