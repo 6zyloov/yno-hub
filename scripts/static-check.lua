@@ -30,6 +30,7 @@ local required = {
     {"compact two-column Game layout", "beginColumnPage(\"GAME\", \"WAVE ACTIONS\""},
     {"right-column button support", "callback, column)"},
     {"strict panel scoping", "strictContext == true"},
+    {"dynamic two-column sizing", 'GetPropertyChangedSignal("AbsoluteSize"):Connect(updateGroupHeight)'},
     {"cancellable Macro sequence", "runAsync(\"macroStarting\", function(generation)"},
     {"safe login track reopening", "findGameButton({\"Login Rewards\", \"Rewards\"}"},
 }
