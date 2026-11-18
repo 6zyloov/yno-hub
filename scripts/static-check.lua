@@ -33,6 +33,9 @@ local required = {
     {"dynamic two-column sizing", 'GetPropertyChangedSignal("AbsoluteSize"):Connect(updateGroupHeight)'},
     {"cancellable Macro sequence", "runAsync(\"macroStarting\", function(generation)"},
     {"safe login track reopening", "findGameButton({\"Login Rewards\", \"Rewards\"}"},
+    {"contextual bounty claim", "local function claimBountyRewards()"},
+    {"single-hit PERFECT assist", "captureReadyLatched"},
+    {"Macro Routine navigation", "local routine = findGameButton({\"Routine\"}, \"run\""},
 }
 
 for _, check in ipairs(required) do
