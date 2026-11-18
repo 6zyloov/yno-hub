@@ -1,5 +1,5 @@
 -- yno hub | anime crusaders x
--- v4.0.2 | 2026-11-17
+-- v4.0.3 | 2026-11-17
 -- Rebuilt around explicit game workflows, documented Solara input APIs,
 -- ranked visible-UI matching, cancellable tasks, and a compact LixHub-inspired UI.
 -- Uses visible UI, ordinary key input, ProximityPrompts and the game's native Macro.
@@ -2264,7 +2264,7 @@ end
 loadConfig()
 uiScale.Scale = math.clamp(tonumber(state.values.uiScale) or uiScale.Scale, 0.64, 1.1)
 showPage("Overview")
-ENV[RUNTIME_KEY] = {Unload = unload, Version = "4.0.2", Open = function() main.Visible = true end}
+ENV[RUNTIME_KEY] = {Unload = unload, Version = "4.0.3", Open = function() main.Visible = true end}
 
 spawnTracked(automationLoop)
-log("yno hub 4.0.2 carregado. RightShift mostra/oculta.", "success")
+log("yno hub 4.0.3 carregado. RightShift mostra/oculta.", "success")
