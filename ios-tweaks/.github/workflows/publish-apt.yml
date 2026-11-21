@@ -1,0 +1,40 @@
+name: Publish ynoez APT repository
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "ios-tweaks/pool/**/*.deb"
+
+permissions:
+  contents: write
+
+jobs:
+  build-index-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require at least one package
+        run: |
+          find ios-tweaks/pool -type f -name '*.deb' -print -quit | grep -q .
+      - name: Generate APT metadata
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dpkg-dev apt-utils
+          mkdir -p public/pool
+          cp -R ios-tweaks/pool/. public/pool/
+          cd public
+          dpkg-scanpackages --multiversion --arch iphoneos-arm64 pool /dev/null > Packages
+          test -s Packages
+          gzip -9c Packages > Packages.gz
+          xz -9e -c Packages > Packages.xz
+          apt-ftparchive release . > Release
+          grep -q '^Architectures:.*iphoneos-arm64' Release || true
+      - name: Publish repository files to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: ./public
+          force_orphan: false
+          commit_message: "Publish ynoez APT metadata"
