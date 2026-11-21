@@ -1,0 +1,49 @@
+#!/bin/sh
+set -eu
+
+echo "ynoez audit 0.1.0"
+echo "Read-only report: this command does not change system settings."
+echo
+
+if command -v sysctl >/dev/null 2>&1; then
+    model="$(sysctl -n hw.machine 2>/dev/null || echo unknown)"
+    arch="$(uname -m 2>/dev/null || echo unknown)"
+else
+    model="unknown"
+    arch="$(uname -m 2>/dev/null || echo unknown)"
+fi
+echo "Device identifier: $model"
+echo "Architecture: $arch"
+
+if command -v sw_vers >/dev/null 2>&1; then
+    echo "iOS version: $(sw_vers -productVersion 2>/dev/null || echo unknown)"
+else
+    echo "iOS version: unknown (sw_vers unavailable)"
+fi
+
+echo "Kernel: $(uname -r 2>/dev/null || echo unknown)"
+echo "Rootless prefix: /var/jb"
+if [ -d /var/jb ]; then
+    echo "Rootless prefix status: present"
+else
+    echo "Rootless prefix status: not found"
+fi
+
+echo
+echo "Storage:"
+if command -v df >/dev/null 2>&1; then
+    df -h /var/jb 2>/dev/null || df -h / 2>/dev/null || true
+else
+    echo "df unavailable"
+fi
+
+echo
+echo "Installed package count:"
+if command -v dpkg-query >/dev/null 2>&1; then
+    dpkg-query -W 2>/dev/null | wc -l | tr -d ' '
+else
+    echo "dpkg-query unavailable"
+fi
+
+echo
+echo "No cleanup, daemon changes, process killing, network access or preference changes were performed."
