@@ -1,10 +1,12 @@
-name: Publish ynoez APT repository
+name: Build and publish ynoez APT repository
 
 on:
   workflow_dispatch:
   push:
     paths:
+      - "ios-tweaks/packages/**"
       - "ios-tweaks/pool/**/*.deb"
+      - ".github/workflows/publish-ynoez-apt.yml"
 
 permissions:
   contents: write
@@ -14,15 +16,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Require at least one package
+      - name: Build ynoez package
         run: |
-          find ios-tweaks/pool -type f -name '*.deb' -print -quit | grep -q .
+          mkdir -p build
+          chmod 0755 ios-tweaks/packages/ynoez-audit/var/jb/usr/bin/ynoez-audit
+          dpkg-deb --build --root-owner-group ios-tweaks/packages/ynoez-audit build/com.ynoez.audit_0.1.0_iphoneos-arm64.deb
+      - name: Add authorized package files
+        run: |
+          mkdir -p public/pool
+          cp build/*.deb public/pool/
+          if [ -d ios-tweaks/pool ]; then
+            find ios-tweaks/pool -type f -name '*.deb' -exec cp {} public/pool/ \;
+          fi
       - name: Generate APT metadata
         run: |
           sudo apt-get update
           sudo apt-get install -y dpkg-dev apt-utils
-          mkdir -p public/pool
-          cp -R ios-tweaks/pool/. public/pool/
           cd public
           dpkg-scanpackages --multiversion --arch iphoneos-arm64 pool /dev/null > Packages
           test -s Packages
@@ -36,4 +45,4 @@ jobs:
           publish_branch: gh-pages
           publish_dir: ./public
           force_orphan: false
-          commit_message: "Publish ynoez APT metadata"
+          commit_message: "Build and publish ynoez APT repository"
