@@ -2,7 +2,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw
 import math
 
-OUT = Path("build/ynoez-noir/var/jb/Library/Themes/ynoez noir.theme/IconBundles")
+OUT = Path("ios-tweaks/packages/ynoez-noir/var/jb/Library/Themes/ynoez noir.theme/IconBundles")
 OUT.mkdir(parents=True, exist_ok=True)
 S = 180
 W = (255, 255, 255, 255)
