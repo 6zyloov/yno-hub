@@ -14,6 +14,7 @@ def draw_icon(kind):
     def ln(p, width=9): d.line(p, fill=W, width=width, joint="curve")
     def oval(b, width=9): d.ellipse(b, outline=W, width=width)
     def rect(b, radius=12, width=9): d.rounded_rectangle(b, radius=radius, outline=W, width=width)
+    def arc(b, start, end, width=9): d.arc(b, start=start, end=end, fill=W, width=width)
     if kind == "phone":
         rect((58, 30, 122, 150), 14); d.ellipse((84, 128, 96, 140), fill=W); ln([(78,45),(102,45)],5)
     elif kind == "messages":
