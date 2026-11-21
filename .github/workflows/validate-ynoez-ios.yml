@@ -54,7 +54,7 @@ jobs:
           assert info["PackageName"] == "ynoez noir"
           source = Path("ios-tweaks/packages/ynoez-noir/build_theme.py").read_text()
           block = source.split("icons = {", 1)[1].split("}", 1)[0]
-          assert len(re.findall(r'^\\s+"[^"]+":"[^"]+"', block, re.M)) == 28
+          assert len(re.findall(r'^\s+"[^"]+":"[^"]+"', block, re.M)) == 28
           print("Validated ynoez noir plist, Rootless metadata and 28 icon mappings.")
           PY
           sh -n ios-tweaks/packages/ynoez-audit/var/jb/usr/bin/ynoez-audit
