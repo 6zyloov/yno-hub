@@ -1,8 +1,21 @@
 {
-  "name": "YNOEZ iOS Tweaks Catalog",
-  "version": "0.1.0",
-  "type": "catalog-only",
-  "sileo_apt_repository": false,
+  "name": "ynoez",
+  "display_name": "yno ez",
+  "version": "0.2.0",
+  "repository_type": "catalog-and-build-workspace",
+  "sileo_apt_repository_live": false,
+  "target": {
+    "device": "iPhone 6s Plus",
+    "product_identifier": "iPhone8,2",
+    "ios": "15.8.8",
+    "chip": "A9",
+    "cpu_architecture": "arm64",
+    "jailbreak": "Dopamine",
+    "jailbreak_mode": "rootless",
+    "debian_architecture": "iphoneos-arm64",
+    "install_prefix": "/var/jb",
+    "minimum_deployment_target": "15.0"
+  },
   "source_video": {
     "title": "MOSTRANDO MEUS TWEAKS ATUALIZADOS E FUNCIONANDO 100% PARA IPHONE (COM JAILBREAK)",
     "channel": "RUIYA",
@@ -12,30 +25,188 @@
     "transcript": "Portuguese auto-generated captions; names normalized conservatively"
   },
   "items": [
-    {"name":"AppData","category":"utility","video_identification":"medium","purpose":"WhatsApp storage/cache management","current_compatibility":"unverified"},
-    {"name":"App Store++","category":"app-management","video_identification":"high","purpose":"App Store app version selection/downgrade","current_compatibility":"unverified"},
-    {"name":"Unidentified charging tweak","category":"battery","video_identification":"low","purpose":"Video claims faster charging; exact package unknown","current_compatibility":"not identified"},
-    {"name":"Dark Void X","category":"theme","video_identification":"medium","purpose":"Theme","current_compatibility":"unverified"},
-    {"name":"Frame","category":"theme","video_identification":"high","purpose":"Theme / visual customization","current_compatibility":"unverified"},
-    {"name":"MyWall","category":"theme","video_identification":"high","purpose":"WhatsApp wallpaper/background","current_compatibility":"unverified"},
-    {"name":"Unidentified resolution/DPI tweak","category":"display","video_identification":"low","purpose":"Display scaling/resolution adjustment","current_compatibility":"not identified"},
-    {"name":"Unidentified floating app shortcut","category":"multitasking","video_identification":"low","purpose":"Floating app launcher shortcut","current_compatibility":"not identified"},
-    {"name":"Unidentified RGB keyboard tweak","category":"keyboard","video_identification":"low","purpose":"Keyboard color/effects","current_compatibility":"not identified"},
-    {"name":"Shadow","category":"compatibility","video_identification":"high","purpose":"Per-app jailbreak detection compatibility/bypass","source":"https://ios.jjolano.me/","current_compatibility":"check developer matrix"},
-    {"name":"SnowBoard","category":"theming","video_identification":"high","purpose":"Theme engine","source":"https://sparkdev.me/","current_compatibility":"unverified"},
-    {"name":"Opus theme","category":"theme","video_identification":"high","purpose":"Icon/system theme","current_compatibility":"unverified"},
-    {"name":"Springtomize 5","category":"customization","video_identification":"high","purpose":"SpringBoard customization","current_compatibility":"unverified"},
-    {"name":"Substitute","category":"runtime","video_identification":"high","purpose":"Tweak injection library/runtime; not an end-user customization tweak","current_compatibility":"depends on jailbreak/bootstrap"},
-    {"name":"TapticFlow (transcript spelling)","category":"utility","video_identification":"low","purpose":"Floating on-screen control/recording aid; exact package unverified","current_compatibility":"not identified"},
-    {"name":"Unidentified status-bar tweak","category":"customization","video_identification":"low","purpose":"Status-bar appearance/customization","current_compatibility":"not identified"}
+    {
+      "name": "AppData",
+      "category": "utility",
+      "video_identification": "medium",
+      "purpose": "WhatsApp storage/cache management",
+      "compatibility": "unverified",
+      "redistribution": "not mirrored"
+    },
+    {
+      "name": "App Store++",
+      "category": "app-management",
+      "video_identification": "high",
+      "purpose": "App Store app version selection/downgrade",
+      "compatibility": "not verified for iOS 15.8.8",
+      "redistribution": "not mirrored"
+    },
+    {
+      "name": "Dark Void X",
+      "category": "theme",
+      "video_identification": "medium",
+      "purpose": "Theme",
+      "compatibility": "unverified"
+    },
+    {
+      "name": "Frame",
+      "category": "theme",
+      "video_identification": "high",
+      "purpose": "Theme / visual customization",
+      "compatibility": "unverified"
+    },
+    {
+      "name": "MyWall",
+      "category": "theme",
+      "video_identification": "high",
+      "purpose": "WhatsApp wallpaper/background",
+      "compatibility": "unverified"
+    },
+    {
+      "name": "Shadow",
+      "category": "compatibility",
+      "video_identification": "high",
+      "purpose": "Per-app jailbreak-detection compatibility/bypass",
+      "source": "https://ios.jjolano.me/",
+      "compatibility": "review developer instructions; avoid stacking bypasses"
+    },
+    {
+      "name": "SnowBoard",
+      "category": "theming",
+      "video_identification": "high",
+      "purpose": "Theme engine",
+      "source": "https://sparkdev.me/",
+      "compatibility": "verify exact package and dependencies"
+    },
+    {
+      "name": "Opus theme",
+      "category": "theme",
+      "video_identification": "high",
+      "purpose": "Icon/system theme",
+      "compatibility": "unverified"
+    },
+    {
+      "name": "Springtomize 5",
+      "category": "customization",
+      "video_identification": "high",
+      "purpose": "SpringBoard customization",
+      "compatibility": "unverified"
+    },
+    {
+      "name": "Substitute",
+      "category": "runtime",
+      "video_identification": "high",
+      "purpose": "Tweak injection runtime; not an end-user tweak",
+      "compatibility": "Dopamine uses its own injection stack; do not install blindly"
+    },
+    {
+      "name": "Unidentified charging tweak",
+      "category": "battery",
+      "video_identification": "low",
+      "purpose": "Video claims faster charging; exact package unknown",
+      "compatibility": "not identified"
+    },
+    {
+      "name": "Unidentified resolution/DPI tweak",
+      "category": "display",
+      "video_identification": "low",
+      "purpose": "Display scaling/resolution adjustment",
+      "compatibility": "not identified"
+    },
+    {
+      "name": "Unidentified floating app shortcut",
+      "category": "multitasking",
+      "video_identification": "low",
+      "purpose": "Floating app launcher shortcut",
+      "compatibility": "not identified"
+    },
+    {
+      "name": "Unidentified RGB keyboard tweak",
+      "category": "keyboard",
+      "video_identification": "low",
+      "purpose": "Keyboard color/effects",
+      "compatibility": "not identified"
+    },
+    {
+      "name": "TapticFlow (transcript spelling)",
+      "category": "utility",
+      "video_identification": "low",
+      "purpose": "Floating on-screen control/recording aid; exact package unverified",
+      "compatibility": "not identified"
+    },
+    {
+      "name": "Unidentified status-bar tweak",
+      "category": "customization",
+      "video_identification": "low",
+      "purpose": "Status-bar appearance/customization",
+      "compatibility": "not identified"
+    },
+    {
+      "name": "Triggr",
+      "category": "gestures",
+      "availability": "free upstream",
+      "source": "https://jond-ie.github.io/repo/",
+      "purpose": "Button, gesture and event actions",
+      "ios_claim": "iOS 15+",
+      "compatibility": "candidate; not tested on iPhone8,2"
+    },
+    {
+      "name": "BegoneCIA",
+      "category": "privacy",
+      "availability": "free upstream",
+      "source": "https://jond-ie.github.io/repo/",
+      "purpose": "Control Center toggle for camera, microphone and location blocking",
+      "ios_claim": "community report iOS 15-16; tested on adjacent A10/A11 devices",
+      "compatibility": "candidate; not tested on iPhone8,2"
+    },
+    {
+      "name": "Scrub",
+      "category": "privacy",
+      "availability": "free upstream",
+      "source": "https://jond-ie.github.io/repo/",
+      "purpose": "Remove photo location/metadata before sharing",
+      "compatibility": "candidate; inspect permissions and behavior"
+    },
+    {
+      "name": "Crossfade",
+      "category": "music",
+      "availability": "free upstream",
+      "source": "https://jond-ie.github.io/repo/",
+      "purpose": "Crossfade local Music library tracks",
+      "compatibility": "candidate; not a performance optimizer"
+    }
   ],
-  "performance": {
-    "verified_performance_boosters_from_video": [],
-    "note": "The video primarily demonstrates themes, customization, app utilities and jailbreak compatibility. It does not establish measurable CPU, RAM, battery-life or responsiveness gains."
-  },
+  "ynoez_packages": [
+    {
+      "package_id": "com.ynoez.core",
+      "name": "ynoez core",
+      "status": "planned",
+      "purpose": "Shared safe preference and diagnostics foundation; no package binary published"
+    },
+    {
+      "package_id": "com.ynoez.performance",
+      "name": "ynoez performance",
+      "status": "planned",
+      "purpose": "Reversible, measured responsiveness controls; no package binary published"
+    },
+    {
+      "package_id": "com.ynoez.debloat",
+      "name": "ynoez debloat",
+      "status": "planned",
+      "purpose": "Opt-in cache and component cleanup with backup/restore; no package binary published"
+    },
+    {
+      "package_id": "com.ynoez.customize",
+      "name": "ynoez customize",
+      "status": "planned",
+      "purpose": "Lightweight SpringBoard customization controls; no package binary published"
+    }
+  ],
   "policy": {
-    "redistribute_third_party_debs": false,
-    "paid_packages_mirrored": false,
-    "install_without_compatibility_check": false
+    "third_party_deb_redistribution": false,
+    "paid_packages_or_cracks": false,
+    "install_without_compatibility_review": false,
+    "publish_unverified_performance_claims": false,
+    "default_destructive_actions": false
   }
 }
