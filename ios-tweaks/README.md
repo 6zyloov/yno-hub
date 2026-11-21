@@ -32,6 +32,10 @@ Use SILEO-SOURCES.md for upstream repositories. Packages remain hosted by their 
 
 The first candidate list includes free/rootless projects such as Jond-ie's repository. Items are marked as candidates until their current package metadata and iOS 15.8.8 behavior are checked. Do not install every tweak at once.
 
+## Original theme: ynoez noir
+
+A pure black (#000000) and white (#FFFFFF) SnowBoard theme is being built in `packages/ynoez-noir/`. It targets 16 common apps, uses 180×180 artwork for Plus-size devices, and ships as the Rootless package `com.ynoez.noir`. SnowBoard is a dependency. Its artwork is generated reproducibly during the APT build.
+
 ## Video catalog
 
 The original RUIYA video is from February 2022. Its transcript includes AppData, App Store++, SnowBoard, Springtomize 5, Shadow and other names, but some names are unclear and the video is not evidence of current compatibility. See catalog.json. Unidentified names remain unidentified rather than guessed.
