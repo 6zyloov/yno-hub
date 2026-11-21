@@ -69,3 +69,8 @@ The repository runs:
 2. static release/wiring checks for required modules, duplicate local functions, stale helpers and prohibited remote invocation patterns.
 
 **No live Roblox/Solara match was executed in this development environment.** Passing syntax/static CI does not prove every in-game button label, menu hierarchy, or capture-bar variant matches the current client. Story, rewards and Unit Hunt flows therefore report missing controls rather than claiming success when a target is not found. The PERFECT helper remains experimental.
+
+
+## iOS jailbreak tweaks catalog
+
+A separate catalog of iPhone jailbreak tweaks, the referenced RUIYA video, original Sileo repository links, and performance notes is available in [`ios-tweaks/`](ios-tweaks/README.md). This is a research/catalog folder, **not an installable APT/Sileo source**; third-party package binaries are not mirrored.
