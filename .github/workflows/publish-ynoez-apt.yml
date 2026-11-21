@@ -16,12 +16,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build ynoez package
+      - name: Install theme asset builder
+        run: python3 -m pip install --user pillow
+      - name: Build ynoez audit
         run: |
           mkdir -p build
           chmod 0755 ios-tweaks/packages/ynoez-audit/var/jb/usr/bin/ynoez-audit
           dpkg-deb --build --root-owner-group ios-tweaks/packages/ynoez-audit build/com.ynoez.audit_0.1.0_iphoneos-arm64.deb
-      - name: Add authorized package files
+      - name: Generate ynoez noir SnowBoard icons
+        run: |
+          python3 ios-tweaks/packages/ynoez-noir/build_theme.py
+          test "$(find 'build/ynoez-noir/var/jb/Library/Themes/ynoez noir.theme/IconBundles' -name '*-large.png' | wc -l)" -eq 16
+      - name: Build ynoez noir theme package
+        run: |
+          dpkg-deb --build --root-owner-group ios-tweaks/packages/ynoez-noir build/com.ynoez.noir_1.0.0_iphoneos-arm64.deb
+      - name: Assemble APT pool
         run: |
           mkdir -p public/pool
           cp build/*.deb public/pool/
