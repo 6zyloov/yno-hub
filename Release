@@ -1,21 +1,21 @@
-Date: Sat, 21 Nov 2026 20:39:03 +0000
+Date: Sat, 21 Nov 2026 20:39:09 +0000
 MD5Sum:
- 1d74feb67ccd1ffd04aa5b10004667ab              453 Packages
- b1f86443f9ed02f9980e55b9ad537b6d              341 Packages.gz
- 6ccd9de761fffd255cf90ad360a376e5              412 Packages.xz
- 2e163ac9c7e49aa00dc251fca6711df8               38 Release
+ d2ec2b02741b14921ee3c66600f88692              453 Packages
+ 67ef74d0cd7fd7e65fdd5e08e2b3db86              341 Packages.gz
+ 28997ac6be5ea405b3f5136fb3115582              412 Packages.xz
+ 509d73cc1b47eef5e9a5f8187bd6cc3f               38 Release
 SHA1:
- a56244abddf8f9c44f23861bcf6aa36d3d67d1c4              453 Packages
- 74bb3a2e6a7d00d6118b8ffc5c1735068a0bad19              341 Packages.gz
- 2c5f1812eaa2aa558ef80c0b127e67b4ab3c9c88              412 Packages.xz
- d3370ba2582796dd11e85720375c829bcfbfe48b               38 Release
+ abb2522c7e27a5fac0b107f829a96a24ac678aa1              453 Packages
+ 18137cf9cd248e00cd1290b8f1faef1401fdb1f5              341 Packages.gz
+ 94f8c3f9fe12301d1c3bb1fdb40aded9aeb180e2              412 Packages.xz
+ 9763f16858855cc02afb708a9bcb6cb31fe8df6e               38 Release
 SHA256:
- 61e2d02fe207888176f55576beec634831ab8bb8fbe5a51a638a4770e9c40b4f              453 Packages
- d3925c87e912bf0801ff99dcadbeb039ab9090b8eff02b110a7a90c61b9cf2bb              341 Packages.gz
- b8e025fda966a0ea827764ff40f5b2d60e37167040e6d4ac8fbf37c704d0407c              412 Packages.xz
- 1796dcf827d4a1bca90e01c3893adda8db8caf7af63c47cc4d5a04ee2f768e4d               38 Release
+ 9de543c74959240e9b3984b4c05210521c277fff5d16d75782c9e82b62918175              453 Packages
+ 9488d08a746203cf4cbddca2affbc7a9f8c02effa37f109a395c9ab180e3d961              341 Packages.gz
+ 4cbe04240bc7403c32c045a9d3658047d7d2bccf6f739fbc616edb4638920d8a              412 Packages.xz
+ b43e5094f6eff89d89dabd54fdc95658eb2bcfcc60aeb95642e57ba8601bfe1b               38 Release
 SHA512:
- bb3c32853d857c3e3987f4effb8616724fdb04f84ab2ff8702778c609a0d74b7efe91e5658ef1ef154a2355ee689d3ebd6dc5edb2cc42d30f5a65038916605ef              453 Packages
- 96654ff7a7d0cae82108c144dbb1707b66d85739a2857ddc3f408aad7ff5fee6a0ffe657eb8a092f9d76c5f807b2bb269d9d0f172ad118b0f5c0b37a7d2c528f              341 Packages.gz
- b0d119061a5e935b07c06e8ba24b3e181a85f07493d910e1fa39bead5c248fcad78842e68bb8d69bbade7429de16d0d7866a5b69b5d117c34a777cadaf146836              412 Packages.xz
- 784adf15d91001ee977b7a2551498db3aa281e7b7cc4ad696ee34729b355a8925ab77940b9796ea460dabb4190c5c666ae772ce7c58d206ddfb57cf4ee12c0cf               38 Release
+ 7b03288d0dff0374118523c50fe11d438345fd3299cc40f8eeaff09b1233773636a2e5b29847b54b476c9665ecd1e78a827e83992b15e0045e908063ed65bf4b              453 Packages
+ fbc1a5be7951da395b51a90c79be19e349ad9a5e9aadf564ecf4f13810a157a776b52cd5c643b99689aa4adfe87c6e2ed6a31136974d48b9f6425775f45aaff8              341 Packages.gz
+ 40c9fd8d7a1a7287e312cf0b1fd22cd5a9ace93e3c5e27ee3a9d444f8555f80824292ea7095bb2c93e0968f0848f21d497f5937ef588b408297282468660a2e7              412 Packages.xz
+ be10ae9cb48e2cb8f04a3d1b9b513509370a3f21ac0c8aba53e6c8dafe3f7994cecdc1774d800b288fdbe758556dca28ff39cfbce9fe65ff202bb0891ae8f8e1               38 Release

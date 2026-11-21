@@ -3,10 +3,10 @@ Version: 0.1.0
 Architecture: iphoneos-arm64
 Maintainer: ynoez
 Filename: pool/com.ynoez.audit_0.1.0_iphoneos-arm64.deb
-Size: 1482
-MD5sum: acd7ea105101fcdfd7bb1ef75b70e41c
-SHA1: b3b524a250fda644ce2b0ed2f898741722de45ba
-SHA256: 391ba303e0c1c710d445ba1d5908435a3170dc42825eca48130c7f58f7943045
+Size: 1484
+MD5sum: a56546e7c461ea4adda823e93a3da489
+SHA1: 859dfbbf26990d3b5ab91e07c76fd6029da5b3ff
+SHA256: c733a45de2179ac040795f22d43e048540ebf821dd954d1ce51000b7ce5a8bfa
 Section: Utilities
 Priority: optional
 Description: Read-only device and jailbreak diagnostics for ynoez.
