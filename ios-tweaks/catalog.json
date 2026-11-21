@@ -1,0 +1,41 @@
+{
+  "name": "YNOEZ iOS Tweaks Catalog",
+  "version": "0.1.0",
+  "type": "catalog-only",
+  "sileo_apt_repository": false,
+  "source_video": {
+    "title": "MOSTRANDO MEUS TWEAKS ATUALIZADOS E FUNCIONANDO 100% PARA IPHONE (COM JAILBREAK)",
+    "channel": "RUIYA",
+    "url": "https://www.youtube.com/watch?v=_mUys4RsW8g",
+    "published": "2022-02-13",
+    "duration": "12:15",
+    "transcript": "Portuguese auto-generated captions; names normalized conservatively"
+  },
+  "items": [
+    {"name":"AppData","category":"utility","video_identification":"medium","purpose":"WhatsApp storage/cache management","current_compatibility":"unverified"},
+    {"name":"App Store++","category":"app-management","video_identification":"high","purpose":"App Store app version selection/downgrade","current_compatibility":"unverified"},
+    {"name":"Unidentified charging tweak","category":"battery","video_identification":"low","purpose":"Video claims faster charging; exact package unknown","current_compatibility":"not identified"},
+    {"name":"Dark Void X","category":"theme","video_identification":"medium","purpose":"Theme","current_compatibility":"unverified"},
+    {"name":"Frame","category":"theme","video_identification":"high","purpose":"Theme / visual customization","current_compatibility":"unverified"},
+    {"name":"MyWall","category":"theme","video_identification":"high","purpose":"WhatsApp wallpaper/background","current_compatibility":"unverified"},
+    {"name":"Unidentified resolution/DPI tweak","category":"display","video_identification":"low","purpose":"Display scaling/resolution adjustment","current_compatibility":"not identified"},
+    {"name":"Unidentified floating app shortcut","category":"multitasking","video_identification":"low","purpose":"Floating app launcher shortcut","current_compatibility":"not identified"},
+    {"name":"Unidentified RGB keyboard tweak","category":"keyboard","video_identification":"low","purpose":"Keyboard color/effects","current_compatibility":"not identified"},
+    {"name":"Shadow","category":"compatibility","video_identification":"high","purpose":"Per-app jailbreak detection compatibility/bypass","source":"https://ios.jjolano.me/","current_compatibility":"check developer matrix"},
+    {"name":"SnowBoard","category":"theming","video_identification":"high","purpose":"Theme engine","source":"https://sparkdev.me/","current_compatibility":"unverified"},
+    {"name":"Opus theme","category":"theme","video_identification":"high","purpose":"Icon/system theme","current_compatibility":"unverified"},
+    {"name":"Springtomize 5","category":"customization","video_identification":"high","purpose":"SpringBoard customization","current_compatibility":"unverified"},
+    {"name":"Substitute","category":"runtime","video_identification":"high","purpose":"Tweak injection library/runtime; not an end-user customization tweak","current_compatibility":"depends on jailbreak/bootstrap"},
+    {"name":"TapticFlow (transcript spelling)","category":"utility","video_identification":"low","purpose":"Floating on-screen control/recording aid; exact package unverified","current_compatibility":"not identified"},
+    {"name":"Unidentified status-bar tweak","category":"customization","video_identification":"low","purpose":"Status-bar appearance/customization","current_compatibility":"not identified"}
+  ],
+  "performance": {
+    "verified_performance_boosters_from_video": [],
+    "note": "The video primarily demonstrates themes, customization, app utilities and jailbreak compatibility. It does not establish measurable CPU, RAM, battery-life or responsiveness gains."
+  },
+  "policy": {
+    "redistribute_third_party_debs": false,
+    "paid_packages_mirrored": false,
+    "install_without_compatibility_check": false
+  }
+}
