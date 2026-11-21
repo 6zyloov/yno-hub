@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>PackageName</key><string>ynoez noir</string>
+  <key>ThemeType</key><string>Icons</string>
+  <key>LabelSettings</key>
+  <dict>
+    <key>FontName</key><string>.SFUIText-Medium</string>
+    <key>FontSize</key><real>10.0</real>
+    <key>HideLabels</key><false/>
+  </dict>
+</dict>
+</plist>
