@@ -1,0 +1,10 @@
+Package: com.ynoez.noir
+Name: ynoez noir
+Version: 1.0.0
+Architecture: iphoneos-arm64
+Depends: com.spark.snowboard
+Description: Pure black and white SnowBoard icon theme by ynoez.
+Maintainer: ynoez
+Author: ynoez
+Section: Themes
+Priority: optional
