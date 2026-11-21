@@ -58,6 +58,18 @@ jobs:
           print("Validated ynoez noir plist, Rootless metadata and 28 icon mappings.")
           PY
           sh -n ios-tweaks/packages/ynoez-audit/var/jb/usr/bin/ynoez-audit
+          sh -n ios-tweaks/packages/ynoez-toolbox/var/jb/usr/bin/ynoez
+          python3 - <<'PY'
+          from pathlib import Path
+          control = Path("ios-tweaks/packages/ynoez-toolbox/DEBIAN/control").read_text()
+          assert "Package: com.ynoez.toolbox" in control
+          assert "Architecture: iphoneos-arm64" in control
+          script = Path("ios-tweaks/packages/ynoez-toolbox/var/jb/usr/bin/ynoez").read_text()
+          for command in ("status", "storage", "packages", "health", "help"):
+              assert command in script
+          assert "rm " not in script and "killall" not in script and "launchctl disable" not in script
+          print("Validated toolbox metadata, commands and read-only safety guard.")
+          PY
       - name: Check required documentation
         run: |
           test -s ios-tweaks/README.md

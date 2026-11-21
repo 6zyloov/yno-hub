@@ -313,6 +313,13 @@
       "purpose": "Read-only device, storage and package diagnostics"
     },
     {
+      "package_id": "com.ynoez.toolbox",
+      "name": "ynoez toolbox",
+      "version": "0.1.0",
+      "status": "source added; awaiting CI build, APT publication and device test",
+      "purpose": "Read-only status, storage, installed-package and jailbreak-health reports"
+    },
+    {
       "package_id": "com.ynoez.noir",
       "name": "ynoez noir",
       "version": "1.0.0",

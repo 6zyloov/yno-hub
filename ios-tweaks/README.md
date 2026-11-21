@@ -45,6 +45,7 @@ The original RUIYA video is from February 2022. Its transcript includes AppData,
 ## Original packages
 
 - [ynoez audit](packages/ynoez-audit/README.md) — read-only device diagnostics.
+- [ynoez toolbox](packages/ynoez-toolbox/README.md) — status, storage, packages and jailbreak-health reports; read-only.
 
 ## Performance and debloat policy
 
