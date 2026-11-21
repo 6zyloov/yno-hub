@@ -79,3 +79,8 @@ A separate catalog of iPhone jailbreak tweaks, the referenced RUIYA video, origi
 ## ynoez iOS project
 
 The separate [ios-tweaks workspace](ios-tweaks/README.md) targets iPhone 6s Plus / iOS 15.8.8 / Dopamine Rootless. It contains the free-first tweak catalog, compatibility policy, performance/debloat plan and APT publishing automation. It is not yet a live Sileo source; no verified ynoez .deb package has been published.
+
+
+### ynoez noir — SnowBoard theme
+
+The iOS workspace includes an original 28-icon black-and-white theme for SnowBoard: [ynoez noir](ios-tweaks/packages/ynoez-noir/README.md). It is built for Dopamine Rootless; the APT package and source become installable after the GitHub Actions build and Pages publication are verified.
