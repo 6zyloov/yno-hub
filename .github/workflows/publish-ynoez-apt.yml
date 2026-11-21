@@ -25,10 +25,6 @@ jobs:
           mkdir -p build
           chmod 0755 ios-tweaks/packages/ynoez-audit/var/jb/usr/bin/ynoez-audit
           dpkg-deb --build --root-owner-group ios-tweaks/packages/ynoez-audit build/com.ynoez.audit_0.1.0_iphoneos-arm64.deb
-      - name: Build ynoez toolbox
-        run: |
-          chmod 0755 ios-tweaks/packages/ynoez-toolbox/var/jb/usr/bin/ynoez
-          dpkg-deb --build --root-owner-group ios-tweaks/packages/ynoez-toolbox build/com.ynoez.toolbox_0.1.0_iphoneos-arm64.deb
       - name: Generate ynoez noir SnowBoard icons
         run: |
           python3 ios-tweaks/packages/ynoez-noir/build_theme.py

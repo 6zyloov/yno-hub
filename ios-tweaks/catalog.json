@@ -2,7 +2,7 @@
   "name": "ynoez",
   "display_name": "yno ez",
   "version": "0.2.0",
-  "repository_type": "apt-repository-built-pages-activation-pending",
+  "repository_type": "apt-repository-published-via-jsdelivr-cdn",
   "sileo_apt_repository_live": false,
   "target": {
     "device": "iPhone 6s Plus",
@@ -309,21 +309,21 @@
       "package_id": "com.ynoez.audit",
       "name": "ynoez audit",
       "version": "0.1.0",
-      "status": "0.1.0 .deb successfully built and published to gh-pages; GitHub Pages activation and device test pending",
+      "status": "Rootless .deb built and indexed; public CDN resources verified HTTP 200; on-device installation/test pending",
       "purpose": "Read-only device, storage and package diagnostics"
     },
     {
       "package_id": "com.ynoez.toolbox",
       "name": "ynoez toolbox",
       "version": "0.1.0",
-      "status": "source added; awaiting CI build, APT publication and device test",
+      "status": "Rootless .deb built and indexed; public CDN resources verified HTTP 200; on-device installation/test pending",
       "purpose": "Read-only status, storage, installed-package and jailbreak-health reports"
     },
     {
       "package_id": "com.ynoez.noir",
       "name": "ynoez noir",
       "version": "1.0.0",
-      "status": "1.0.0 .deb successfully built and published to gh-pages; GitHub Pages activation and device test pending",
+      "status": "Rootless .deb built and indexed; public CDN resources verified HTTP 200; on-device installation/test pending",
       "purpose": "28-icon pure black and white SnowBoard theme covering Apple and popular third-party apps; requires SnowBoard"
     },
     {
@@ -357,5 +357,12 @@
     "install_without_compatibility_review": false,
     "publish_unverified_performance_claims": false,
     "default_destructive_actions": false
+  },
+  "cdn_apt_repository_url": "https://cdn.jsdelivr.net/gh/6zyloov/yno-hub@gh-pages/",
+  "cdn_http_verified": {
+    "release": 200,
+    "packages": 200,
+    "toolbox_deb": 200,
+    "note": "HTTP resources verified on 2026-11-21; Sileo import and on-device installation remain untested."
   }
 }

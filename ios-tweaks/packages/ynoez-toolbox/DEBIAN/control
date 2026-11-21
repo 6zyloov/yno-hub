@@ -1,9 +1,0 @@
-Package: com.ynoez.toolbox
-Name: ynoez toolbox
-Version: 0.1.0
-Architecture: iphoneos-arm64
-Description: Safe read-only status, storage, package and jailbreak diagnostics for ynoez.
-Maintainer: ynoez
-Author: ynoez
-Section: Utilities
-Priority: optional
