@@ -58,6 +58,37 @@ def draw_icon(kind):
         ln([(61,146),(53,158)],6); ln([(94,146),(86,158)],6); ln([(127,146),(119,158)],6)
     elif kind == "youtube":
         rect((25,48,155,132),22); d.polygon([(76,68),(76,112),(115,90)], fill=W)
+    elif kind == "whatsapp":
+        oval((34,30,146,142),9); d.arc((47,44,132,128),205,320,fill=W,width=11)
+        ln([(59,119),(48,145),(76,133)],9); ln([(68,67),(83,89),(108,105)],9)
+    elif kind == "instagram":
+        rect((34,34,146,146),25,9); oval((61,61,119,119),8); d.ellipse((119,51,132,64),fill=W)
+    elif kind == "tiktok":
+        ln([(99,39),(99,112)],12); ln([(99,43),(132,55)],10); d.ellipse((51,101,96,146),fill=W)
+    elif kind == "discord":
+        rect((31,47,149,132),24,9); arc((53,49,127,110),190,350,8)
+        d.ellipse((61,83,78,100),fill=W); d.ellipse((102,83,119,100),fill=W)
+    elif kind == "spotify":
+        oval((31,31,149,149),9)
+        arc((49,58,131,108),205,335,8); arc((54,78,126,119),205,335,7); arc((61,98,119,130),205,335,6)
+    elif kind == "telegram":
+        d.polygon([(28,84),(151,36),(127,147),(88,112),(68,132),(70,98)],outline=W,fill=None)
+        ln([(70,98),(119,62),(88,112)],7)
+    elif kind == "x":
+        ln([(48,43),(132,137)],11); ln([(132,43),(48,137)],11)
+    elif kind == "facebook":
+        d.text((53,19),"f",fill=W,stroke_width=3,stroke_fill=W)
+    elif kind == "gmail":
+        ln([(34,132),(34,54),(90,99),(146,54),(146,132)],10)
+        ln([(34,54),(90,99),(146,54)],10)
+    elif kind == "chrome":
+        oval((30,30,150,150),9); oval((66,66,114,114),8)
+        ln([(90,32),(145,61)],7); ln([(36,61),(65,113)],7)
+    elif kind == "netflix":
+        ln([(49,139),(49,41)],14); ln([(49,41),(131,139)],14); ln([(131,139),(131,41)],14)
+    elif kind == "twitch":
+        rect((34,35,146,125),8,9); d.polygon([(62,124),(62,145),(86,124)],fill=W)
+        rect((64,59,79,92),2,5); rect((101,59,116,92),2,5)
     return im
 
 icons = {
@@ -77,6 +108,18 @@ icons = {
  "com.apple.DocumentsApp":"files",
  "com.apple.weather":"weather",
  "com.google.ios.youtube":"youtube",
+ "net.whatsapp.WhatsApp":"whatsapp",
+ "com.burbn.instagram":"instagram",
+ "com.zhiliaoapp.musically":"tiktok",
+ "com.hammerandchisel.discord":"discord",
+ "com.spotify.client":"spotify",
+ "ph.telegra.Telegraph":"telegram",
+ "com.atebits.Tweetie2":"x",
+ "com.facebook.Facebook":"facebook",
+ "com.google.Gmail":"gmail",
+ "com.google.chrome.ios":"chrome",
+ "com.netflix.Netflix":"netflix",
+ "tv.twitch":"twitch",
 }
 for bundle, glyph in icons.items():
     draw_icon(glyph).save(OUT / (bundle + "-large.png"), optimize=True)
