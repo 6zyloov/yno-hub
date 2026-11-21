@@ -34,7 +34,7 @@ The first candidate list includes free/rootless projects such as Jond-ie's repos
 
 ## Original theme: ynoez noir
 
-A pure black (#000000) and white (#FFFFFF) SnowBoard theme is being built in `packages/ynoez-noir/`. It targets 16 common apps, uses 180×180 artwork for Plus-size devices, and ships as the Rootless package `com.ynoez.noir`. SnowBoard is a dependency. Its artwork is generated reproducibly during the APT build.
+A pure black (#000000) and white (#FFFFFF) SnowBoard theme is being built in `packages/ynoez-noir/`. It targets 28 common apps, uses 180×180 artwork for Plus-size devices, and ships as the Rootless package `com.ynoez.noir`. SnowBoard is a dependency. Its artwork is generated reproducibly during the APT build.
 
 ## Video catalog
 
