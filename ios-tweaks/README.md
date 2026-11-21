@@ -22,14 +22,7 @@ Dopamine's current upstream project lists arm64 support, and the device-specific
 
 ## Sileo source status
 
-**The APT repository is published and its CDN endpoints are reachable.** The `gh-pages` branch contains three Rootless packages (`com.ynoez.audit`, `com.ynoez.noir`, and `com.ynoez.toolbox`) plus `Packages`, compressed indexes and `Release`. I verified HTTP 200 for the CDN Release, Packages and toolbox .deb resources. GitHub Pages itself still returns 404, but it is not required when using this CDN source.
-
-**Sileo source (CDN):**
-```
-https://cdn.jsdelivr.net/gh/6zyloov/yno-hub@gh-pages/
-```
-
-Sileo's import and installation on the physical iPhone have not yet been tested. The CDN is a third-party cache, so new commits may take a short time to propagate.
+**The APT repository has now been built and its files pushed to the `gh-pages` branch.** It contains two real Rootless packages (`com.ynoez.audit` and `com.ynoez.noir`) plus `Packages`, compressed indexes and `Release`. The GitHub Pages site itself is not active yet (the public Pages URL currently returns 404), so the source is not ready to add in Sileo. Enable Pages in repository Settings → Pages, selecting branch `gh-pages` and folder `/(root)`, then verify the HTTPS `Release` URL before installing.
 
 ## Free tweaks and source repositories
 
@@ -52,7 +45,6 @@ The original RUIYA video is from February 2022. Its transcript includes AppData,
 ## Original packages
 
 - [ynoez audit](packages/ynoez-audit/README.md) — read-only device diagnostics.
-- [ynoez toolbox](packages/ynoez-toolbox/README.md) — status, storage, packages and jailbreak-health reports; read-only.
 
 ## Performance and debloat policy
 

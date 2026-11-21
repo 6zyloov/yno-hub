@@ -3,7 +3,7 @@
   "display_name": "yno ez",
   "version": "0.2.0",
   "repository_type": "apt-repository-published-via-jsdelivr-cdn",
-  "sileo_apt_repository_live": false,
+  "sileo_apt_repository_live": true,
   "target": {
     "device": "iPhone 6s Plus",
     "product_identifier": "iPhone8,2",
@@ -364,5 +364,7 @@
     "packages": 200,
     "toolbox_deb": 200,
     "note": "HTTP resources verified on 2026-11-21; Sileo import and on-device installation remain untested."
-  }
+  },
+  "github_pages_live": false,
+  "repository_status": "public CDN repository endpoints verified; Sileo import and device install pending"
 }

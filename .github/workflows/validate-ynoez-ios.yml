@@ -31,7 +31,9 @@ jobs:
           assert target["jailbreak_mode"] == "rootless"
           assert target["debian_architecture"] == "iphoneos-arm64"
           assert target["install_prefix"] == "/var/jb"
-          assert data["sileo_apt_repository_live"] is False
+          assert data["sileo_apt_repository_live"] is True
+          assert data["github_pages_live"] is False
+          assert data["cdn_apt_repository_url"].startswith("https://cdn.jsdelivr.net/")
           ids = [item["package_id"] for item in data["ynoez_packages"]]
           assert len(ids) == len(set(ids))
           noir = next(item for item in data["ynoez_packages"] if item["package_id"] == "com.ynoez.noir")
