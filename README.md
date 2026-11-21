@@ -74,3 +74,8 @@ The repository runs:
 ## iOS jailbreak tweaks catalog
 
 A separate catalog of iPhone jailbreak tweaks, the referenced RUIYA video, original Sileo repository links, and performance notes is available in [`ios-tweaks/`](ios-tweaks/README.md). This is a research/catalog folder, **not an installable APT/Sileo source**; third-party package binaries are not mirrored.
+
+
+## ynoez iOS project
+
+The separate [ios-tweaks workspace](ios-tweaks/README.md) targets iPhone 6s Plus / iOS 15.8.8 / Dopamine Rootless. It contains the free-first tweak catalog, compatibility policy, performance/debloat plan and APT publishing automation. It is not yet a live Sileo source; no verified ynoez .deb package has been published.
