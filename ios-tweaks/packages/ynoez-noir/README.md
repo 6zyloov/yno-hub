@@ -6,9 +6,9 @@ A minimalist high-contrast icon theme built for SnowBoard and packaged for Dopam
 
 ## Included icons
 
-Phone, Messages, Safari, Camera, Photos, Settings, Music, App Store, Mail, Calendar, Clock, Maps, Notes, Files, Weather and YouTube.
+Phone, Messages, Safari, Camera, Photos, Settings, Music, App Store, Mail, Calendar, Clock, Maps, Notes, Files, Weather, YouTube, WhatsApp, Instagram, TikTok, Discord, Spotify, Telegram, X, Facebook, Gmail, Chrome, Netflix and Twitch.
 
-Artwork is generated at 180×180 for Plus-size iPhones. App bundle identifiers can vary by installed iOS/app version; unsupported icons stay stock.
+28 monochrome app icons are generated at 180×180 for Plus-size iPhones. App bundle identifiers can vary by installed iOS/app version; unsupported icons stay stock.
 
 ## Install
 
