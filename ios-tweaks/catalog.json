@@ -294,32 +294,54 @@
       "purpose": "Switch EQE presets via Triggr; requires Triggr and EQE",
       "compatibility": "upstream range includes iOS 15; not tested on iPhone8,2 / iOS 15.8.8",
       "redistribution": "not mirrored"
+    },
+    {
+      "name": "ynoez noir",
+      "category": "theme",
+      "availability": "original ynoez package",
+      "source": "ios-tweaks/packages/ynoez-noir",
+      "purpose": "16-icon pure black and white SnowBoard theme; black background with white glyphs",
+      "compatibility": "Rootless package source prepared for Dopamine; installable .deb awaits successful CI build and Sileo publication"
     }
   ],
   "ynoez_packages": [
     {
+      "package_id": "com.ynoez.audit",
+      "name": "ynoez audit",
+      "version": "0.1.0",
+      "status": "source committed; package build pending",
+      "purpose": "Read-only device, storage and package diagnostics"
+    },
+    {
+      "package_id": "com.ynoez.noir",
+      "name": "ynoez noir",
+      "version": "1.0.0",
+      "status": "theme source committed; package build pending",
+      "purpose": "16-icon pure black and white SnowBoard theme; requires SnowBoard"
+    },
+    {
       "package_id": "com.ynoez.core",
       "name": "ynoez core",
       "status": "planned",
-      "purpose": "Shared safe preference and diagnostics foundation; no package binary published"
+      "purpose": "Shared safe preference and diagnostics foundation"
     },
     {
       "package_id": "com.ynoez.performance",
       "name": "ynoez performance",
       "status": "planned",
-      "purpose": "Reversible, measured responsiveness controls; no package binary published"
+      "purpose": "Reversible, measured responsiveness controls"
     },
     {
       "package_id": "com.ynoez.debloat",
       "name": "ynoez debloat",
       "status": "planned",
-      "purpose": "Opt-in cache and component cleanup with backup/restore; no package binary published"
+      "purpose": "Opt-in cache and component cleanup with backup/restore"
     },
     {
       "package_id": "com.ynoez.customize",
       "name": "ynoez customize",
       "status": "planned",
-      "purpose": "Lightweight SpringBoard customization controls; no package binary published"
+      "purpose": "Lightweight SpringBoard customization controls"
     }
   ],
   "policy": {
