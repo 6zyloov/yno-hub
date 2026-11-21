@@ -16,8 +16,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install theme asset builder
-        run: python3 -m pip install --user pillow
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-pil dpkg-dev apt-utils
       - name: Build ynoez audit
         run: |
           mkdir -p build
@@ -39,8 +41,6 @@ jobs:
           fi
       - name: Generate APT metadata
         run: |
-          sudo apt-get update
-          sudo apt-get install -y dpkg-dev apt-utils
           cd public
           dpkg-scanpackages --multiversion --arch iphoneos-arm64 pool /dev/null > Packages
           test -s Packages
