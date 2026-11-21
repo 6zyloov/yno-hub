@@ -2,7 +2,7 @@
   "name": "ynoez",
   "display_name": "yno ez",
   "version": "0.2.0",
-  "repository_type": "catalog-and-build-workspace",
+  "repository_type": "apt-repository-built-pages-activation-pending",
   "sileo_apt_repository_live": false,
   "target": {
     "device": "iPhone 6s Plus",
@@ -301,7 +301,7 @@
       "availability": "original ynoez package",
       "source": "ios-tweaks/packages/ynoez-noir",
       "purpose": "28-icon pure black and white SnowBoard theme covering Apple and popular third-party apps",
-      "compatibility": "Rootless package source prepared for Dopamine; installable .deb awaits successful CI build and Sileo publication"
+      "compatibility": "Rootless .deb successfully built and published to gh-pages; GitHub Pages activation and on-device testing still pending"
     }
   ],
   "ynoez_packages": [
@@ -309,14 +309,14 @@
       "package_id": "com.ynoez.audit",
       "name": "ynoez audit",
       "version": "0.1.0",
-      "status": "source committed; package build pending",
+      "status": "0.1.0 .deb successfully built and published to gh-pages; GitHub Pages activation and device test pending",
       "purpose": "Read-only device, storage and package diagnostics"
     },
     {
       "package_id": "com.ynoez.noir",
       "name": "ynoez noir",
       "version": "1.0.0",
-      "status": "theme source committed; package build pending",
+      "status": "1.0.0 .deb successfully built and published to gh-pages; GitHub Pages activation and device test pending",
       "purpose": "28-icon pure black and white SnowBoard theme covering Apple and popular third-party apps; requires SnowBoard"
     },
     {
