@@ -26,7 +26,7 @@ jobs:
       - name: Generate ynoez noir SnowBoard icons
         run: |
           python3 ios-tweaks/packages/ynoez-noir/build_theme.py
-          test "$(find 'build/ynoez-noir/var/jb/Library/Themes/ynoez noir.theme/IconBundles' -name '*-large.png' | wc -l)" -eq 16
+          test "$(find 'ios-tweaks/packages/ynoez-noir/var/jb/Library/Themes/ynoez noir.theme/IconBundles' -name '*-large.png' | wc -l)" -eq 16
       - name: Build ynoez noir theme package
         run: |
           dpkg-deb --build --root-owner-group ios-tweaks/packages/ynoez-noir build/com.ynoez.noir_1.0.0_iphoneos-arm64.deb
