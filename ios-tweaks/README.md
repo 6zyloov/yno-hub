@@ -40,6 +40,14 @@ A pure black (#000000) and white (#FFFFFF) SnowBoard theme is being built in `pa
 
 The original RUIYA video is from February 2022. Its transcript includes AppData, App Store++, SnowBoard, Springtomize 5, Shadow and other names, but some names are unclear and the video is not evidence of current compatibility. See catalog.json. Unidentified names remain unidentified rather than guessed.
 
+## Original SnowBoard theme
+
+- [ynoez noir](packages/ynoez-noir/README.md) — 28 monochrome icons, absolute black background and white glyphs.
+
+## Original packages
+
+- [ynoez audit](packages/ynoez-audit/README.md) — read-only device diagnostics.
+
 ## Performance and debloat policy
 
 A tweak that only shortens an animation is not automatically a faster phone. We will not claim extra FPS, RAM, battery life or charging speed without repeatable measurements on the target device.
