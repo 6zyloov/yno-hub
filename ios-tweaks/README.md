@@ -1,65 +1,61 @@
-# YNOEZ — iOS Tweaks Catalog
+# ynoez — iOS tweaks for Dopamine
 
-Curated index of jailbreak tweaks, themes and utilities. This directory is intentionally separate from the existing Roblox hub at the repository root.
+Curated, free-first tweak catalog and development workspace for **iPhone 6s Plus (iPhone8,2), iOS 15.8.8, Dopamine Rootless, A9 / arm64**.
 
-## Important: catalog vs. installable Sileo source
+The goal is one trustworthy Sileo source named **yno ez** (ynoez), with performance and battery-conscious settings, reversible selective debloat, SpringBoard/Lock Screen/Control Center/icon/status-bar/keyboard customization, practical utilities, and original open-source ynoez packages where a safe feature is missing.
 
-This folder is a **catalog**, not yet a hosted APT/Sileo package repository. It does not pretend that third-party tweaks are installable from this GitHub URL. A real Sileo source needs valid Debian package metadata and authorized package files (or a properly maintained mirror). This project links to original developer repositories instead of copying paid/proprietary `.deb` files or redistributing packages without permission.
+## Target profile
 
-For now, add the original repository URLs listed in [Sileo sources](SILEO-SOURCES.md) to Sileo. This avoids broken packages and preserves developer updates.
+| Field | Target |
+|---|---|
+| Device | iPhone 6s Plus |
+| Product identifier | iPhone8,2 |
+| iOS | 15.8.8 |
+| SoC | Apple A9 |
+| CPU / Debian package architecture | arm64 / iphoneos-arm64 |
+| Jailbreak | Dopamine |
+| Package scheme | Rootless |
+| Install prefix | /var/jb |
+| Minimum deployment target for our builds | iOS 15.0 |
 
-## The video you sent
+Dopamine's current upstream project lists arm64 support, and the device-specific compatibility dataset lists iPhone8,2 through iOS 15.8.8. This is jailbreak support, not proof that every tweak supports this exact device. Every package still needs its own compatibility review and device testing.
 
-[❄️ MOSTRANDO MEUS TWEAKS ATUALIZADOS E FUNCIONANDO 100% PARA IPHONE (COM JAILBREAK) — RUIYA](https://www.youtube.com/watch?v=_mUys4RsW8g)  
-Published: 13 February 2022 · Length: 12:15
+## Sileo source status
 
-The spoken Portuguese captions were machine-generated. Some tweak names are distorted by automatic transcription, so the catalog marks uncertain identifications instead of inventing exact package names.
+**This folder is currently the source catalog and build workspace, not yet a live APT endpoint.** A working Sileo source needs generated Debian indexes (Packages, compressed indexes and Release) plus actual authorized .deb packages. We will not publish an empty source and pretend it installs tweaks.
 
-### Identified from the video (transcript-based)
+The repository contains the catalog, compatibility rules and build/publishing workflow. The Sileo URL will only be announced after at least one real ynoez package has been built, its metadata generated and the endpoint verified.
 
-| Name heard / likely identification | What the video says it does | Confidence |
-|---|---|---|
-| AppData | WhatsApp storage/cache management; clear accumulated cache/data | Medium |
-| App Store++ | Downgrade App Store apps to older versions | High |
-| Battery/charging tweak (name unclear) | Claimed faster charging | Low — not identified |
-| Dark Void X | Theme | Medium |
-| Frame | Theme / visual customization | High |
-| MyWall | WhatsApp background/wallpaper customization | High |
-| Resolution / DPI tweak (name unclear) | Changes display scaling/resolution; video mentions 1792×828 and 2150×994 | Low — not identified |
-| Floating app shortcut (name unclear) | Floating square shortcut to open another app | Low — not identified |
-| RGB keyboard tweak (name unclear; heard as “RG Board”) | Keyboard colors/effects | Low — not identified |
-| Shadow | Per-app jailbreak-detection compatibility/bypass | High |
-| SnowBoard | Theme engine for icons and system appearance | High |
-| Opus theme | Theme | High |
-| Springtomize 5 | Broad SpringBoard customization | High |
-| Substitute | Tweak injection / substrate compatibility layer, not a cosmetic tweak | High |
-| TapticFlow (transcript spelling) | On-screen floating control / recording aid; exact package identity unverified | Low |
-| Status-bar customization (name unclear) | Changes status-bar icons/colors | Low — not identified |
+## Free tweaks and source repositories
 
-**Do not install the low-confidence entries by name alone.** Their spoken captions are too distorted to identify a trustworthy package. The video is from 2022; its claim that tweaks worked at the time is not evidence of compatibility with current iOS.
+Use SILEO-SOURCES.md for upstream repositories. Packages remain hosted by their original developers unless their licenses explicitly allow redistribution and the package has been checked. Free does not automatically mean safe, maintained or compatible.
 
-## Recommended original sources
+The first candidate list includes free/rootless projects such as Jond-ie's repository. Items are marked as candidates until their current package metadata and iOS 15.8.8 behavior are checked. Do not install every tweak at once.
 
-See [SILEO-SOURCES.md](SILEO-SOURCES.md) for repository URLs and what each source is used for.
+## Video catalog
 
-## Performance policy
+The original RUIYA video is from February 2022. Its transcript includes AppData, App Store++, SnowBoard, Springtomize 5, Shadow and other names, but some names are unclear and the video is not evidence of current compatibility. See catalog.json. Unidentified names remain unidentified rather than guessed.
 
-Most tweaks shown in the video are customization, theming, app compatibility or convenience tools — **not performance optimizers**. Themes, animation-heavy effects, injected tweaks and status-bar modifications can increase memory use, battery drain or SpringBoard instability. This catalog keeps performance claims separate from appearance features.
+## Performance and debloat policy
 
-Start with no more than one system-level tweak at a time. Keep a known-good jailbreak recovery path and disable/remove a tweak if SpringBoard enters Safe Mode, battery drain rises, or apps crash.
+A tweak that only shortens an animation is not automatically a faster phone. We will not claim extra FPS, RAM, battery life or charging speed without repeatable measurements on the target device.
 
-## Compatibility
+- Prefer reversible settings and per-feature toggles.
+- Never disable thermal protections, update services, security checks, cellular/Wi-Fi daemons or system processes blindly.
+- Avoid RAM cleaners that constantly kill background processes.
+- Avoid stacking multiple SpringBoard hooks, themes or jailbreak-detection bypasses.
+- Keep an uninstall/recovery path and change one thing at a time.
 
-There is no universal compatibility promise. Compatibility depends on:
-- exact iPhone model and iOS build;
-- jailbreak and bootstrap (Dopamine, palera1n, RootHide, etc.);
-- package architecture (rootless, RootHide, or rootful);
-- injection environment and dependencies.
+See PERFORMANCE.md and DEVELOPMENT.md.
 
-Before any installation, verify the package's current developer README and package metadata. Rootless, RootHide and rootful packages are not interchangeable.
+## Repository structure
 
-## Next work
+- catalog.json — machine-readable package and compatibility catalog.
+- SILEO-SOURCES.md — upstream free/community sources.
+- PERFORMANCE.md — safe optimization/debloat policy and test method.
+- DEVELOPMENT.md — how original ynoez packages are built and published.
+- .github/workflows/ — catalog validation and APT publishing automation.
 
-- Resolve the low-confidence video names from the actual on-screen package manager frames.
-- Add a verified compatibility matrix once the target iPhone/iOS/jailbreak is known.
-- Only publish a Sileo/APT endpoint after authorized package hosting, metadata, checksums and installation tests exist.
+## License and redistribution
+
+Original ynoez code will be open source. Third-party packages will not be mirrored unless the upstream license and author permit redistribution. Paid packages, cracked packages and binaries of unclear origin are excluded.
