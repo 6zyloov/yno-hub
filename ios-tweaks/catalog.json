@@ -156,8 +156,8 @@
       "availability": "free upstream",
       "source": "https://jond-ie.github.io/repo/",
       "purpose": "Control Center toggle for camera, microphone and location blocking",
-      "ios_claim": "community report iOS 15-16; tested on adjacent A10/A11 devices",
-      "compatibility": "candidate; not tested on iPhone8,2"
+      "ios_claim": "iOS 15–27 (upstream listing)",
+      "compatibility": "upstream range includes iOS 15; not tested on iPhone8,2 / iOS 15.8.8"
     },
     {
       "name": "Scrub",
@@ -174,6 +174,126 @@
       "source": "https://jond-ie.github.io/repo/",
       "purpose": "Crossfade local Music library tracks",
       "compatibility": "candidate; not a performance optimizer"
+    },
+    {
+      "name": "Crest",
+      "category": "music",
+      "availability": "free upstream listing",
+      "source": "https://jond-ie.github.io/repo/",
+      "ios_claim": "iOS 15–27",
+      "purpose": "Player for local music files, including FLAC/DSD/Opus",
+      "compatibility": "upstream range includes iOS 15; not tested on iPhone8,2 / iOS 15.8.8",
+      "redistribution": "not mirrored"
+    },
+    {
+      "name": "Catapult",
+      "category": "home-screen",
+      "availability": "free upstream listing",
+      "source": "https://jond-ie.github.io/repo/",
+      "ios_claim": "iOS 14–18 Rootful",
+      "purpose": "LineageOS-style home screen; Rootful listing only, excluded from this Dopamine Rootless target",
+      "compatibility": "upstream range includes iOS 15; not tested on iPhone8,2 / iOS 15.8.8",
+      "redistribution": "not mirrored"
+    },
+    {
+      "name": "Pinstant",
+      "category": "lock-screen",
+      "availability": "free upstream listing",
+      "source": "https://jond-ie.github.io/repo/",
+      "ios_claim": "iOS 15–18",
+      "purpose": "Wake directly to passcode screen",
+      "compatibility": "upstream range includes iOS 15; not tested on iPhone8,2 / iOS 15.8.8",
+      "redistribution": "not mirrored"
+    },
+    {
+      "name": "BlankPass",
+      "category": "lock-screen",
+      "availability": "free upstream listing",
+      "source": "https://jond-ie.github.io/repo/",
+      "ios_claim": "iOS 15–18",
+      "purpose": "Hide passcode keypad numbers",
+      "compatibility": "upstream range includes iOS 15; not tested on iPhone8,2 / iOS 15.8.8",
+      "redistribution": "not mirrored"
+    },
+    {
+      "name": "Anywhere",
+      "category": "home-screen",
+      "availability": "free upstream listing",
+      "source": "https://jond-ie.github.io/repo/",
+      "ios_claim": "iOS 15–17",
+      "purpose": "Place apps and widgets anywhere on the Home Screen",
+      "compatibility": "upstream range includes iOS 15; not tested on iPhone8,2 / iOS 15.8.8",
+      "redistribution": "not mirrored"
+    },
+    {
+      "name": "Bounce It! port",
+      "category": "animation",
+      "availability": "free upstream listing",
+      "source": "https://jond-ie.github.io/repo/",
+      "ios_claim": "iOS 15–27",
+      "purpose": "Springy Home Screen animations; optional visual effect, not a speed tweak",
+      "compatibility": "upstream range includes iOS 15; not tested on iPhone8,2 / iOS 15.8.8",
+      "redistribution": "not mirrored"
+    },
+    {
+      "name": "XEdgeProtect port",
+      "category": "gesture",
+      "availability": "free upstream listing",
+      "source": "https://jond-ie.github.io/repo/",
+      "ios_claim": "iOS 15–27",
+      "purpose": "Two-step swipe-up behavior for Home Bar",
+      "compatibility": "upstream range includes iOS 15; not tested on iPhone8,2 / iOS 15.8.8",
+      "redistribution": "not mirrored"
+    },
+    {
+      "name": "PullOver Pro port",
+      "category": "multitasking",
+      "availability": "free upstream listing",
+      "source": "https://jond-ie.github.io/repo/",
+      "ios_claim": "iOS 15–27",
+      "purpose": "Open an app in an edge pull-over panel",
+      "compatibility": "upstream range includes iOS 15; not tested on iPhone8,2 / iOS 15.8.8",
+      "redistribution": "not mirrored"
+    },
+    {
+      "name": "Density",
+      "category": "display",
+      "availability": "free upstream listing",
+      "source": "https://jond-ie.github.io/repo/",
+      "ios_claim": "iOS 15–18",
+      "purpose": "Per-app display density / fit more content",
+      "compatibility": "upstream range includes iOS 15; not tested on iPhone8,2 / iOS 15.8.8",
+      "redistribution": "not mirrored"
+    },
+    {
+      "name": "Podified",
+      "category": "system-ui",
+      "availability": "free upstream listing",
+      "source": "https://jond-ie.github.io/repo/",
+      "ios_claim": "iOS 15–18",
+      "purpose": "Remove cellular settings clutter on devices without SIM; niche use",
+      "compatibility": "upstream range includes iOS 15; not tested on iPhone8,2 / iOS 15.8.8",
+      "redistribution": "not mirrored"
+    },
+    {
+      "name": "Slaplock beta",
+      "category": "security",
+      "availability": "free upstream listing",
+      "source": "https://jond-ie.github.io/repo/",
+      "ios_claim": "iOS 15–17",
+      "purpose": "Lock selected apps behind biometric authentication; beta",
+      "compatibility": "upstream range includes iOS 15; not tested on iPhone8,2 / iOS 15.8.8",
+      "redistribution": "not mirrored"
+    },
+    {
+      "name": "EQELinker",
+      "category": "audio",
+      "availability": "free upstream listing",
+      "source": "https://jond-ie.github.io/repo/",
+      "ios_claim": "iOS 15–27",
+      "purpose": "Switch EQE presets via Triggr; requires Triggr and EQE",
+      "compatibility": "upstream range includes iOS 15; not tested on iPhone8,2 / iOS 15.8.8",
+      "redistribution": "not mirrored"
     }
   ],
   "ynoez_packages": [
