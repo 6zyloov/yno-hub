@@ -300,7 +300,7 @@
       "category": "theme",
       "availability": "original ynoez package",
       "source": "ios-tweaks/packages/ynoez-noir",
-      "purpose": "16-icon pure black and white SnowBoard theme; black background with white glyphs",
+      "purpose": "28-icon pure black and white SnowBoard theme covering Apple and popular third-party apps",
       "compatibility": "Rootless package source prepared for Dopamine; installable .deb awaits successful CI build and Sileo publication"
     }
   ],
@@ -317,7 +317,7 @@
       "name": "ynoez noir",
       "version": "1.0.0",
       "status": "theme source committed; package build pending",
-      "purpose": "16-icon pure black and white SnowBoard theme; requires SnowBoard"
+      "purpose": "28-icon pure black and white SnowBoard theme covering Apple and popular third-party apps; requires SnowBoard"
     },
     {
       "package_id": "com.ynoez.core",
