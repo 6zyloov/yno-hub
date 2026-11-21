@@ -1,28 +1,49 @@
-# iPhone performance & battery — YNOEZ
+# ynoez — performance, battery and debloat
 
-## What counts as a real optimization
+Target: iPhone 6s Plus · iOS 15.8.8 · Dopamine Rootless · A9.
 
-A tweak is not a performance optimizer just because it makes animations look faster. We will only label a package “performance” when its behavior and impact are documented and can be measured on the target iOS/jailbreak combination.
+## What we will optimize
 
-### Conservative baseline
+1. **Responsiveness:** reduce unnecessary visual effects only where the change is reversible and measurable.
+2. **Battery:** identify actual background drain; avoid always-on hooks and polling daemons.
+3. **Storage:** remove user-selected caches and leftovers only when the owner can see what will be deleted.
+4. **SpringBoard stability:** avoid duplicate hooks, overlapping control-center replacements and excessive themes.
+5. **App behavior:** optional per-app controls instead of system-wide changes wherever possible.
 
-1. Remove unused tweaks and duplicate injection/bypass tools.
-2. Avoid stacking multiple theming engines, animation effects or control-center replacements.
-3. Keep free storage available; large storage pressure can cause slowdowns.
-4. Check Settings → Battery for apps with abnormal background activity.
-5. Compare battery, idle memory and respring/crash frequency before and after each change.
-6. Change one item at a time and keep a recovery method.
+## Safe baseline before tweaks
 
-### Avoid
+- Record battery usage in Settings → Battery over a representative day.
+- Keep adequate free storage.
+- Check Battery Health and peak-performance status; software tweaks cannot repair a worn battery.
+- Remove unused tweaks and duplicate injection/bypass packages.
+- Use Settings → Accessibility → Motion → Reduce Motion if preferred.
+- Use Settings → Accessibility → Display & Text Size → Reduce Transparency if preferred.
+- Change one tweak at a time; test respring, reboot/re-jailbreak, calls, camera, Wi-Fi, cellular, notifications and standby drain.
 
-- “RAM cleaner” tweaks that constantly kill processes; iOS will relaunch needed apps and this can worsen battery/performance.
-- Aggressive CPU/GPU/thermal limit overrides. Disabling thermal protection risks overheating and damage.
-- Random daemons/services debloat without knowing their role.
-- Installing multiple jailbreak-detection bypasses at once.
-- Resolution/DPI changes copied from another iPhone model; incorrect values can break UI layout or make the device unstable.
+## Debloat: allowed vs. forbidden
 
-## Video items vs. performance
+**Potentially acceptable:** user-visible removal of unused app caches, optional visual effects, unused tweak add-ons and explicitly selected launch agents whose purpose and dependencies are known.
 
-App Store++, SnowBoard, themes, Springtomize and MyWall are not proven performance optimizers. Shadow is an app-compatibility tool. Substitute is part of the injection stack. The video contains a claim about faster charging, but the tweak name is not intelligible in the auto-generated transcript and the claim is not verified.
+**Not acceptable as an automatic preset:** deleting Apple system apps, disabling unknown launch daemons, modifying thermal limits, killing security/update/network services, deleting language/system frameworks, or removing packages required by Dopamine/ElleKit/Sileo.
 
-No performance tweak is recommended as a default until the iPhone model, exact iOS version and jailbreak/bootstrap are known.
+Every ynoez debloat action must show the exact target, explain the consequence, provide a backup/restore route and default to no destructive action.
+
+## Avoid fake optimizers
+
+- RAM cleaners and constant process killers can make iOS relaunch apps more often.
+- CPU/GPU overclocking or thermal-protection bypasses risk instability and hardware damage.
+- Faster animation settings change perceived speed, not processor performance.
+- Charging tweaks cannot safely force unsupported charging power.
+- Resolution/DPI values copied from another model can break the interface.
+
+## Measurement protocol for original ynoez packages
+
+Before/after on the same device and conditions:
+- idle battery drop over a fixed interval;
+- battery usage by app over a comparable period;
+- SpringBoard crash/Safe Mode count;
+- respring and cold-launch time;
+- free storage before/after;
+- reproducibility across at least three runs.
+
+No performance claim is published without a recorded test method and result. A package that has not been tested on iPhone8,2 / iOS 15.8.8 is labelled **not device-tested**.
