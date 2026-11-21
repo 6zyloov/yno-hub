@@ -29,14 +29,14 @@ No package may disable thermal safeguards, remove unknown launch daemons, alter 
 
 | Package ID | Name | Purpose | Status |
 |---|---|---|---|
-| com.ynoez.audit | ynoez audit | Read-only device/storage/package report | Source committed; CI build pending |
-| com.ynoez.noir | ynoez noir | Pure black/white 28-icon SnowBoard theme | Source committed; CI build pending |
+| com.ynoez.audit | ynoez audit | Read-only device/storage/package report | .deb built and published to gh-pages; Pages activation/device test pending |
+| com.ynoez.noir | ynoez noir | Pure black/white 28-icon SnowBoard theme | .deb built and published to gh-pages; Pages activation/device test pending |
 | com.ynoez.core | ynoez core | Shared preferences and diagnostics | Planned |
 | com.ynoez.performance | ynoez performance | Reversible responsiveness controls | Planned |
 | com.ynoez.debloat | ynoez debloat | Opt-in cleanup with backup/restore | Planned |
 | com.ynoez.customize | ynoez customize | Lightweight SpringBoard options | Planned |
 
-These are project plans, not existing installable packages. No .deb is published yet.
+Only `ynoez audit` and `ynoez noir` have built .deb packages at this stage. Their APT index and binaries are published on the `gh-pages` branch. GitHub Pages activation and testing on the physical iPhone are still pending. The other listed packages remain plans, not installable packages.
 
 ## ynoez noir theme
 
@@ -50,7 +50,7 @@ The theme is appearance-only. It does not claim performance or battery gains. Ap
 2. Put the authorized .deb under ios-tweaks/pool/.
 3. Run the GitHub Actions workflow "Publish ynoez APT repository".
 4. The workflow generates Packages, Packages.gz and Release and publishes the repository files to the gh-pages branch.
-5. In GitHub repository Settings → Pages, select "Deploy from a branch", branch gh-pages, folder /(root).
-6. Verify the Release and Packages URLs load over HTTPS before adding the source in Sileo.
+5. In GitHub repository Settings → Pages, select "Deploy from a branch", branch gh-pages, folder /(root), then Save. This account setting must be enabled by a repository owner; the current connected GitHub actions cannot change it.
+6. Verify `https://6zyloov.github.io/yno-hub/Release` and `Packages` load over HTTPS before adding the source in Sileo.
 
 The workflow intentionally fails when no .deb exists. This prevents publishing a fake/empty repository. It does not build third-party packages or mirror third-party repositories.
