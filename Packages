@@ -4,9 +4,9 @@ Architecture: iphoneos-arm64
 Maintainer: ynoez
 Filename: pool/com.ynoez.audit_0.1.0_iphoneos-arm64.deb
 Size: 1484
-MD5sum: 2ee778c321d11015bdb4c5f28ee2315a
-SHA1: 53f211f2167e07aa5ad764ef27acb43bc90d81bb
-SHA256: 91d211a2052431160805505e9b44f9d5f8f89ebc4008cd119c760d066364dc00
+MD5sum: 725897559e9436095b3451df9066e49d
+SHA1: 071fe71912a4f562ae4e2f9d5f5e68fb3c576363
+SHA256: 0f65834257d162162bd45ca5bc7d896c9069c70d22f6869474e8f686bbbe9ca6
 Section: Utilities
 Priority: optional
 Description: Read-only device and jailbreak diagnostics for ynoez.
@@ -19,28 +19,13 @@ Architecture: iphoneos-arm64
 Maintainer: ynoez
 Depends: com.spark.snowboard
 Filename: pool/com.ynoez.noir_1.0.0_iphoneos-arm64.deb
-Size: 22810
-MD5sum: 873f9d35c1f2dee46b863a85c70b23c1
-SHA1: 4883d760e946923faf42104ebf1ed219230b034a
-SHA256: 6b4231fc853b390f98594eda0f2708a20f3aaae992851ad5eaaae3081bd6b0ee
+Size: 22814
+MD5sum: cf0c2a3f806c4f022d5319e709a03178
+SHA1: adf0e0f614e11fc79fc00fc76fd22524bddf0eb8
+SHA256: 83b5c9b37af0b776caf85f1cdb221e81c6a3b224470aba9ee09765c4c5cac55c
 Section: Themes
 Priority: optional
 Description: Pure black and white SnowBoard icon theme by ynoez.
 Author: ynoez
 Name: ynoez noir
-
-Package: com.ynoez.toolbox
-Version: 0.1.0
-Architecture: iphoneos-arm64
-Maintainer: ynoez
-Filename: pool/com.ynoez.toolbox_0.1.0_iphoneos-arm64.deb
-Size: 2140
-MD5sum: 01a22c7e0eee9f46616acea2f206326c
-SHA1: 13fcba815412728f8ca2a74469a96cd3d044a97a
-SHA256: df544b06aad21a83f7365db1dcad8cfbc32cd181ddb1d972e104e6322a2c775d
-Section: Utilities
-Priority: optional
-Description: Safe read-only status, storage, package and jailbreak diagnostics for ynoez.
-Author: ynoez
-Name: ynoez toolbox
 
