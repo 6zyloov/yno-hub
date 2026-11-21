@@ -22,9 +22,7 @@ Dopamine's current upstream project lists arm64 support, and the device-specific
 
 ## Sileo source status
 
-**This folder is currently the source catalog and build workspace, not yet a live APT endpoint.** A working Sileo source needs generated Debian indexes (Packages, compressed indexes and Release) plus actual authorized .deb packages. We will not publish an empty source and pretend it installs tweaks.
-
-The repository contains the catalog, compatibility rules and build/publishing workflow. The Sileo URL will only be announced after at least one real ynoez package has been built, its metadata generated and the endpoint verified.
+**The APT repository has now been built and its files pushed to the `gh-pages` branch.** It contains two real Rootless packages (`com.ynoez.audit` and `com.ynoez.noir`) plus `Packages`, compressed indexes and `Release`. The GitHub Pages site itself is not active yet (the public Pages URL currently returns 404), so the source is not ready to add in Sileo. Enable Pages in repository Settings → Pages, selecting branch `gh-pages` and folder `/(root)`, then verify the HTTPS `Release` URL before installing.
 
 ## Free tweaks and source repositories
 
