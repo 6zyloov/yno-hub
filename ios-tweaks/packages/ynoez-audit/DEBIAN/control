@@ -1,0 +1,9 @@
+Package: com.ynoez.audit
+Name: ynoez audit
+Version: 0.1.0
+Architecture: iphoneos-arm64
+Description: Read-only device and jailbreak diagnostics for ynoez.
+Maintainer: ynoez
+Author: ynoez
+Section: Utilities
+Priority: optional
